@@ -41,52 +41,28 @@ echo Solo necesitas hacer esto UNA VEZ.
 echo.
 echo ========================================
 echo.
-echo Instalando dependencias base...
+echo Actualizando pip...
 python -m pip install --upgrade pip
 
 echo.
-echo Instalando openpyxl...
-python -m pip install openpyxl
+echo Instalando dependencias desde requirements.txt...
+python -m pip install -r requirements.txt
 if %errorlevel% neq 0 (
     echo.
-    echo ERROR al instalar openpyxl
+    echo ERROR: No se pudieron instalar las dependencias.
+    echo Asegurate de tener conexion a internet.
     echo.
     pause
     exit /b 1
 )
-
-echo.
-echo Instalando Pillow...
-python -m pip install pillow
-if %errorlevel% neq 0 (
-    echo.
-    echo ERROR al instalar Pillow
-    echo.
-    pause
-    exit /b 1
-)
-
-echo.
-echo Instalando customtkinter (para la interfaz moderna)...
-python -m pip install customtkinter
-if %errorlevel% neq 0 (
-    echo.
-    echo ERROR al instalar customtkinter
-    echo.
-    pause
-    exit /b 1
-)
-
 
 echo.
 echo ========================================
 echo      Instalacion completada!
 echo ========================================
 echo.
-echo Dependencias instaladas correctamente:
-echo  - openpyxl (para leer archivos Excel)
-echo  - Pillow (para mostrar imagenes)
-echo  - customtkinter (para interfaz moderna)
+echo Todas las dependencias de requirements.txt
+echo han sido instaladas correctamente.
 echo.
 echo Ya puedes usar Hermes.
 echo.

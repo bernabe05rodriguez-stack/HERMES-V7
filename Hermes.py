@@ -69,26 +69,11 @@ KEYCODE_MAP = {
 NEEDS_SHIFT = "!@#$%^&*()_+?:\"" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 # --- FIN: Mapeo ---
 
-# Verificar dependencias
-try:
-    import openpyxl
-    from openpyxl import load_workbook
-except ImportError:
-    print("\n"+"="*50+"\nERROR: Falta 'openpyxl'. Ejecuta INSTALAR.bat.\n"+"="*50)
-    input("\nEnter para salir...")
-    sys.exit(1)
-try:
-    from PIL import Image, ImageTk
-except ImportError:
-    print("\n"+"="*50+"\nERROR: Falta 'Pillow'. Ejecuta INSTALAR.bat.\n"+"="*50)
-    input("\nEnter para salir...")
-    sys.exit(1)
-try:
-    import customtkinter
-except ImportError:
-    print("\n"+"="*50+"\nERROR: Falta 'customtkinter'. Ejecuta INSTALAR.bat.\n"+"="*50)
-    input("\nEnter para salir...")
-    sys.exit(1)
+# Importar dependencias
+import openpyxl
+from openpyxl import load_workbook
+from PIL import Image, ImageTk
+import customtkinter
 
 # --- Funciones de color ---
 def _clamp(value):
