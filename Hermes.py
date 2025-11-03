@@ -2357,101 +2357,104 @@ class Hermes:
             self.root.after(0, self.update_stats)
 
     def _run_ambos_mode(self):
-        """Modo Ambos: 2 URLs por teléfono (Business + Normal)."""
-        self.log("Ejecutando Modo Ambos...", 'info')
-        idx = 0
-        task_counter = 0
+        """Modo Ambos: Rota entre Business y Normal para cada link, un solo envío por link."""
+        self.log("Ejecutando Modo Ambos (Rotativo)...", 'info')
+        device_idx = 0
         
+        accounts = [
+            ("Business", "com.whatsapp.w4b"),
+            ("Normal", "com.whatsapp")
+        ]
+        num_accounts = len(accounts)
+
         for i, link in enumerate(self.links):
             if self.should_stop:
                 self.log("Cancelado en bucle", 'warning')
                 break
             
-            self.last_task_time = time.time() # Registrar tiempo de inicio
-            device = self.devices[idx]
-            idx = (idx + 1) % len(self.devices)
-            
-            # Envío 1: Business (predeterminado)
-            task_counter += 1
-            self.log(f"[{device}] Envío 1/2 con Business", 'info')
-            success1 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp.w4b")
-            
-            if self.should_stop: break
-            
-            # Envío 2: Normal
-            task_counter += 1
-            self.log(f"[{device}] Envío 2/2 con Normal", 'info')
-            success2 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
+            self.last_task_time = time.time()
 
-            # Actualizar contadores y tiempo
+            # Rotar dispositivo
+            device = self.devices[device_idx]
+            device_idx = (device_idx + 1) % len(self.devices)
+
+            # Rotar cuenta de WhatsApp
+            account_idx = i % num_accounts
+            wa_name, wa_package = accounts[account_idx]
+            
+            self.log(f"[{device}] Enviando con {wa_name}", 'info')
+            success = self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package)
+            
             if self.last_task_time:
                 task_duration = time.time() - self.last_task_time
                 self.task_times.append(task_duration)
 
-            if success1 or success2:
+            if success:
                 self.sent_count += 1
             else:
                 self.failed_count += 1
             self.root.after(0, self.update_stats)
-            
-            if self.should_stop: break
-    
+
     def _run_todos_mode(self):
-        """Modo TODOS: 3 URLs por teléfono (Business + Normal Cuenta1 + Normal Cuenta2)."""
-        self.log("Ejecutando Modo TODOS...", 'info')
-        idx = 0
-        task_counter = 0
-        
+        """Modo TODOS: Rota entre Business, Normal 1 y Normal 2 para cada link."""
+        self.log("Ejecutando Modo TODOS (Rotativo)...", 'info')
+        device_idx = 0
+        # Rastrea el estado de la cuenta Normal para cada dispositivo
+        is_normal_account_2 = {dev_id: False for dev_id in self.devices}
+
+        accounts = [
+            ("Business", "com.whatsapp.w4b"),
+            ("Normal (Cuenta 1)", "com.whatsapp"),
+            ("Normal (Cuenta 2)", "com.whatsapp")
+        ]
+        num_accounts = len(accounts)
+
         for i, link in enumerate(self.links):
             if self.should_stop:
                 self.log("Cancelado en bucle", 'warning')
                 break
-            
-            self.last_task_time = time.time() # Registrar tiempo de inicio
-            device = self.devices[idx]
-            idx = (idx + 1) % len(self.devices)
-            
-            # Envío 1: Business
-            task_counter += 1
-            self.log(f"[{device}] Envío 1/3 con Business", 'info')
-            success1 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp.w4b")
-            
-            if self.should_stop: break
-            
-            # Envío 2: Normal Cuenta 1
-            task_counter += 1
-            self.log(f"[{device}] Envío 2/3 con Normal (Cuenta 1)", 'info')
-            success2 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
-            
-            if self.should_stop: break
-            
-            # Cambiar de cuenta en Normal
-            self._switch_whatsapp_account(device)
-            time.sleep(1)
-            
-            if self.should_stop: break
-            
-            # Envío 3: Normal Cuenta 2
-            task_counter += 1
-            self.log(f"[{device}] Envío 3/3 con Normal (Cuenta 2)", 'info')
-            success3 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
 
-            # Actualizar contadores y tiempo
+            self.last_task_time = time.time()
+
+            # Rotar dispositivo
+            device = self.devices[device_idx]
+            device_idx = (device_idx + 1) % len(self.devices)
+
+            # Rotar cuenta de WhatsApp
+            account_idx = i % num_accounts
+            wa_name, wa_package = accounts[account_idx]
+            
+            # Gestionar cambio de cuenta para WhatsApp Normal
+            if "Normal" in wa_name:
+                target_is_account_2 = "(Cuenta 2)" in wa_name
+                if is_normal_account_2[device] != target_is_account_2:
+                    self.log(f"Cambiando a {wa_name} en {device}...", 'info')
+                    self._switch_whatsapp_account(device)
+                    time.sleep(1)  # Espera para que el cambio se complete
+                    is_normal_account_2[device] = target_is_account_2 # Actualizar estado
+            
+            if self.should_stop: break
+
+            self.log(f"[{device}] Enviando con {wa_name}", 'info')
+            success = self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package)
+
             if self.last_task_time:
                 task_duration = time.time() - self.last_task_time
                 self.task_times.append(task_duration)
 
-            if success1 or success2 or success3:
+            if success:
                 self.sent_count += 1
             else:
                 self.failed_count += 1
             self.root.after(0, self.update_stats)
-            
-            if self.should_stop: break
-            
-            # Volver a cuenta 1
-            self._switch_whatsapp_account(device)
-            time.sleep(1)
+
+        # Opcional: Dejar todas las cuentas en estado conocido (Cuenta 1)
+        self.log("Finalizando y restaurando cuentas a estado inicial...", 'info')
+        for dev, is_acc2 in is_normal_account_2.items():
+            if is_acc2:
+                self.log(f"Restaurando a Cuenta 1 en {dev}...", 'info')
+                self._switch_whatsapp_account(dev)
+                time.sleep(1)
     
     
     def _get_whatsapp_apps_to_use(self):
