@@ -26,6 +26,7 @@ import csv
 import io
 import urllib.parse
 import shlex # Import shlex for better command splitting
+import math # Import math for ceiling function
 
 # --- Función para encontrar archivos en modo compilado ---
 def resource_path(relative_path):
@@ -228,6 +229,7 @@ class Hermes:
         self.write_speed = tk.StringVar(value="Normal")  # Velocidad de escritura: Lento, Normal, Rápido
         self.whatsapp_mode = tk.StringVar(value="Todas")  # Qué WhatsApp usar: Normal, Business, Ambos
         self.traditional_send_mode = tk.StringVar(value="Business")  # Modo de envío tradicional: Business, Normal, Ambos, TODOS
+        self.traditional_send_mode.trace("w", self.update_per_whatsapp_stat)
 
         self.raw_data = []
         self.columns = []
@@ -542,7 +544,7 @@ class Hermes:
         mode_label.grid(row=0, column=0, padx=(20, 10), sticky='w')
         
         self.mode_selector = ctk.CTkOptionMenu(mode_selector_frame, variable=self.traditional_send_mode,
-                                               values=["Business", "Normal", "Ambos", "TODOS"],
+                                               values=["Business", "Normal", "Business/Normal", "B/N.1/N.2"],
                                                font=self.fonts['button'],
                                                fg_color=self.colors['action_excel'],
                                                button_color=self.colors['action_excel'],
@@ -617,7 +619,11 @@ class Hermes:
         self.time_elapsed = ctk.CTkLabel(sc, text="Transcurrido: --:--:--", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
         self.time_elapsed.pack(anchor='w', pady=2, padx=25)
         self.time_remaining = ctk.CTkLabel(sc, text="Restante: --:--:--", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
-        self.time_remaining.pack(anchor='w', pady=(2, 25), padx=25)
+        self.time_remaining.pack(anchor='w', pady=2, padx=25)
+
+        # Nueva estadística: "por Whatsapp"
+        self.per_whatsapp_stat = ctk.CTkLabel(sc, text="≈ -- por Whatsapp", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
+        self.per_whatsapp_stat.pack(anchor='w', pady=(2, 25), padx=25)
 
         # Bloque 2: Registro de actividad
         lc = ctk.CTkFrame(parent, fg_color=self.colors['bg_log'], corner_radius=30)
@@ -961,6 +967,7 @@ class Hermes:
 
             if self.devices:
                 self.log(f"✓ {len(self.devices)} disp: {', '.join(self.devices)}", 'success')
+                self.update_per_whatsapp_stat() # Actualizar estadística
                 messagebox.showinfo("Dispositivos", f"{len(self.devices)} dispositivo(s) econtrado(s):\n\n" + "\n".join(self.devices))
             else:
                 self.log("No encontrados.", 'error')
@@ -1063,6 +1070,7 @@ class Hermes:
                 if self.links:
                     self.total_messages = len(self.links)
                     self.update_stats()
+                    self.update_per_whatsapp_stat() # Actualizar estadística
                     self.log(f"✓ {len(self.links)} URLs cargados directamente", 'success')
                     messagebox.showinfo("Cargado", f"Se cargaron {len(self.links)} URLs directamente desde la columna '{uc}'.\nNo se requiere procesamiento.")
                     return
@@ -2111,14 +2119,7 @@ class Hermes:
         if not self.manual_mode:
             mode = self.traditional_send_mode.get()
             base_links = len(self.links)
-            if mode == "Business":
-                self.total_messages = base_links
-            elif mode == "Normal":
-                self.total_messages = base_links
-            elif mode == "Ambos":
-                self.total_messages = base_links * 2
-            elif mode == "TODOS":
-                self.total_messages = base_links * 3
+            self.total_messages = base_links # El total es siempre la cantidad de links del Excel
             self.log(f"Modo Tradicional ({mode}): {self.total_messages} envíos totales", 'info')
         
         # Limpieza de flags
@@ -2285,18 +2286,13 @@ class Hermes:
         # Enviar mensaje
         success = self.send_msg(device, link, task_index, self.total_messages, message_to_send, whatsapp_package)
         
-        # --- Importante: Actualizar contadores DESPUÉS de send_msg ---
-        if success:
-            self.sent_count += 1
-        else:
-            self.failed_count += 1
-
-        # Actualizar UI (contadores y barra de progreso)
-        self.root.after(0, self.update_stats)
-        # --- Fin actualización contadores ---
+        # --- La actualización de contadores se manejará en las funciones _run_..._mode ---
 
         # Espera entre mensajes (solo si no es la última tarea)
-        if task_index < self.total_messages and not self.should_stop:
+        # FIX: El total de tareas real puede ser mayor que self.total_messages (que ahora es total_contacts)
+        # Se necesita un total de mensajes real para esta lógica. Por ahora, se omite el chequeo final.
+        # if task_index < self.total_messages and not self.should_stop:
+        if not self.should_stop:
             delay = random.uniform(self.delay_min.get(), self.delay_max.get())
             self.log(f"Esperando {delay:.1f}s... (Post-tarea {task_index})", 'info')
             elapsed = 0
@@ -2322,9 +2318,9 @@ class Hermes:
             self._run_business_mode()
         elif mode == "Normal":
             self._run_normal_mode()
-        elif mode == "Ambos":
+        elif mode == "Business/Normal":
             self._run_ambos_mode()
-        elif mode == "TODOS":
+        elif mode == "B/N.1/N.2":
             self._run_todos_mode()
     
     def _run_business_mode(self):
@@ -2341,7 +2337,14 @@ class Hermes:
             idx = (idx + 1) % len(self.devices)
             
             # Ejecutar tarea con Business
-            self.run_single_task(device, link, None, i + 1, whatsapp_package="com.whatsapp.w4b")
+            success = self.run_single_task(device, link, None, i + 1, whatsapp_package="com.whatsapp.w4b")
+
+            # Actualizar contadores por contacto
+            if success:
+                self.sent_count += 1
+            else:
+                self.failed_count += 1
+            self.root.after(0, self.update_stats)
     
     def _run_normal_mode(self):
         """Modo Normal: 1 URL por teléfono (solo Normal)."""
@@ -2357,7 +2360,14 @@ class Hermes:
             idx = (idx + 1) % len(self.devices)
 
             # Ejecutar tarea con Normal
-            self.run_single_task(device, link, None, i + 1, whatsapp_package="com.whatsapp")
+            success = self.run_single_task(device, link, None, i + 1, whatsapp_package="com.whatsapp")
+
+            # Actualizar contadores por contacto
+            if success:
+                self.sent_count += 1
+            else:
+                self.failed_count += 1
+            self.root.after(0, self.update_stats)
 
     def _run_ambos_mode(self):
         """Modo Ambos: 2 URLs por teléfono (Business + Normal)."""
@@ -2376,14 +2386,21 @@ class Hermes:
             # Envío 1: Business (predeterminado)
             task_counter += 1
             self.log(f"[{device}] Envío 1/2 con Business", 'info')
-            self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp.w4b")
+            success1 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp.w4b")
             
             if self.should_stop: break
             
             # Envío 2: Normal
             task_counter += 1
             self.log(f"[{device}] Envío 2/2 con Normal", 'info')
-            self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
+            success2 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
+
+            # Actualizar contadores por contacto (éxito si al menos uno funcionó)
+            if success1 or success2:
+                self.sent_count += 1
+            else:
+                self.failed_count += 1
+            self.root.after(0, self.update_stats)
             
             if self.should_stop: break
     
@@ -2404,14 +2421,14 @@ class Hermes:
             # Envío 1: Business
             task_counter += 1
             self.log(f"[{device}] Envío 1/3 con Business", 'info')
-            self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp.w4b")
+            success1 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp.w4b")
             
             if self.should_stop: break
             
             # Envío 2: Normal Cuenta 1
             task_counter += 1
             self.log(f"[{device}] Envío 2/3 con Normal (Cuenta 1)", 'info')
-            self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
+            success2 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
             
             if self.should_stop: break
             
@@ -2424,7 +2441,14 @@ class Hermes:
             # Envío 3: Normal Cuenta 2
             task_counter += 1
             self.log(f"[{device}] Envío 3/3 con Normal (Cuenta 2)", 'info')
-            self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
+            success3 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
+
+            # Actualizar contadores por contacto (éxito si al menos uno funcionó)
+            if success1 or success2 or success3:
+                self.sent_count += 1
+            else:
+                self.failed_count += 1
+            self.root.after(0, self.update_stats)
             
             if self.should_stop: break
             
@@ -3786,6 +3810,32 @@ class Hermes:
         for package in targets:
             close_args = ['-s', device, 'shell', 'am', 'force-stop', package]
             self._run_adb_command(close_args, timeout=5) # Usar la función helper, ignorar resultado
+
+    def update_per_whatsapp_stat(self, *args):
+        """Calcula y actualiza la estadística de envíos por cuenta de WhatsApp."""
+        if not self.links or not self.devices:
+            self.per_whatsapp_stat.configure(text="≈ -- por Whatsapp")
+            return
+
+        num_contacts = len(self.links)
+        num_devices = len(self.devices)
+        mode = self.traditional_send_mode.get()
+
+        accounts_per_device = 1
+        if mode == "Business/Normal":
+            accounts_per_device = 2
+        elif mode == "B/N.1/N.2":
+            accounts_per_device = 3
+
+        total_accounts = num_devices * accounts_per_device
+
+        if total_accounts == 0:
+            self.per_whatsapp_stat.configure(text="≈ -- por Whatsapp")
+            return
+
+        per_wa = math.ceil(num_contacts / total_accounts)
+        self.per_whatsapp_stat.configure(text=f"≈ {per_wa} por Whatsapp")
+
 
 # --- Main y Login ---
 def main():
