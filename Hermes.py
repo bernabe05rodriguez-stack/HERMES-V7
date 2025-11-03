@@ -611,19 +611,21 @@ class Hermes:
         self.progress_bar = ctk.CTkFrame(bbg, fg_color=self.colors['green'], height=8, corner_radius=4)
         self.progress_bar.place(x=0, y=0, relwidth=0, relheight=1)
 
-        # Tiempos
+        # Tiempos y Estadísticas por WA
         tt = ctk.CTkFrame(sc, fg_color="transparent")
         tt.pack(fill=tk.X, pady=(0, 8), padx=25)
-        ctk.CTkLabel(tt, text="Tiempo:", font=('Inter', 14), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 8))
-        ctk.CTkLabel(tt, text="Tiempo", font=self.fonts['progress_label'], fg_color="transparent", text_color=self.colors['text_light']).pack(side=tk.LEFT)
+        tt.grid_columnconfigure(0, weight=1)
+        tt.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(tt, text="Tiempo", font=('Inter', 14, 'bold'), fg_color="transparent", text_color=self.colors['text']).grid(row=0, column=0, sticky='w')
+
+        self.per_whatsapp_stat = ctk.CTkLabel(tt, text="≈ -- por Whatsapp", font=('Inter', 14, 'bold'), fg_color="transparent", text_color=self.colors['text'])
+        self.per_whatsapp_stat.grid(row=0, column=1, sticky='e')
+
         self.time_elapsed = ctk.CTkLabel(sc, text="Transcurrido: --:--:--", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
         self.time_elapsed.pack(anchor='w', pady=2, padx=25)
         self.time_remaining = ctk.CTkLabel(sc, text="Restante: --:--:--", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
         self.time_remaining.pack(anchor='w', pady=2, padx=25)
-
-        # Nueva estadística: "por Whatsapp"
-        self.per_whatsapp_stat = ctk.CTkLabel(sc, text="≈ -- por Whatsapp", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
-        self.per_whatsapp_stat.pack(anchor='w', pady=(2, 25), padx=25)
 
         # Bloque 2: Registro de actividad
         lc = ctk.CTkFrame(parent, fg_color=self.colors['bg_log'], corner_radius=30)
@@ -873,13 +875,13 @@ class Hermes:
                     avg = sum(recent_times) / len(recent_times)
                 else:
                     # Fallback al método anterior si no hay datos
-                    avg = el.total_seconds() / prog_label_idx
+                    avg = el.total_seconds() / self.sent_count if self.sent_count > 0 else 0
                 
                 # Calcular tiempo restante
                 tasks_remaining = self.total_messages - self.sent_count
                 rem_s = avg * tasks_remaining
                 rem = timedelta(seconds=int(rem_s))
-                self.time_remaining.configure(text=f"Rest: {str(rem).split('.')[0]}")
+                self.time_remaining.configure(text=f"Restante: {str(rem).split('.')[0]}")
         else:
             self.stat_progress.configure(text="0%")
             self.progress_bar.place(relwidth=0)
@@ -2136,6 +2138,7 @@ class Hermes:
         self.failed_count = 0
         self.current_index = 0
         self.start_time = datetime.now()
+        self.task_times = [] # Reiniciar lista de tiempos
         self.update_stats() # Actualizar UI con el total
 
         # Actualizar UI
@@ -2333,13 +2336,18 @@ class Hermes:
                 self.log("Cancelado en bucle", 'warning')
                 break
             
+            self.last_task_time = time.time() # Registrar tiempo de inicio
             device = self.devices[idx]
             idx = (idx + 1) % len(self.devices)
             
             # Ejecutar tarea con Business
             success = self.run_single_task(device, link, None, i + 1, whatsapp_package="com.whatsapp.w4b")
 
-            # Actualizar contadores por contacto
+            # Actualizar contadores y tiempo
+            if self.last_task_time:
+                task_duration = time.time() - self.last_task_time
+                self.task_times.append(task_duration)
+
             if success:
                 self.sent_count += 1
             else:
@@ -2356,13 +2364,18 @@ class Hermes:
                 self.log("Cancelado en bucle", 'warning')
                 break
 
+            self.last_task_time = time.time() # Registrar tiempo de inicio
             device = self.devices[idx]
             idx = (idx + 1) % len(self.devices)
 
             # Ejecutar tarea con Normal
             success = self.run_single_task(device, link, None, i + 1, whatsapp_package="com.whatsapp")
 
-            # Actualizar contadores por contacto
+            # Actualizar contadores y tiempo
+            if self.last_task_time:
+                task_duration = time.time() - self.last_task_time
+                self.task_times.append(task_duration)
+
             if success:
                 self.sent_count += 1
             else:
@@ -2380,6 +2393,7 @@ class Hermes:
                 self.log("Cancelado en bucle", 'warning')
                 break
             
+            self.last_task_time = time.time() # Registrar tiempo de inicio
             device = self.devices[idx]
             idx = (idx + 1) % len(self.devices)
             
@@ -2395,7 +2409,11 @@ class Hermes:
             self.log(f"[{device}] Envío 2/2 con Normal", 'info')
             success2 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
 
-            # Actualizar contadores por contacto (éxito si al menos uno funcionó)
+            # Actualizar contadores y tiempo
+            if self.last_task_time:
+                task_duration = time.time() - self.last_task_time
+                self.task_times.append(task_duration)
+
             if success1 or success2:
                 self.sent_count += 1
             else:
@@ -2415,6 +2433,7 @@ class Hermes:
                 self.log("Cancelado en bucle", 'warning')
                 break
             
+            self.last_task_time = time.time() # Registrar tiempo de inicio
             device = self.devices[idx]
             idx = (idx + 1) % len(self.devices)
             
@@ -2443,7 +2462,11 @@ class Hermes:
             self.log(f"[{device}] Envío 3/3 con Normal (Cuenta 2)", 'info')
             success3 = self.run_single_task(device, link, None, task_counter, whatsapp_package="com.whatsapp")
 
-            # Actualizar contadores por contacto (éxito si al menos uno funcionó)
+            # Actualizar contadores y tiempo
+            if self.last_task_time:
+                task_duration = time.time() - self.last_task_time
+                self.task_times.append(task_duration)
+
             if success1 or success2 or success3:
                 self.sent_count += 1
             else:
