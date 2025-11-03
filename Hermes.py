@@ -176,8 +176,7 @@ class Hermes:
         self.root = root
         self.root.title("HΞЯMΞS V1")
         self.root.resizable(True, True)
-        self.root.minsize(1500, 900)
-        self.center_window(1500, 900)
+        self.root.state('zoomed') # Maximizar la ventana al inicio
 
         # Variables de estado
         self.adb_path = tk.StringVar(value="")
@@ -289,14 +288,6 @@ class Hermes:
 
         self.auto_detect_adb()
         self.setup_ui()
-
-    def center_window(self, width, height):
-        self.root.update_idletasks()
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        x = (sw // 2) - (width // 2)
-        y = (sh // 2) - (height // 2)
-        self.root.geometry(f'{width}x{height}+{x}+{y}')
 
     def setup_ui(self):
         # Configurar fondo de la ventana principal
@@ -1101,9 +1092,7 @@ class Hermes:
         dialog.transient(self.root); dialog.grab_set(); dialog.resizable(False, False); dialog.attributes('-topmost', True)
 
         width, height = 360, 260
-        root_x, root_y, root_w, root_h = self.root.winfo_rootx(), self.root.winfo_rooty(), self.root.winfo_width(), self.root.winfo_height()
-        x, y = root_x + (root_w // 2) - (width // 2), root_y + (root_h // 2) - (height // 2)
-        dialog.geometry(f"{width}x{height}+{x}+{y}"); dialog.after(100, dialog.focus_force)
+        self.center_toplevel_window(dialog, width, height)
 
         card = ctk.CTkFrame(dialog, fg_color=self.colors['bg_card'], corner_radius=20)
         card.pack(fill=tk.BOTH, expand=True, padx=24, pady=24)
@@ -1194,12 +1183,7 @@ class Hermes:
         manual_window.transient(self.root)
 
         width, height = 800, 850
-        # Centrar en la pantalla
-        screen_width = manual_window.winfo_screenwidth()
-        screen_height = manual_window.winfo_screenheight()
-        x = (screen_width // 2) - (width // 2)
-        y = (screen_height // 2) - (height // 2)
-        manual_window.geometry(f"{width}x{height}+{x}+{y}"); manual_window.after(100, manual_window.focus_force)
+        self.center_toplevel_window(manual_window, width, height)
 
         main_cont = ctk.CTkFrame(manual_window, fg_color=self.colors['bg'], corner_radius=0)
         main_cont.pack(fill=tk.BOTH, expand=True)
@@ -1761,12 +1745,7 @@ class Hermes:
         proc_window.transient(self.root)
 
         width, height = 900, 750
-        # Centrar en la pantalla
-        screen_width = proc_window.winfo_screenwidth()
-        screen_height = proc_window.winfo_screenheight()
-        x = (screen_width // 2) - (width // 2)
-        y = (screen_height // 2) - (height // 2)
-        proc_window.geometry(f"{width}x{height}+{x}+{y}"); proc_window.after(100, proc_window.focus_force)
+        self.center_toplevel_window(proc_window, width, height)
 
         main_cont = ctk.CTkFrame(proc_window, fg_color=self.colors['bg'], corner_radius=0)
         main_cont.pack(fill=tk.BOTH, expand=True)
@@ -2178,12 +2157,7 @@ class Hermes:
         dialog.resizable(False, False)
 
         width, height = 400, 200
-        self.root.update_idletasks()
-        root_x, root_y = self.root.winfo_x(), self.root.winfo_y()
-        root_w, root_h = self.root.winfo_width(), self.root.winfo_height()
-        x, y = root_x + (root_w // 2) - (width // 2), root_y + (root_h // 2) - (height // 2)
-        dialog.geometry(f"{width}x{height}+{x}+{y}")
-        dialog.after(100, dialog.focus_force)
+        self.center_toplevel_window(dialog, width, height)
 
         main_frame = ctk.CTkFrame(dialog, fg_color=self.colors['bg_card'])
         main_frame.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
@@ -2353,7 +2327,7 @@ class Hermes:
             else:
                 self.failed_count += 1
             self.root.after(0, self.update_stats)
-    
+
     def _run_normal_mode(self):
         """Modo Normal: 1 URL por teléfono (solo Normal)."""
         self.log("Ejecutando Modo Normal...", 'info')
@@ -3336,6 +3310,27 @@ class Hermes:
         
         self.log(f"[{device}] Cambio de cuenta completado", 'success')
     
+    def center_toplevel_window(self, toplevel_window, width, height):
+        """Centra una ventana Toplevel y ajusta su altura si es necesario."""
+        toplevel_window.update_idletasks()
+
+        screen_width = toplevel_window.winfo_screenwidth()
+        screen_height = toplevel_window.winfo_screenheight()
+
+        # Ajustar la altura si la ventana es más alta que la pantalla
+        if height > screen_height:
+            height = screen_height - 100 # Dejar un margen de 100px
+
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+
+        # Asegurarse de que la ventana no aparezca fuera de la pantalla
+        if y < 0:
+            y = 20
+
+        toplevel_window.geometry(f"{width}x{height}+{x}+{y}")
+        toplevel_window.after(100, toplevel_window.focus_force)
+
     def _run_adb_command(self, args, timeout=10):
         """Ejecuta un comando ADB y maneja errores comunes."""
         adb = self.adb_path.get()
@@ -3661,19 +3656,8 @@ class Hermes:
         # Crear ventana de inyector
         injector_window = ctk.CTkToplevel(self.root)
         injector_window.title("HΞЯMΞS V1 - Inyector ADB")
-        injector_window.geometry("900x700")
         injector_window.transient(self.root)
-        
-        # Centrar ventana
-        injector_window.update_idletasks()
-        root_x = self.root.winfo_rootx()
-        root_y = self.root.winfo_rooty()
-        root_w = self.root.winfo_width()
-        root_h = self.root.winfo_height()
-        x = root_x + (root_w // 2) - 450
-        y = root_y + (root_h // 2) - 350
-        injector_window.geometry(f"900x700+{x}+{y}")
-        injector_window.after(100, injector_window.focus_force)
+        self.center_toplevel_window(injector_window, 900, 700)
         
         # Contenedor principal
         main_cont = ctk.CTkFrame(injector_window, fg_color=self.colors['bg'], corner_radius=0)
