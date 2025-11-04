@@ -508,7 +508,7 @@ class Hermes:
                                           font=('Inter', 13),
                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                           border_width=1, border_color=self.colors["text_light"])
-        self.dark_mode_btn.grid(row=1, column=1, padx=8, pady=4)
+        self.dark_mode_btn.grid(row=0, column=2, padx=8, pady=4)
 
         ctk.CTkFrame(ac, fg_color=self.colors['text_light'], height=1).pack(fill=tk.X, pady=(0, 25), padx=25)
 
@@ -546,7 +546,7 @@ class Hermes:
         mode_frame.grid_columnconfigure(0, weight=0)
         mode_frame.grid_columnconfigure(1, weight=1)
         
-        num_lbl_mode = ctk.CTkLabel(mode_frame, text="2.5", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'], width=40)
+        num_lbl_mode = ctk.CTkLabel(mode_frame, text="3", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'], width=40)
         num_lbl_mode.grid(row=0, column=0, padx=(0, 15))
         
         mode_selector_frame = ctk.CTkFrame(mode_frame, fg_color=self.colors['bg_card'], corner_radius=10, height=50)
@@ -556,19 +556,19 @@ class Hermes:
         
         mode_label = ctk.CTkLabel(mode_selector_frame, text="Modo de Envío:", font=self.fonts['button'], text_color=self.colors['text'])
         mode_label.grid(row=0, column=0, padx=(20, 10), sticky='w')
-        
-        self.mode_selector = ctk.CTkOptionMenu(mode_selector_frame, variable=self.traditional_send_mode,
-                                               values=["Business", "Normal", "Business/Normal", "B/N.1/N.2"],
-                                               font=self.fonts['button'],
-                                               fg_color=self.colors['action_excel'],
-                                               button_color=self.colors['action_excel'],
-                                               button_hover_color=self.hover_colors['action_excel'],
-                                               dropdown_fg_color=self.colors['bg_card'],
-                                               dropdown_hover_color=self.hover_colors['action_excel'],
-                                               dropdown_text_color=self.colors['text'],
-                                               text_color=self.colors['text_header_buttons'],
-                                               width=150, height=35, corner_radius=8)
-        self.mode_selector.grid(row=0, column=1, padx=(10, 20), sticky='e')
+
+        self.mode_selector = ctk.CTkSegmentedButton(mode_selector_frame, variable=self.traditional_send_mode,
+                                                     values=["Business", "Normal", "Business/Normal", "B/N.1/N.2"],
+                                                     font=('Inter', 10, 'bold'),
+                                                     height=35,
+                                                     corner_radius=8,
+                                                     fg_color=self.colors['bg'],
+                                                     selected_color=self.colors['action_excel'],
+                                                     selected_hover_color=self.hover_colors['action_excel'],
+                                                     unselected_color=self.colors['bg_card'],
+                                                     unselected_hover_color=self.colors['bg'])
+        self.mode_selector.grid(row=0, column=1, padx=(10, 20), sticky='ew')
+        mode_selector_frame.grid_columnconfigure(1, weight=1)
         self.traditional_send_mode.trace_add('write', self.update_per_whatsapp_stat)
         
         # Botón 3: Iniciar Envío
@@ -577,7 +577,7 @@ class Hermes:
         btn_frame_3.grid_columnconfigure(0, weight=0)
         btn_frame_3.grid_columnconfigure(1, weight=1)
         
-        num_lbl_3 = ctk.CTkLabel(btn_frame_3, text="3", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'], width=40)
+        num_lbl_3 = ctk.CTkLabel(btn_frame_3, text="4", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'], width=40)
         num_lbl_3.grid(row=0, column=0, padx=(0, 15))
         
         self.btn_start = ctk.CTkButton(btn_frame_3, text="▶  INICIAR ENVÍO", command=self.start_sending,
