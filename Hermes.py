@@ -489,7 +489,7 @@ class Hermes:
                                                font=('Inter', 13),
                                                cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                                border_width=1, border_color=self.colors["text_light"])
-        self.switch_account_btn.grid(row=0, column=2, padx=8, pady=4)
+        # self.switch_account_btn.grid(row=0, column=2, padx=8, pady=4)
         
         # Segunda fila de botones
         # Botón Cambiador
@@ -499,7 +499,7 @@ class Hermes:
                                           font=('Inter', 13),
                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                           border_width=1, border_color=self.colors["text_light"])
-        self.cambiador_btn.grid(row=1, column=0, padx=(12, 8), pady=4)
+        # self.cambiador_btn.grid(row=1, column=0, padx=(12, 8), pady=4)
         
         # Botón Modo Oscuro
         self.dark_mode_btn = ctk.CTkButton(self.additional_actions_frame, text="Modo Oscuro", command=self.toggle_dark_mode,
