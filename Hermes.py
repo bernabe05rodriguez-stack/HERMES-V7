@@ -2186,22 +2186,8 @@ class Hermes:
             self.fidelizado_mode = None  # No usar modo fidelizado
             self.manual_paired_messages = []
 
-        self.is_running = True
-        self.is_paused = False
-        self.should_stop = False
-        self.sent_count = 0
-        self.failed_count = 0
-        self.current_index = 0
-        self.start_time = datetime.now()
+        self._enter_task_mode()
         self.update_stats() # Actualizar UI con el total
-
-        # Actualizar UI
-        self.btn_start.configure(state=tk.DISABLED)
-        self.btn_load.configure(state=tk.DISABLED)
-        if self.fidelizado_unlock_btn:
-            self.fidelizado_unlock_btn.configure(state=tk.DISABLED)
-        self.btn_pause.configure(state=tk.NORMAL)
-        self.btn_stop.configure(state=tk.NORMAL)
 
         # Iniciar hilo
         threading.Thread(target=self.send_thread, daemon=True).start()
@@ -2841,8 +2827,95 @@ class Hermes:
         Por cada grupo, envía con los WhatsApps seleccionados (Normal, Business o Ambos).
         Los mensajes rotan: 1,2,3,4... y cuando se acaban vuelven al 1.
         """
+        try:
+            self._enter_task_mode()
+            num_devices = len(self.devices)
+            num_grupos = len(self.manual_inputs_groups)
+            num_bucles = self.manual_loops
+
+            if len(self.manual_messages_groups) < 1:
+                self.log("Error: Modo Grupos requiere al menos 1 mensaje cargado.", "error")
+                messagebox.showerror("Error", "Debes cargar al menos 1 archivo de mensajes.", parent=self.root)
+                return
+
+            # Usar índice de inicio aleatorio
+            mensaje_index = self.mensaje_start_index
+            total_mensajes = len(self.manual_messages_groups)
+            task_counter = 0
+            whatsapp_apps = self._get_whatsapp_apps_to_use()
+
+            self.log(f"Modo Grupos: {num_bucles} ciclo(s), {num_grupos} grupo(s), {num_devices} dispositivo(s)", 'info')
+            self.log(f"WhatsApp: {self.whatsapp_mode.get()}", 'info')
+            self.log(f"Total de envíos: {self.total_messages}", 'info')
+
+            for ciclo in range(num_bucles):
+                if self.should_stop: break
+                self.log(f"\n--- CICLO {ciclo + 1}/{num_bucles} ---", 'info')
+
+                # Por cada grupo
+                for idx_grupo, grupo_link in enumerate(self.manual_inputs_groups):
+                    if self.should_stop: break
+                    grupo_display = grupo_link[:50] + "..." if len(grupo_link) > 50 else grupo_link
+                    self.log(f"\n=== GRUPO {idx_grupo + 1}/{num_grupos}: {grupo_display} ===", 'info')
+
+                    # Por cada dispositivo
+                    for device in self.devices:
+                        if self.should_stop: break
+
+                        # Por cada WhatsApp (Normal, Business, o Ambos)
+                        for wa_name, wa_package in whatsapp_apps:
+                            if self.should_stop: break
+
+                            task_counter += 1
+                            self.current_index = task_counter
+                            self.root.after(0, self.update_stats)
+
+                            # Obtener mensaje rotativo
+                            mensaje = self.manual_messages_groups[mensaje_index % total_mensajes]
+                            mensaje_index += 1
+
+                            # Enviar usando la función auxiliar
+                            success = self._send_to_target_with_whatsapp(
+                                device, grupo_link, wa_name, wa_package, mensaje, task_counter
+                            )
+
+                            # Pausa entre WhatsApps si hay más de uno
+                            if success and len(whatsapp_apps) > 1 and wa_name == whatsapp_apps[0][0]:
+                                wait_between = self.wait_between_messages.get()
+                                if wait_between > 0:
+                                    self.log(f"Esperando {wait_between}s antes del siguiente WhatsApp...", 'info')
+                                    elapsed = 0
+                                    while elapsed < wait_between and not self.should_stop:
+                                        while self.is_paused and not self.should_stop: time.sleep(0.1)
+                                        if self.should_stop: break
+                                        time.sleep(0.1)
+                                        elapsed += 0.1
+
+                            time.sleep(0.5)  # Pequeña pausa entre envíos
+
+                    if self.should_stop: break
+                    self.log(f"\n=== GRUPO {idx_grupo + 1} completado ===", 'success')
+
+                if self.should_stop: break
+                self.log(f"\n--- CICLO {ciclo + 1} completado ---", 'success')
+
+            self.log(f"\nModo Grupos Dual finalizado", 'success')
+        finally:
+            self._finalize_sending()
+
+    def run_unirse_grupos(self, grupos):
+        """
+        Función para unirse automáticamente a grupos.
+        NUEVA LÓGICA CON THREADING (EJECUCIÓN PARALELA):
+        Por cada grupo:
+          - TODOS los dispositivos se unen SIMULTÁNEAMENTE según la selección de WhatsApp
+        Proceso:
+          - Presiona DPAD_DOWN 3 veces (con pausas de 2s)
+          - Presiona ENTER dos veces (doble Enter)
+          - Presiona BACK para salir
+        """
         num_devices = len(self.devices)
-        num_grupos = len(self.manual_inputs_groups)
+        num_grupos = len(grupos)
         num_bucles = self.manual_loops
         
         if len(self.manual_messages_groups) < 1:
@@ -2924,10 +2997,12 @@ class Hermes:
           - Presiona ENTER dos veces (doble Enter)
           - Presiona BACK para salir
         """
-        num_devices = len(self.devices)
-        num_grupos = len(grupos)
-        
-        # Obtener qué WhatsApp usar
+        try:
+            self._enter_task_mode()
+            num_devices = len(self.devices)
+            num_grupos = len(grupos)
+
+            # Obtener qué WhatsApp usar
         wa_mode = self.whatsapp_mode.get()
         
         # Determinar cuántas uniones totales habrá
@@ -3144,6 +3219,8 @@ class Hermes:
         
         self.log(f"\n=== PROCESO DE UNIÓN A GRUPOS FINALIZADO ===", 'success')
         messagebox.showinfo("Éxito", f"Proceso completado.\n\nSe unieron a {num_grupos} grupo(s) con {num_devices} dispositivo(s).", parent=self.root)
+        finally:
+            self._finalize_sending()
     
     def _write_message_with_keyevents(self, device, message):
         """
@@ -3298,6 +3375,24 @@ class Hermes:
             self.fidelizado_unlock_btn.configure(state=tk.NORMAL)
         self.btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
         self.btn_stop.configure(state=tk.DISABLED)
+
+    def _enter_task_mode(self):
+        """Configura la UI para un estado de 'tarea en ejecución'."""
+        self.is_running = True
+        self.is_paused = False
+        self.should_stop = False
+        self.sent_count = 0
+        self.failed_count = 0
+        self.current_index = 0
+        self.start_time = datetime.now()
+
+        # Actualizar UI
+        self.btn_start.configure(state=tk.DISABLED)
+        self.btn_load.configure(state=tk.DISABLED)
+        if self.fidelizado_unlock_btn:
+            self.fidelizado_unlock_btn.configure(state=tk.DISABLED)
+        self.btn_pause.configure(state=tk.NORMAL)
+        self.btn_stop.configure(state=tk.NORMAL)
 
     # --- ################################################################## ---
     # --- send_msg (MODIFICADO para loguear device)
