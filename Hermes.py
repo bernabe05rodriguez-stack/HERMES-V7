@@ -566,8 +566,9 @@ class Hermes:
                                                      selected_color=self.colors['action_excel'],
                                                      selected_hover_color=self.hover_colors['action_excel'],
                                                      unselected_color=self.colors['bg_card'],
-                                                     unselected_hover_color=self.colors['bg'])
-        self.mode_selector.grid(row=0, column=1, padx=(10, 20), sticky='ew')
+                                                     unselected_hover_color=self.colors['bg'],
+                                                     text_color=self.colors['text'])
+        self.mode_selector.grid(row=0, column=1, padx=(10, 20))
         mode_selector_frame.grid_columnconfigure(1, weight=1)
         self.traditional_send_mode.trace_add('write', self.update_per_whatsapp_stat)
         
