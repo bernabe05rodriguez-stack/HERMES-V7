@@ -26,7 +26,6 @@ import csv
 import io
 import urllib.parse
 import shlex # Import shlex for better command splitting
-import math # Import math for ceiling function
 
 # --- Función para encontrar archivos en modo compilado ---
 def resource_path(relative_path):
@@ -70,11 +69,26 @@ KEYCODE_MAP = {
 NEEDS_SHIFT = "!@#$%^&*()_+?:\"" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 # --- FIN: Mapeo ---
 
-# Importar dependencias
-import openpyxl
-from openpyxl import load_workbook
-from PIL import Image, ImageTk
-import customtkinter
+# Verificar dependencias
+try:
+    import openpyxl
+    from openpyxl import load_workbook
+except ImportError:
+    print("\n"+"="*50+"\nERROR: Falta 'openpyxl'. Ejecuta INSTALAR.bat.\n"+"="*50)
+    input("\nEnter para salir...")
+    sys.exit(1)
+try:
+    from PIL import Image, ImageTk
+except ImportError:
+    print("\n"+"="*50+"\nERROR: Falta 'Pillow'. Ejecuta INSTALAR.bat.\n"+"="*50)
+    input("\nEnter para salir...")
+    sys.exit(1)
+try:
+    import customtkinter
+except ImportError:
+    print("\n"+"="*50+"\nERROR: Falta 'customtkinter'. Ejecuta INSTALAR.bat.\n"+"="*50)
+    input("\nEnter para salir...")
+    sys.exit(1)
 
 # --- Funciones de color ---
 def _clamp(value):
@@ -176,7 +190,8 @@ class Hermes:
         self.root = root
         self.root.title("HΞЯMΞS V1")
         self.root.resizable(True, True)
-        self.root.state('zoomed') # Maximizar la ventana al inicio
+        self.root.minsize(1500, 900)
+        self.center_window(1500, 900)
 
         # Variables de estado
         self.adb_path = tk.StringVar(value="")
@@ -227,8 +242,7 @@ class Hermes:
         self.wait_between_messages = tk.IntVar(value=2)  # Tiempo entre Business y Normal
         self.write_speed = tk.StringVar(value="Normal")  # Velocidad de escritura: Lento, Normal, Rápido
         self.whatsapp_mode = tk.StringVar(value="Todas")  # Qué WhatsApp usar: Normal, Business, Ambos
-        self.traditional_send_mode = tk.StringVar(value="Business")  # Modo de envío tradicional: Business, Normal, Ambos, TODOS
-        self.traditional_send_mode.trace("w", self.update_per_whatsapp_stat)
+        self.traditional_send_mode = tk.StringVar(value="Simple")  # Modo de envío tradicional: Simple, Doble, Triple
 
         self.raw_data = []
         self.columns = []
@@ -288,6 +302,14 @@ class Hermes:
 
         self.auto_detect_adb()
         self.setup_ui()
+
+    def center_window(self, width, height):
+        self.root.update_idletasks()
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        x = (sw // 2) - (width // 2)
+        y = (sh // 2) - (height // 2)
+        self.root.geometry(f'{width}x{height}+{x}+{y}')
 
     def setup_ui(self):
         # Configurar fondo de la ventana principal
@@ -535,7 +557,7 @@ class Hermes:
         mode_label.grid(row=0, column=0, padx=(20, 10), sticky='w')
         
         self.mode_selector = ctk.CTkOptionMenu(mode_selector_frame, variable=self.traditional_send_mode,
-                                               values=["Business", "Normal", "Business/Normal", "B/N.1/N.2"],
+                                               values=["Simple", "Doble", "Triple"],
                                                font=self.fonts['button'],
                                                fg_color=self.colors['action_excel'],
                                                button_color=self.colors['action_excel'],
@@ -602,21 +624,15 @@ class Hermes:
         self.progress_bar = ctk.CTkFrame(bbg, fg_color=self.colors['green'], height=8, corner_radius=4)
         self.progress_bar.place(x=0, y=0, relwidth=0, relheight=1)
 
-        # Tiempos y Estadísticas por WA
+        # Tiempos
         tt = ctk.CTkFrame(sc, fg_color="transparent")
         tt.pack(fill=tk.X, pady=(0, 8), padx=25)
-        tt.grid_columnconfigure(0, weight=1)
-        tt.grid_columnconfigure(1, weight=1)
-
-        ctk.CTkLabel(tt, text="Tiempo", font=('Inter', 14, 'bold'), fg_color="transparent", text_color=self.colors['text']).grid(row=0, column=0, sticky='w')
-
-        self.per_whatsapp_stat = ctk.CTkLabel(tt, text="≈ -- por Whatsapp", font=('Inter', 14, 'bold'), fg_color="transparent", text_color=self.colors['text'])
-        self.per_whatsapp_stat.grid(row=0, column=1, sticky='e')
-
+        ctk.CTkLabel(tt, text="Tiempo:", font=('Inter', 14), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 8))
+        ctk.CTkLabel(tt, text="Tiempo", font=self.fonts['progress_label'], fg_color="transparent", text_color=self.colors['text_light']).pack(side=tk.LEFT)
         self.time_elapsed = ctk.CTkLabel(sc, text="Transcurrido: --:--:--", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
         self.time_elapsed.pack(anchor='w', pady=2, padx=25)
         self.time_remaining = ctk.CTkLabel(sc, text="Restante: --:--:--", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
-        self.time_remaining.pack(anchor='w', pady=2, padx=25)
+        self.time_remaining.pack(anchor='w', pady=(2, 25), padx=25)
 
         # Bloque 2: Registro de actividad
         lc = ctk.CTkFrame(parent, fg_color=self.colors['bg_log'], corner_radius=30)
@@ -866,13 +882,13 @@ class Hermes:
                     avg = sum(recent_times) / len(recent_times)
                 else:
                     # Fallback al método anterior si no hay datos
-                    avg = el.total_seconds() / self.sent_count if self.sent_count > 0 else 0
+                    avg = el.total_seconds() / prog_label_idx
                 
                 # Calcular tiempo restante
                 tasks_remaining = self.total_messages - self.sent_count
                 rem_s = avg * tasks_remaining
                 rem = timedelta(seconds=int(rem_s))
-                self.time_remaining.configure(text=f"Restante: {str(rem).split('.')[0]}")
+                self.time_remaining.configure(text=f"Rest: {str(rem).split('.')[0]}")
         else:
             self.stat_progress.configure(text="0%")
             self.progress_bar.place(relwidth=0)
@@ -960,7 +976,6 @@ class Hermes:
 
             if self.devices:
                 self.log(f"✓ {len(self.devices)} disp: {', '.join(self.devices)}", 'success')
-                self.update_per_whatsapp_stat() # Actualizar estadística
                 messagebox.showinfo("Dispositivos", f"{len(self.devices)} dispositivo(s) econtrado(s):\n\n" + "\n".join(self.devices))
             else:
                 self.log("No encontrados.", 'error')
@@ -1063,7 +1078,6 @@ class Hermes:
                 if self.links:
                     self.total_messages = len(self.links)
                     self.update_stats()
-                    self.update_per_whatsapp_stat() # Actualizar estadística
                     self.log(f"✓ {len(self.links)} URLs cargados directamente", 'success')
                     messagebox.showinfo("Cargado", f"Se cargaron {len(self.links)} URLs directamente desde la columna '{uc}'.\nNo se requiere procesamiento.")
                     return
@@ -1092,7 +1106,9 @@ class Hermes:
         dialog.transient(self.root); dialog.grab_set(); dialog.resizable(False, False); dialog.attributes('-topmost', True)
 
         width, height = 360, 260
-        self.center_toplevel_window(dialog, width, height)
+        root_x, root_y, root_w, root_h = self.root.winfo_rootx(), self.root.winfo_rooty(), self.root.winfo_width(), self.root.winfo_height()
+        x, y = root_x + (root_w // 2) - (width // 2), root_y + (root_h // 2) - (height // 2)
+        dialog.geometry(f"{width}x{height}+{x}+{y}"); dialog.after(100, dialog.focus_force)
 
         card = ctk.CTkFrame(dialog, fg_color=self.colors['bg_card'], corner_radius=20)
         card.pack(fill=tk.BOTH, expand=True, padx=24, pady=24)
@@ -1183,7 +1199,12 @@ class Hermes:
         manual_window.transient(self.root)
 
         width, height = 800, 850
-        self.center_toplevel_window(manual_window, width, height)
+        # Centrar en la pantalla
+        screen_width = manual_window.winfo_screenwidth()
+        screen_height = manual_window.winfo_screenheight()
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+        manual_window.geometry(f"{width}x{height}+{x}+{y}"); manual_window.after(100, manual_window.focus_force)
 
         main_cont = ctk.CTkFrame(manual_window, fg_color=self.colors['bg'], corner_radius=0)
         main_cont.pack(fill=tk.BOTH, expand=True)
@@ -1745,7 +1766,12 @@ class Hermes:
         proc_window.transient(self.root)
 
         width, height = 900, 750
-        self.center_toplevel_window(proc_window, width, height)
+        # Centrar en la pantalla
+        screen_width = proc_window.winfo_screenwidth()
+        screen_height = proc_window.winfo_screenheight()
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+        proc_window.geometry(f"{width}x{height}+{x}+{y}"); proc_window.after(100, proc_window.focus_force)
 
         main_cont = ctk.CTkFrame(proc_window, fg_color=self.colors['bg'], corner_radius=0)
         main_cont.pack(fill=tk.BOTH, expand=True)
@@ -2096,11 +2122,16 @@ class Hermes:
             return
 
         
-        # Calcular total_messages para modo tradicional según Business/Normal/Ambos/TODOS
+        # Calcular total_messages para modo tradicional según Simple/Doble/Triple
         if not self.manual_mode:
             mode = self.traditional_send_mode.get()
             base_links = len(self.links)
-            self.total_messages = base_links # El total es siempre la cantidad de links del Excel
+            if mode == "Simple":
+                self.total_messages = base_links
+            elif mode == "Doble":
+                self.total_messages = base_links * 2
+            elif mode == "Triple":
+                self.total_messages = base_links * 3
             self.log(f"Modo Tradicional ({mode}): {self.total_messages} envíos totales", 'info')
         
         # Limpieza de flags
@@ -2117,7 +2148,6 @@ class Hermes:
         self.failed_count = 0
         self.current_index = 0
         self.start_time = datetime.now()
-        self.task_times = [] # Reiniciar lista de tiempos
         self.update_stats() # Actualizar UI con el total
 
         # Actualizar UI
@@ -2157,7 +2187,12 @@ class Hermes:
         dialog.resizable(False, False)
 
         width, height = 400, 200
-        self.center_toplevel_window(dialog, width, height)
+        self.root.update_idletasks()
+        root_x, root_y = self.root.winfo_x(), self.root.winfo_y()
+        root_w, root_h = self.root.winfo_width(), self.root.winfo_height()
+        x, y = root_x + (root_w // 2) - (width // 2), root_y + (root_h // 2) - (height // 2)
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+        dialog.after(100, dialog.focus_force)
 
         main_frame = ctk.CTkFrame(dialog, fg_color=self.colors['bg_card'])
         main_frame.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
@@ -2263,13 +2298,18 @@ class Hermes:
         # Enviar mensaje
         success = self.send_msg(device, link, task_index, self.total_messages, message_to_send, whatsapp_package)
         
-        # --- La actualización de contadores se manejará en las funciones _run_..._mode ---
+        # --- Importante: Actualizar contadores DESPUÉS de send_msg ---
+        if success:
+            self.sent_count += 1
+        else:
+            self.failed_count += 1
+
+        # Actualizar UI (contadores y barra de progreso)
+        self.root.after(0, self.update_stats)
+        # --- Fin actualización contadores ---
 
         # Espera entre mensajes (solo si no es la última tarea)
-        # FIX: El total de tareas real puede ser mayor que self.total_messages (que ahora es total_contacts)
-        # Se necesita un total de mensajes real para esta lógica. Por ahora, se omite el chequeo final.
-        # if task_index < self.total_messages and not self.should_stop:
-        if not self.should_stop:
+        if task_index < self.total_messages and not self.should_stop:
             delay = random.uniform(self.delay_min.get(), self.delay_max.get())
             self.log(f"Esperando {delay:.1f}s... (Post-tarea {task_index})", 'info')
             elapsed = 0
@@ -2291,18 +2331,16 @@ class Hermes:
         mode = self.traditional_send_mode.get()
         self.log(f"Modo de envío: {mode}", 'info')
         
-        if mode == "Business":
-            self._run_business_mode()
-        elif mode == "Normal":
-            self._run_normal_mode()
-        elif mode == "Business/Normal":
-            self._run_ambos_mode()
-        elif mode == "B/N.1/N.2":
-            self._run_todos_mode()
+        if mode == "Simple":
+            self._run_simple_mode()
+        elif mode == "Doble":
+            self._run_doble_mode()
+        elif mode == "Triple":
+            self._run_triple_mode()
     
-    def _run_business_mode(self):
-        """Modo Business: 1 URL por teléfono (solo Business)."""
-        self.log("Ejecutando Modo Business...", 'info')
+    def _run_simple_mode(self):
+        """Modo Simple: 1 URL por teléfono (comportamiento original)."""
+        self.log("Ejecutando Modo Simple...", 'info')
         idx = 0  # Índice del dispositivo a usar
         
         for i, link in enumerate(self.links):
@@ -2310,63 +2348,28 @@ class Hermes:
                 self.log("Cancelado en bucle", 'warning')
                 break
             
-            self.last_task_time = time.time() # Registrar tiempo de inicio
             device = self.devices[idx]
             idx = (idx + 1) % len(self.devices)
             
             # Ejecutar tarea con Business
-            success = self.run_single_task(device, link, None, i + 1, whatsapp_package="com.whatsapp.w4b")
+            self.run_single_task(device, link, None, i + 1, whatsapp_package="com.whatsapp.w4b")
 
-            # Actualizar contadores y tiempo
-            if self.last_task_time:
-                task_duration = time.time() - self.last_task_time
-                self.task_times.append(task_duration)
+    def _run_doble_mode(self):
+        """Modo Doble: Rota secuencialmente entre dispositivos y cuentas Business/Normal."""
+        self.log("Ejecutando Modo Doble (Rotación Correcta)...", 'info')
 
-            if success:
-                self.sent_count += 1
-            else:
-                self.failed_count += 1
-            self.root.after(0, self.update_stats)
+        # 1. Crear la lista de todas las combinaciones de envío
+        envio_combinations = []
+        for device in self.devices:
+            envio_combinations.append({"device": device, "wa_name": "Business", "wa_package": "com.whatsapp.w4b"})
+            envio_combinations.append({"device": device, "wa_name": "Normal", "wa_package": "com.whatsapp"})
 
-    def _run_normal_mode(self):
-        """Modo Normal: 1 URL por teléfono (solo Normal)."""
-        self.log("Ejecutando Modo Normal...", 'info')
-        idx = 0  # Índice del dispositivo a usar
+        num_combinations = len(envio_combinations)
+        if num_combinations == 0:
+            self.log("Error: No hay dispositivos para el modo Doble.", "error")
+            return
 
-        for i, link in enumerate(self.links):
-            if self.should_stop:
-                self.log("Cancelado en bucle", 'warning')
-                break
-
-            self.last_task_time = time.time() # Registrar tiempo de inicio
-            device = self.devices[idx]
-            idx = (idx + 1) % len(self.devices)
-
-            # Ejecutar tarea con Normal
-            success = self.run_single_task(device, link, None, i + 1, whatsapp_package="com.whatsapp")
-
-            # Actualizar contadores y tiempo
-            if self.last_task_time:
-                task_duration = time.time() - self.last_task_time
-                self.task_times.append(task_duration)
-
-            if success:
-                self.sent_count += 1
-            else:
-                self.failed_count += 1
-            self.root.after(0, self.update_stats)
-
-    def _run_ambos_mode(self):
-        """Modo Ambos: Rota entre Business y Normal para cada link, un solo envío por link."""
-        self.log("Ejecutando Modo Ambos (Rotativo)...", 'info')
-        device_idx = 0
-        
-        accounts = [
-            ("Business", "com.whatsapp.w4b"),
-            ("Normal", "com.whatsapp")
-        ]
-        num_accounts = len(accounts)
-
+        # 2. Iterar una vez sobre los links, rotando las combinaciones
         for i, link in enumerate(self.links):
             if self.should_stop:
                 self.log("Cancelado en bucle", 'warning')
@@ -2374,41 +2377,33 @@ class Hermes:
             
             self.last_task_time = time.time()
 
-            # Rotar dispositivo
-            device = self.devices[device_idx]
-            device_idx = (device_idx + 1) % len(self.devices)
+            # Seleccionar la combinación de envío (dispositivo + cuenta)
+            combination = envio_combinations[i % num_combinations]
+            device = combination["device"]
+            wa_name = combination["wa_name"]
+            wa_package = combination["wa_package"]
 
-            # Rotar cuenta de WhatsApp
-            account_idx = i % num_accounts
-            wa_name, wa_package = accounts[account_idx]
-            
             self.log(f"[{device}] Enviando con {wa_name}", 'info')
-            success = self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package)
-            
-            if self.last_task_time:
-                task_duration = time.time() - self.last_task_time
-                self.task_times.append(task_duration)
+            self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package)
 
-            if success:
-                self.sent_count += 1
-            else:
-                self.failed_count += 1
-            self.root.after(0, self.update_stats)
-
-    def _run_todos_mode(self):
-        """Modo TODOS: Rota entre Business, Normal 1 y Normal 2 para cada link."""
-        self.log("Ejecutando Modo TODOS (Rotativo)...", 'info')
-        device_idx = 0
-        # Rastrea el estado de la cuenta Normal para cada dispositivo
+    def _run_triple_mode(self):
+        """Modo Triple: Rota secuencialmente entre dispositivos y las 3 cuentas."""
+        self.log("Ejecutando Modo Triple (Rotación Correcta)...", 'info')
         is_normal_account_2 = {dev_id: False for dev_id in self.devices}
 
-        accounts = [
-            ("Business", "com.whatsapp.w4b"),
-            ("Normal (Cuenta 1)", "com.whatsapp"),
-            ("Normal (Cuenta 2)", "com.whatsapp")
-        ]
-        num_accounts = len(accounts)
+        # 1. Crear la lista de todas las combinaciones de envío
+        envio_combinations = []
+        for device in self.devices:
+            envio_combinations.append({"device": device, "wa_name": "Business", "wa_package": "com.whatsapp.w4b", "needs_switch": False})
+            envio_combinations.append({"device": device, "wa_name": "Normal (Cuenta 1)", "wa_package": "com.whatsapp", "needs_switch": False})
+            envio_combinations.append({"device": device, "wa_name": "Normal (Cuenta 2)", "wa_package": "com.whatsapp", "needs_switch": True})
 
+        num_combinations = len(envio_combinations)
+        if num_combinations == 0:
+            self.log("Error: No hay dispositivos para el modo Triple.", "error")
+            return
+
+        # 2. Iterar una vez sobre los links, rotando las combinaciones
         for i, link in enumerate(self.links):
             if self.should_stop:
                 self.log("Cancelado en bucle", 'warning')
@@ -2416,39 +2411,33 @@ class Hermes:
 
             self.last_task_time = time.time()
 
-            # Rotar dispositivo
-            device = self.devices[device_idx]
-            device_idx = (device_idx + 1) % len(self.devices)
-
-            # Rotar cuenta de WhatsApp
-            account_idx = i % num_accounts
-            wa_name, wa_package = accounts[account_idx]
+            # Seleccionar la combinación de envío (dispositivo + cuenta)
+            combination = envio_combinations[i % num_combinations]
+            device = combination["device"]
+            wa_name = combination["wa_name"]
+            wa_package = combination["wa_package"]
+            needs_switch_to_acc2 = combination["needs_switch"]
             
-            # Gestionar cambio de cuenta para WhatsApp Normal
+            # Gestionar cambio de cuenta si es necesario
             if "Normal" in wa_name:
-                target_is_account_2 = "(Cuenta 2)" in wa_name
-                if is_normal_account_2[device] != target_is_account_2:
-                    self.log(f"Cambiando a {wa_name} en {device}...", 'info')
+                currently_is_acc2 = is_normal_account_2.get(device, False)
+                if needs_switch_to_acc2 and not currently_is_acc2:
+                    self.log(f"Cambiando a Cuenta 2 en {device}...", 'info')
                     self._switch_whatsapp_account(device)
-                    time.sleep(1)  # Espera para que el cambio se complete
-                    is_normal_account_2[device] = target_is_account_2 # Actualizar estado
-            
+                    time.sleep(1)
+                    is_normal_account_2[device] = True
+                elif not needs_switch_to_acc2 and currently_is_acc2:
+                    self.log(f"Restaurando a Cuenta 1 en {device}...", 'info')
+                    self._switch_whatsapp_account(device)
+                    time.sleep(1)
+                    is_normal_account_2[device] = False
+
             if self.should_stop: break
 
             self.log(f"[{device}] Enviando con {wa_name}", 'info')
-            success = self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package)
+            self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package)
 
-            if self.last_task_time:
-                task_duration = time.time() - self.last_task_time
-                self.task_times.append(task_duration)
-
-            if success:
-                self.sent_count += 1
-            else:
-                self.failed_count += 1
-            self.root.after(0, self.update_stats)
-
-        # Opcional: Dejar todas las cuentas en estado conocido (Cuenta 1)
+        # Dejar todas las cuentas Normal en el estado inicial (Cuenta 1)
         self.log("Finalizando y restaurando cuentas a estado inicial...", 'info')
         for dev, is_acc2 in is_normal_account_2.items():
             if is_acc2:
@@ -3313,27 +3302,6 @@ class Hermes:
         
         self.log(f"[{device}] Cambio de cuenta completado", 'success')
     
-    def center_toplevel_window(self, toplevel_window, width, height):
-        """Centra una ventana Toplevel y ajusta su altura si es necesario."""
-        toplevel_window.update_idletasks()
-
-        screen_width = toplevel_window.winfo_screenwidth()
-        screen_height = toplevel_window.winfo_screenheight()
-
-        # Ajustar la altura si la ventana es más alta que la pantalla
-        if height > screen_height:
-            height = screen_height - 100 # Dejar un margen de 100px
-
-        x = (screen_width // 2) - (width // 2)
-        y = (screen_height // 2) - (height // 2)
-
-        # Asegurarse de que la ventana no aparezca fuera de la pantalla
-        if y < 0:
-            y = 20
-
-        toplevel_window.geometry(f"{width}x{height}+{x}+{y}")
-        toplevel_window.after(100, toplevel_window.focus_force)
-
     def _run_adb_command(self, args, timeout=10):
         """Ejecuta un comando ADB y maneja errores comunes."""
         adb = self.adb_path.get()
@@ -3659,8 +3627,19 @@ class Hermes:
         # Crear ventana de inyector
         injector_window = ctk.CTkToplevel(self.root)
         injector_window.title("HΞЯMΞS V1 - Inyector ADB")
+        injector_window.geometry("900x700")
         injector_window.transient(self.root)
-        self.center_toplevel_window(injector_window, 900, 700)
+
+        # Centrar ventana
+        injector_window.update_idletasks()
+        root_x = self.root.winfo_rootx()
+        root_y = self.root.winfo_rooty()
+        root_w = self.root.winfo_width()
+        root_h = self.root.winfo_height()
+        x = root_x + (root_w // 2) - 450
+        y = root_y + (root_h // 2) - 350
+        injector_window.geometry(f"900x700+{x}+{y}")
+        injector_window.after(100, injector_window.focus_force)
         
         # Contenedor principal
         main_cont = ctk.CTkFrame(injector_window, fg_color=self.colors['bg'], corner_radius=0)
@@ -3820,32 +3799,6 @@ class Hermes:
         for package in targets:
             close_args = ['-s', device, 'shell', 'am', 'force-stop', package]
             self._run_adb_command(close_args, timeout=5) # Usar la función helper, ignorar resultado
-
-    def update_per_whatsapp_stat(self, *args):
-        """Calcula y actualiza la estadística de envíos por cuenta de WhatsApp."""
-        if not self.links or not self.devices:
-            self.per_whatsapp_stat.configure(text="≈ -- por Whatsapp")
-            return
-
-        num_contacts = len(self.links)
-        num_devices = len(self.devices)
-        mode = self.traditional_send_mode.get()
-
-        accounts_per_device = 1
-        if mode == "Business/Normal":
-            accounts_per_device = 2
-        elif mode == "B/N.1/N.2":
-            accounts_per_device = 3
-
-        total_accounts = num_devices * accounts_per_device
-
-        if total_accounts == 0:
-            self.per_whatsapp_stat.configure(text="≈ -- por Whatsapp")
-            return
-
-        per_wa = math.ceil(num_contacts / total_accounts)
-        self.per_whatsapp_stat.configure(text=f"≈ {per_wa} por Whatsapp")
-
 
 # --- Main y Login ---
 def main():
