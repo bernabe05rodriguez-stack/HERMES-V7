@@ -1116,6 +1116,16 @@ class Hermes:
             if not self.raw_data:
                 self.log("Archivo sin datos.", 'warning'); messagebox.showwarning("Vacío", "El archivo seleccionado está vacío o no tiene datos válidos."); return
 
+            # --- INICIO MODIFICACIÓN: Ordenar por "$ Asig." ---
+            if "$ Asig." in self.columns:
+                try:
+                    # Convertir la columna a número para ordenar correctamente, manejando errores
+                    self.raw_data.sort(key=lambda x: float(str(x.get("$ Asig.", 0)).replace('$', '').replace(',', '').strip()), reverse=True)
+                    self.log("Datos ordenados por '$ Asig.' (descendente)", 'success')
+                except (ValueError, TypeError) as e:
+                    self.log(f"Advertencia: No se pudo ordenar por '$ Asig.'. Error: {e}", 'warning')
+            # --- FIN MODIFICACIÓN ---
+
             # Caso 1: El archivo ya tiene una columna 'URL'
             if 'URL' in self.columns or 'url' in self.columns:
                 uc = 'URL' if 'URL' in self.columns else 'url'
@@ -2027,30 +2037,6 @@ class Hermes:
 
     def process_excel_data(self, selected_columns, message_template, selected_phones):
         """Genera la lista de URLs de WhatsApp a partir de los datos y la plantilla."""
-
-        # --- INICIO MODIFICACIÓN: Ordenar por "$ Asig." ---
-        def get_asig_value(row):
-            """Función auxiliar para obtener y limpiar el valor de '$ Asig.' para ordenar."""
-            value_str = row.get("$ Asig.", '0') # Usar '0' como default si no existe
-            if isinstance(value_str, (int, float)):
-                return value_str
-            try:
-                # Limpiar el string de símbolos monetarios, comas y espacios
-                cleaned_str = str(value_str).replace('$', '').replace(',', '').strip()
-                return float(cleaned_str)
-            except (ValueError, TypeError):
-                # Si la conversión falla, tratarlo como 0 para que no detenga el proceso
-                return 0
-
-        # Ordenar la lista 'self.raw_data' solo si la columna "$ Asig." existe
-        if "$ Asig." in self.columns:
-            try:
-                self.raw_data.sort(key=get_asig_value, reverse=True)
-                self.log("✓ Datos ordenados por '$ Asig.' de mayor a menor.", 'success')
-            except Exception as e:
-                self.log(f"Advertencia: No se pudo ordenar por '$ Asig.': {e}", 'warning')
-        # --- FIN MODIFICACIÓN ---
-
         processed_rows = []
         for row in self.raw_data:
             # Obtener todos los números de las columnas de teléfono seleccionadas
