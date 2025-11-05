@@ -1329,16 +1329,36 @@ class Hermes:
                                                         justify='left')
         self.fidelizado_device_list_label.pack(anchor='w')
 
+        # Card para Configuración
+        controls_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
+        controls_card.pack(fill="x", pady=(0, 15))
+
+        # Frame para los controles en grid
+        controls_grid = ctk.CTkFrame(controls_card, fg_color="transparent")
+        controls_grid.pack(fill=tk.X, padx=15, pady=15)
+        controls_grid.grid_columnconfigure([0, 1], weight=1)
+
         # Card para Mensajes
         messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        messages_card.pack(fill="x", pady=(0, 15))
+        messages_card.pack(fill="x", expand=True)
         ctk.CTkLabel(messages_card, text="✍️ Mensajes", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(10, 5))
         # Contenedor para la nueva UI de mensajes (se llenará en el siguiente paso)
         self.fidelizado_messages_container = ctk.CTkFrame(messages_card, fg_color="transparent")
         self.fidelizado_messages_container.pack(fill="x", padx=15, pady=(0, 15))
-        # UI de Mensajes
+        self.fidelizado_messages_container.grid_columnconfigure(1, weight=1)
+
+        # Botón para cargar
+        load_messages_btn = ctk.CTkButton(self.fidelizado_messages_container, text="Cargar Archivo",
+                                          command=self._load_fidelizado_messages_from_file,
+                                          font=self.fonts['button_small'],
+                                          fg_color=self.colors['blue'],
+                                          hover_color=darken_color(self.colors['blue'], 0.15),
+                                          height=30)
+        load_messages_btn.grid(row=0, column=0, sticky='w')
+
+        # Label para el contador
         self.fidelizado_message_count_label = ctk.CTkLabel(self.fidelizado_messages_container, text="", font=self.fonts['setting_label'], text_color=self.colors['text'])
-        self.fidelizado_message_count_label.pack(anchor='w', pady=(0, 10))
+        self.fidelizado_message_count_label.grid(row=0, column=1, sticky='w', padx=10)
 
         # Inicializar texto del label
         initial_message_count = len(self.manual_messages_numbers)
@@ -1346,23 +1366,6 @@ class Hermes:
             self.fidelizado_message_count_label.configure(text=f"✅ {initial_message_count} mensajes cargados")
         else:
             self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
-
-        load_messages_btn = ctk.CTkButton(self.fidelizado_messages_container, text="Cargar Archivo",
-                                          command=self._load_fidelizado_messages_from_file,
-                                          font=self.fonts['button_small'],
-                                          fg_color=self.colors['blue'],
-                                          hover_color=darken_color(self.colors['blue'], 0.15),
-                                          height=30)
-        load_messages_btn.pack(anchor='w')
-
-        # Card para Configuración
-        controls_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        controls_card.pack(fill="x", expand=True)
-
-        # Frame para los controles en grid
-        controls_grid = ctk.CTkFrame(controls_card, fg_color="transparent")
-        controls_grid.pack(fill=tk.X, padx=15, pady=15)
-        controls_grid.grid_columnconfigure([0, 1], weight=1)
 
         # Control de Modo
         mode_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
@@ -1406,15 +1409,15 @@ class Hermes:
         ctk.CTkRadioButton(mixto_radio_frame, text="3G:1N", variable=self.mixto_variant, value=3, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
 
         # --- Botones de Acción ---
-        actions_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
-        actions_frame.pack(fill="x", pady=(10, 0))
-        actions_frame.grid_columnconfigure(0, weight=1)
-        actions_frame.grid_columnconfigure(1, weight=1)
+        self.actions_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
+        self.actions_frame.pack(fill="x", pady=(10, 0))
+        self.actions_frame.grid_columnconfigure(0, weight=1)
+        self.actions_frame.grid_columnconfigure(1, weight=1)
 
-        self.fidelizado_btn_start = ctk.CTkButton(actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
+        self.fidelizado_btn_start = ctk.CTkButton(self.actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
         self.fidelizado_btn_start.grid(row=0, column=0, sticky='ew', padx=(0, 5))
 
-        self.unirse_grupos_btn = ctk.CTkButton(actions_frame, text="🔗 UNIRSE A GRUPOS", command=self.start_unirse_grupos, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
+        self.unirse_grupos_btn = ctk.CTkButton(self.actions_frame, text="🔗 UNIRSE A GRUPOS", command=self.start_unirse_grupos, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
         self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(5, 0))
 
         # Reutilizar los botones de pausa/cancelar de la vista principal
@@ -1475,6 +1478,18 @@ class Hermes:
             self.mixto_variant_container.grid(row=2, column=0, columnspan=2, sticky='w', pady=(0, 15))
         else:
             self.mixto_variant_container.grid_remove()
+
+        # Visibilidad del botón "Unirse a Grupos"
+        if self.fidelizado_mode == "GRUPOS":
+            self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(5, 0))
+            self.fidelizado_btn_start.grid(row=0, column=0, sticky='ew', padx=(0, 5))
+            self.actions_frame.grid_columnconfigure(1, weight=1)
+            self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO A GRUPOS")
+        else:
+            self.unirse_grupos_btn.grid_remove()
+            self.fidelizado_btn_start.grid(row=0, column=0, columnspan=2, sticky='ew', padx=0)
+            self.actions_frame.grid_columnconfigure(1, weight=0)
+            self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO FIDELIZADO")
 
     def _populate_fidelizado_inputs(self):
         """Limpia y rellena los campos de texto con los datos guardados en las variables."""
