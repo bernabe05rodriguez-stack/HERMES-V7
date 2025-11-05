@@ -1410,12 +1410,9 @@ class Hermes:
             self.fidelizado_message_count_label.configure(text=f"✅ {initial_message_count} mensajes cargados")
         else:
             self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
-        ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
-        whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['setting_label'], fg_color=self.colors['bg'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'], text_color_disabled=self.colors['text'])
-        whatsapp_menu.pack(anchor='w')
 
         # --- Controles de Variante Mixto (inicialmente ocultos) ---
-        self.mixto_variant_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
+        self.mixto_variant_container = ctk.CTkFrame(config_grid, fg_color="transparent")
         ctk.CTkLabel(self.mixto_variant_container, text="Variante Modo Mixto:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
         mixto_radio_frame = ctk.CTkFrame(self.mixto_variant_container, fg_color="transparent")
         mixto_radio_frame.pack(anchor='w')
