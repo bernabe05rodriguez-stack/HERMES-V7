@@ -236,6 +236,9 @@ class Hermes:
         self.mensaje_start_index = 0
         
         self.manual_loops = 1
+
+        self.fidelizado_delay_min = tk.IntVar(value=10)
+        self.fidelizado_delay_max = tk.IntVar(value=15)
         
         # Variables de tiempo para Modo Grupos Dual
         self.wait_after_write = tk.IntVar(value=2)  # Tiempo después de escribir antes del primer Enter
@@ -1331,44 +1334,57 @@ class Hermes:
         self.fidelizado_device_list_label.pack(anchor='w')
 
         # Card para Configuración
-        controls_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        controls_card.grid(row=1, column=0, sticky="ew", pady=(0, 15))
+        config_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
+        config_card.grid(row=1, column=0, sticky="ew", pady=(0, 15))
+        ctk.CTkLabel(config_card, text="⚙️ Configuración", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(10, 5))
 
-        controls_grid = ctk.CTkFrame(controls_card, fg_color="transparent")
-        controls_grid.pack(fill=tk.X, padx=15, pady=10)
-        controls_grid.grid_columnconfigure([0, 1], weight=1)
+        config_grid = ctk.CTkFrame(config_card, fg_color="transparent")
+        config_grid.pack(fill=tk.X, padx=15, pady=(0, 15))
+        config_grid.grid_columnconfigure([0, 1], weight=1)
 
-        # Control de Modo
-        mode_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
-        mode_container.grid(row=0, column=0, sticky='w', pady=(0, 10))
-        ctk.CTkLabel(mode_container, text="Modo de envío:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
+        # Fila 0: Modo de envío
+        mode_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        mode_container.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 10))
+        ctk.CTkLabel(mode_container, text="Modo de envío:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         fidelizado_modes = ["Modo Números", "Modo Grupos", "Modo Mixto"]
         mode_map_to_ui = {"NUMEROS": "Modo Números", "GRUPOS": "Modo Grupos", "MIXTO": "Modo Mixto"}
         current_mode_ui = mode_map_to_ui.get(self.fidelizado_mode, "Modo Números")
         self.fidelizado_mode_var = tk.StringVar(value=current_mode_ui)
-        mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['setting_label'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg'], button_color=self.colors['blue'], button_hover_color=self.hover_colors['action_detect'], text_color=self.colors['text'], height=35, width=280)
-        mode_menu.pack(anchor='w')
+        mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['setting_label'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg_card'], button_color=self.colors['blue'], button_hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text'], height=30)
+        mode_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Control de Bucles
-        loops_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
-        loops_container.grid(row=0, column=1, sticky='w', pady=(0, 10), padx=(20, 0))
-        ctk.CTkLabel(loops_container, text="Nº de Bucles/Repeticiones:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
+        # Fila 1: Bucles y Delay
+        loops_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 10), padx=(0, 5))
+        ctk.CTkLabel(loops_container, text="Bucle:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         self.manual_loops_var = tk.IntVar(value=max(1, self.manual_loops))
         spinbox_loops = self._create_spinbox_widget(loops_container, self.manual_loops_var, min_val=1, max_val=100)
-        spinbox_loops.pack(anchor='w')
+        spinbox_loops.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Control de Velocidad y WhatsApp
-        speed_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
-        speed_container.grid(row=1, column=0, sticky='w', pady=(0, 10))
-        ctk.CTkLabel(speed_container, text="Velocidad de escritura:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
-        speed_menu = ctk.CTkSegmentedButton(speed_container, variable=self.write_speed, values=["Lento", "Normal", "Rápido"], font=self.fonts['setting_label'], fg_color=self.colors['bg'], selected_color=self.colors['blue'], selected_hover_color=self.hover_colors['action_detect'], unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'], text_color_disabled=self.colors['text'])
-        speed_menu.pack(anchor='w')
+        delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        delay_container.grid(row=1, column=1, sticky='ew', pady=(0, 10), padx=(5, 0))
+        ctk.CTkLabel(delay_container, text="Tiempo (seg):", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
 
-        whatsapp_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
-        whatsapp_container.grid(row=1, column=1, sticky='w', pady=(0, 10), padx=(20, 0))
-        ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
-        whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['setting_label'], fg_color=self.colors['bg'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'], text_color_disabled=self.colors['text'])
-        whatsapp_menu.pack(anchor='w')
+        delay_spinboxes = ctk.CTkFrame(delay_container, fg_color="transparent")
+        delay_spinboxes.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        spinbox_delay_min = self._create_spinbox_widget(delay_spinboxes, self.fidelizado_delay_min, min_val=1, max_val=300)
+        spinbox_delay_min.pack(side=tk.LEFT, expand=True)
+        ctk.CTkLabel(delay_spinboxes, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.LEFT, padx=4)
+        spinbox_delay_max = self._create_spinbox_widget(delay_spinboxes, self.fidelizado_delay_max, min_val=1, max_val=300)
+        spinbox_delay_max.pack(side=tk.LEFT, expand=True)
+
+        # Fila 2: Velocidad y WhatsApp
+        speed_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        speed_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 10))
+        ctk.CTkLabel(speed_container, text="Velocidad escritura:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        speed_menu = ctk.CTkSegmentedButton(speed_container, variable=self.write_speed, values=["Lento", "Normal", "Rápido"], font=('Inter', 10, 'bold'), height=30, fg_color=self.colors['bg_card'], selected_color=self.colors['blue'], selected_hover_color=darken_color(self.colors['blue'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
+        speed_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
+
+        whatsapp_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        whatsapp_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 10))
+        ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=('Inter', 10, 'bold'), height=30, fg_color=self.colors['bg_card'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
+        whatsapp_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
         # Card para Mensajes
         messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
@@ -2180,7 +2196,10 @@ class Hermes:
 
         # Espera entre mensajes (solo si no es la última tarea)
         if task_index < self.total_messages and not self.should_stop:
-            delay = random.uniform(self.delay_min.get(), self.delay_max.get())
+            if self.manual_mode:
+                delay = random.uniform(self.fidelizado_delay_min.get(), self.fidelizado_delay_max.get())
+            else:
+                delay = random.uniform(self.delay_min.get(), self.delay_max.get())
             self.log(f"Esperando {delay:.1f}s... (Post-tarea {task_index})", 'info')
             elapsed = 0
             while elapsed < delay and not self.should_stop:
