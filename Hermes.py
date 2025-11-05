@@ -381,8 +381,8 @@ class Hermes:
         self._current_main_layout = None
 
         self.root.bind("<Configure>", self._on_main_configure)
+        self.setup_right(right) # FIX: Inicializar el panel derecho primero para que exista el log_text
         self.setup_left(left)
-        self.setup_right(right)
         self.root.update_idletasks()
         self._update_main_layout(self.root.winfo_width())
 
@@ -1314,8 +1314,11 @@ class Hermes:
         actions_frame.grid_columnconfigure(0, weight=1)
         actions_frame.grid_columnconfigure(1, weight=1)
 
-        self.fidelizado_btn_start = ctk.CTkButton(actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
-        self.fidelizado_btn_start.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 10))
+        self.fidelizado_btn_start = ctk.CTkButton(actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
+        self.fidelizado_btn_start.grid(row=0, column=0, sticky='ew', padx=(0, 5))
+
+        self.unirse_grupos_btn = ctk.CTkButton(actions_frame, text="🔗 UNIRSE A GRUPOS", command=self.start_unirse_grupos, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
+        self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(5, 0))
 
         # Reutilizar los botones de pausa/cancelar de la vista principal
         # (se habilitarán/deshabilitarán juntos)
@@ -1375,11 +1378,11 @@ class Hermes:
             self.fidelizado_numbers_text.insert("1.0", "\n".join(self.manual_inputs_numbers))
         if self.manual_inputs_groups:
             self.fidelizado_groups_text.insert("1.0", "\n".join(self.manual_inputs_groups))
-        
+
         # Cargar mensajes (pueden ser los mismos para ambos al inicio)
         if self.manual_messages_numbers:
             self.fidelizado_messages_numbers_text.insert("1.0", "\n".join(self.manual_messages_numbers))
-        
+
         # Si no hay mensajes de grupo pero sí de número (caso común), usarlos también para grupos
         elif self.manual_messages_numbers and not self.manual_messages_groups:
              self.manual_messages_groups = self.manual_messages_numbers
@@ -1413,6 +1416,23 @@ class Hermes:
         self.links = [] # Limpiar links del modo tradicional
 
         self.start_sending() # Llamar a la lógica de envío compartida
+
+    def start_unirse_grupos(self):
+        """Valida e inicia el hilo para unirse a grupos."""
+        if not self.devices:
+            messagebox.showerror("Error", "Paso 1: Detecta al menos un dispositivo.", parent=self.root)
+            return
+
+        grupos = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
+        if not grupos:
+            messagebox.showerror("Error", "Ingresa al menos un link de grupo en la caja de texto.", parent=self.root)
+            return
+
+        if not messagebox.askyesno("Confirmar Acción", f"¿Estás seguro de que deseas intentar unirte a {len(grupos)} grupo(s) en {len(self.devices)} dispositivo(s)?", parent=self.root):
+            return
+
+        # Iniciar el proceso en un hilo para no bloquear la UI
+        threading.Thread(target=self.run_unirse_grupos, args=(grupos,), daemon=True).start()
 
     def validate_numbers(self, inputs_raw, parent_window):
         """Valida una lista de números. Devuelve lista limpia o None si hay error."""
@@ -1785,7 +1805,8 @@ class Hermes:
         modos_sin_links = ["NUMEROS", "GRUPOS", "MIXTO"]
         
         if not self.links and self.fidelizado_mode not in modos_sin_links:
-            messagebox.showerror("Error", "Paso 2 o Fidelizado: Carga datos o genera enlaces.", parent=self.root); return
+            messagebox.showerror("Error", "Paso 2 o Fidelizado: Carga datos o genera enlaces.", parent=self.root)
+            return
         
         # Validaciones específicas por modo
         if self.fidelizado_mode == "NUMEROS":
