@@ -420,6 +420,41 @@ class Hermes:
         self._current_main_layout = mode
 
     def setup_left(self, parent):
+        # Contenedor principal para las vistas
+        self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
+        self.views_container.pack(fill=tk.BOTH, expand=True)
+
+        # --- Vista Tradicional ---
+        self.traditional_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+        self.setup_traditional_view(self.traditional_view_frame)
+
+        # --- Vista Fidelizado (inicialmente vacía) ---
+        self.fidelizado_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+        self.setup_fidelizado_view(self.fidelizado_view_frame) # <-- LLAMAR AL MÉTODO DE CONSTRUCCIÓN
+
+        # Mostrar la vista tradicional por defecto
+        self.show_traditional_view()
+
+    def show_traditional_view(self):
+        """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
+        # Guardar datos de los textboxes para persistencia
+        if hasattr(self, 'fidelizado_numbers_text'): # Comprobar si los widgets existen
+            self.manual_inputs_numbers = [line.strip() for line in self.fidelizado_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
+            self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
+            self.manual_messages_numbers = [line.strip() for line in self.fidelizado_messages_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
+            # Asumir que los mensajes de grupo son los mismos
+            self.manual_messages_groups = self.manual_messages_numbers
+
+        self.fidelizado_view_frame.pack_forget()
+        self.traditional_view_frame.pack(fill=tk.BOTH, expand=True)
+
+    def show_fidelizado_view(self):
+        """Muestra la vista de Fidelizado, repoblando los datos, y oculta las demás."""
+        self._populate_fidelizado_inputs() # Repoblar datos al mostrar la vista
+        self.traditional_view_frame.pack_forget()
+        self.fidelizado_view_frame.pack(fill=tk.BOTH, expand=True)
+
+    def setup_traditional_view(self, parent):
         # Bloque 1: Configuración de Tiempo
         cc = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
         cc.pack(fill=tk.X, pady=(0, 30), padx=10)
@@ -1144,70 +1179,6 @@ class Hermes:
 
     # --- Lógica de Fidelizado (Carga Manual) ---
 
-    def _prompt_fidelizado_password(self):
-        """Muestra una ventana modal para pedir la contraseña de Fidelizado."""
-        dialog = ctk.CTkToplevel(self.root)
-        dialog.title("Acceso Fidelizado")
-        dialog.transient(self.root); dialog.grab_set(); dialog.resizable(False, False); dialog.attributes('-topmost', True)
-
-        width, height = 360, 260
-        root_x, root_y, root_w, root_h = self.root.winfo_rootx(), self.root.winfo_rooty(), self.root.winfo_width(), self.root.winfo_height()
-        x, y = root_x + (root_w // 2) - (width // 2), root_y + (root_h // 2) - (height // 2)
-        dialog.geometry(f"{width}x{height}+{x}+{y}"); dialog.after(100, dialog.focus_force)
-
-        card = ctk.CTkFrame(dialog, fg_color=self.colors['bg_card'], corner_radius=20)
-        card.pack(fill=tk.BOTH, expand=True, padx=24, pady=24)
-
-        header = ctk.CTkFrame(card, fg_color="transparent")
-        header.pack(fill=tk.X, pady=(0, 18))
-        ctk.CTkLabel(header, text="🔐", font=('Inter', 24), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 10))
-        ctk.CTkLabel(header, text="Desbloquear Fidelizado", font=self.fonts['card_title'], text_color=self.colors['text']).pack(anchor='w', padx=(16, 0))
-
-        ctk.CTkLabel(card, text="Ingresa la contraseña:", font=self.fonts['setting_label'], text_color=self.colors['text_light'], wraplength=280, justify='left').pack(anchor='w')
-        pwd_var = tk.StringVar()
-        pwd_entry = ctk.CTkEntry(card, textvariable=pwd_var, font=('Inter', 12), show='*', corner_radius=10, height=40)
-        pwd_entry.pack(fill=tk.X, pady=(18, 10)); pwd_entry.focus_set()
-
-        result = {'value': None}
-        buttons = ctk.CTkFrame(card, fg_color="transparent")
-        buttons.pack(fill=tk.X, pady=(12, 0))
-
-        def close_d(v=None):
-            result['value'] = v
-            self.root.focus_force()
-            dialog.destroy()
-
-        def submit(e=None): close_d(pwd_var.get().strip())
-        def cancel(e=None): close_d(None)
-
-        ctk.CTkButton(buttons, text="Desbloquear", command=submit, fg_color=self.colors['blue'], hover_color=darken_color(self.colors['blue'], 0.18), font=self.fonts['button_small'], corner_radius=10, height=35).pack(side=tk.RIGHT)
-        ctk.CTkButton(buttons, text="Cancelar", command=cancel, fg_color='#e5e7eb', text_color=self.colors['text'], hover_color='#d1d5db', font=self.fonts['setting_label'], corner_radius=10, height=35).pack(side=tk.RIGHT, padx=(0, 12))
-
-        dialog.bind('<Return>', submit); dialog.bind('<Escape>', cancel); dialog.protocol('WM_DELETE_WINDOW', cancel)
-        self.root.wait_window(dialog)
-        return result['value']
-
-    def request_fidelizado_password(self):
-        """Pide la contraseña y desbloquea la función si es correcta."""
-        password = self._prompt_fidelizado_password()
-        if password is None:
-            return
-
-        if password == "1234": # Contraseña
-            self.fidelizado_unlocked = True
-            if self.fidelizado_unlock_btn:
-                self.fidelizado_unlock_btn.configure(
-                    text="Fidelizador",
-                    command=self.open_manual_input_window,
-                    fg_color=self.colors['bg_card'],
-                    text_color=self.colors['text'],
-                    hover_color=self.colors["bg"],
-                    font=self.fonts['button_small'],
-                    width=100
-                )
-            self.log("Acceso Fidelizado desbloqueado", 'success')
-        else:
-            messagebox.showerror("Acceso Fidelizado", "Contraseña incorrecta", parent=self.root)
 
     def _load_default_messages(self):
         """Carga los mensajes predeterminados desde Grupos.txt si existe."""
@@ -1230,512 +1201,218 @@ class Hermes:
 
     def handle_fidelizado_access(self):
         """Manejador del botón de Fidelizado (acceso directo)."""
-        self.open_manual_input_window()
+        # Si la lógica de contraseña sigue siendo necesaria, se puede añadir aquí.
+        # Por ahora, simplemente muestra la vista.
+        self.show_fidelizado_view()
 
-    # --- INICIO MODIFICACIÓN: open_manual_input_window (Modo Bucles Blast V2) ---
-    def open_manual_input_window(self):
-        """Abre la ventana de carga manual (Fidelizado)."""
-        # Cargar mensajes predeterminados si no hay mensajes cargados
+    def setup_fidelizado_view(self, parent):
+        """Construye la interfaz de la vista Fidelizado."""
+        # Cargar mensajes predeterminados si es la primera vez
         if not self.manual_messages_numbers and not self.manual_messages_groups:
             self._load_default_messages()
-        
-        manual_window = ctk.CTkToplevel(self.root)
-        manual_window.title("HΞЯMΞS V1 - Fidelizado")
-        manual_window.transient(self.root)
 
-        width, height = 800, 850
-        # Centrar en la pantalla
-        screen_width = manual_window.winfo_screenwidth()
-        screen_height = manual_window.winfo_screenheight()
-        x = (screen_width // 2) - (width // 2)
-        y = (screen_height // 2) - (height // 2)
-        manual_window.geometry(f"{width}x{height}+{x}+{y}"); manual_window.after(100, manual_window.focus_force)
+        # Botón para volver a la vista principal
+        back_button_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        back_button_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+        back_button = ctk.CTkButton(back_button_frame, text="⬅️ Volver al Modo Tradicional",
+                                      command=self.show_traditional_view,
+                                      fg_color="transparent",
+                                      text_color=self.colors['text_light'],
+                                      hover_color=self.colors['bg_card'])
+        back_button.pack(side=tk.LEFT)
 
-        main_cont = ctk.CTkFrame(manual_window, fg_color=self.colors['bg'], corner_radius=0)
-        main_cont.pack(fill=tk.BOTH, expand=True)
+        # Contenido principal de Fidelizado
+        content = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
+        content.pack(fill=tk.BOTH, expand=True, padx=10)
 
-        # Header mejorado
-        header = ctk.CTkFrame(main_cont, fg_color=self.colors['bg_header'], height=100, corner_radius=0)
-        header.pack(fill=tk.X, pady=(0, 10))
-        header.pack_propagate(False)
-        
-        hc = ctk.CTkFrame(header, fg_color=self.colors['bg_header'])
-        hc.pack(expand=True, fill=tk.X, padx=40)
-        
-        # Icono y título
-        icon_title_frame = ctk.CTkFrame(hc, fg_color="transparent")
-        icon_title_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        ctk.CTkLabel(icon_title_frame, text="🔒", font=('Inter', 40), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 15))
-        
-        title_frame = ctk.CTkFrame(icon_title_frame, fg_color="transparent")
-        title_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        ctk.CTkLabel(title_frame, text="FIDELIZADO", font=('Inter', 28, 'bold'), 
-                    fg_color="transparent", text_color=self.colors['text_header']).pack(anchor='w')
-        ctk.CTkLabel(title_frame, text="Carga Manual de Números y Grupos", font=('Inter', 12), 
-                    fg_color="transparent", text_color=self.colors['text_light']).pack(anchor='w')
+        # Layout principal de 2 columnas
+        content.grid_columnconfigure(0, weight=1)
+        content.grid_columnconfigure(1, weight=1)
+        content.grid_rowconfigure(1, weight=1) # Fila de textboxes se expande
 
-        # Contenido
-        content = ctk.CTkScrollableFrame(main_cont, fg_color=self.colors['bg'], corner_radius=0)
-        content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
-
-        # --- Controles (Bucles y Modo) ---
-        controls_card = ctk.CTkFrame(content, fg_color=self.colors['bg_card'], corner_radius=15)
-        controls_card.pack(fill=tk.X, pady=(0, 20))
-        
         # Título de la tarjeta
-        controls_title_frame = ctk.CTkFrame(controls_card, fg_color="transparent")
-        controls_title_frame.pack(fill=tk.X, pady=(20, 10), padx=20)
-        ctk.CTkLabel(controls_title_frame, text="⚙", font=('Inter', 20), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 10))
-        ctk.CTkLabel(controls_title_frame, text="Configuración General", font=self.fonts['card_title'], 
-                    fg_color="transparent", text_color=self.colors['text']).pack(side=tk.LEFT)
-        
-        # Separador
-        ctk.CTkFrame(controls_card, fg_color=self.colors['text_light'], height=1).pack(fill=tk.X, pady=(0, 15), padx=20)
-        
-        controls_frame = ctk.CTkFrame(controls_card, fg_color="transparent")
-        controls_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-        controls_frame.grid_columnconfigure(0, weight=1)
-        controls_frame.grid_columnconfigure(1, weight=1)
-        controls_frame.grid_columnconfigure(2, weight=1)
-        
-        # Control de Bucles
-        loops_var = tk.IntVar(value=max(1, self.manual_loops))
-        loops_container = ctk.CTkFrame(controls_frame, fg_color="transparent")
-        loops_container.grid(row=0, column=0, sticky='w')
-        ctk.CTkLabel(loops_container, text="Número de Bucles/Repeticiones:", font=self.fonts['setting_label'], fg_color="transparent", text_color=self.colors['text']).pack(anchor='w', pady=(0, 4))
-        ctk.CTkLabel(loops_container, text="(Aplica a Modo Números, Grupos y Bucles Blast)", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light']).pack(anchor='w', pady=(0, 8))
-        spinbox_loops = self._create_spinbox_widget(loops_container, loops_var, min_val=1, max_val=100)
-        spinbox_loops.pack(anchor='w')
+        title_frame = ctk.CTkFrame(content, fg_color="transparent")
+        title_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(15, 10))
+        ctk.CTkLabel(title_frame, text="🚀 Modo Fidelizado (Envío por Bucles)", font=self.fonts['card_title'], text_color=self.colors['text']).pack(anchor='w')
 
-        # Control de Velocidad de Escritura
-        speed_container = ctk.CTkFrame(controls_frame, fg_color="transparent")
-        speed_container.grid(row=0, column=1, sticky='w', padx=(20, 0))
-        ctk.CTkLabel(speed_container, text="Velocidad de escritura:", font=self.fonts['setting_label'], fg_color="transparent", text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
-        
-        speed_options = ["Lento", "Normal", "Rápido"]
-        speed_menu = ctk.CTkSegmentedButton(
-            speed_container,
-            variable=self.write_speed,
-            values=speed_options,
-            font=self.fonts['setting_label'],
-            fg_color=self.colors['bg'],
-            selected_color=self.colors['blue'],
-            selected_hover_color=self.hover_colors['action_detect'],
-            unselected_color=self.colors['bg_card'],
-            unselected_hover_color=self.colors["bg"],
-            text_color=self.colors['text'],
-            text_color_disabled=self.colors['text']
-        )
-        speed_menu.pack(anchor='w')
-        
-        # Control de Selección de WhatsApp
-        whatsapp_container = ctk.CTkFrame(controls_frame, fg_color="transparent")
-        whatsapp_container.grid(row=0, column=2, sticky='w', padx=(20, 0))
-        ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['setting_label'], fg_color="transparent", text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
-        
-        whatsapp_options = ["Normal", "Business", "Ambas", "Todas"]
-        whatsapp_menu = ctk.CTkSegmentedButton(
-            whatsapp_container,
-            variable=self.whatsapp_mode,
-            values=whatsapp_options,
-            font=self.fonts['setting_label'],
-            fg_color=self.colors['bg'],
-            selected_color=self.colors['green'],
-            selected_hover_color=darken_color(self.colors['green'], 0.15),
-            unselected_color=self.colors['bg_card'],
-            unselected_hover_color=self.colors["bg"],
-            text_color=self.colors['text'],
-            text_color_disabled=self.colors['text']
-        )
-        whatsapp_menu.pack(anchor='w')
-        
+        # --- Columna Izquierda: Números y Mensajes ---
+        left_col = ctk.CTkFrame(content, fg_color="transparent")
+        left_col.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(0, 20))
+        left_col.grid_rowconfigure(1, weight=1) # El textbox de números se expande
+        left_col.grid_rowconfigure(3, weight=1) # El textbox de mensajes se expande
+
+        ctk.CTkLabel(left_col, text="📞 Números (+549 sin prefijo)", font=self.fonts['button'], text_color=self.colors['text']).grid(row=0, column=0, sticky="w", pady=(0, 5))
+        self.fidelizado_numbers_text = ctk.CTkTextbox(left_col, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
+        self.fidelizado_numbers_text.grid(row=1, column=0, sticky="nsew")
+
+        ctk.CTkLabel(left_col, text="✍️ Mensajes para Números (uno por línea)", font=self.fonts['button'], text_color=self.colors['text']).grid(row=2, column=0, sticky="w", pady=(15, 5))
+        self.fidelizado_messages_numbers_text = ctk.CTkTextbox(left_col, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
+        self.fidelizado_messages_numbers_text.grid(row=3, column=0, sticky="nsew")
+
+        # --- Columna Derecha: Grupos y Controles ---
+        right_col = ctk.CTkFrame(content, fg_color="transparent")
+        right_col.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 20))
+        right_col.grid_rowconfigure(1, weight=1) # El textbox de grupos se expande
+
+        ctk.CTkLabel(right_col, text="🔗 Links de Grupos (https://...)", font=self.fonts['button'], text_color=self.colors['text']).grid(row=0, column=0, sticky="w", pady=(0, 5))
+        self.fidelizado_groups_text = ctk.CTkTextbox(right_col, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
+        self.fidelizado_groups_text.grid(row=1, column=0, sticky="nsew")
+
+        # Contenedor para Controles de Envío
+        controls_card = ctk.CTkFrame(right_col, fg_color="transparent")
+        controls_card.grid(row=2, column=0, sticky="ew", pady=(20, 0))
+
+        # Frame para los controles en grid
+        controls_grid = ctk.CTkFrame(controls_card, fg_color="transparent")
+        controls_grid.pack(fill=tk.X, padx=20, pady=(0, 20))
+        controls_grid.grid_columnconfigure([0, 1], weight=1)
+
         # Control de Modo
-        mode_container = ctk.CTkFrame(controls_frame, fg_color="transparent")
-        mode_container.grid(row=1, column=0, columnspan=3, sticky='w', pady=(15, 0))
-        ctk.CTkLabel(mode_container, text="Modo de envío:", font=self.fonts['setting_label'], fg_color="transparent", text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
-        
-        fidelizado_modes = [
-            "Modo Números", 
-            "Modo Grupos",
-            "Modo Mixto"
-        ]
-        
-        # Convertir estado interno a string de UI
-        mode_map_to_ui = {
-            "NUMEROS": "Modo Números",
-            "GRUPOS": "Modo Grupos",
-            "MIXTO": "Modo Mixto"
-        }
+        mode_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
+        mode_container.grid(row=0, column=0, sticky='w', pady=(0, 15))
+        ctk.CTkLabel(mode_container, text="Modo de envío:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
+        fidelizado_modes = ["Modo Números", "Modo Grupos", "Modo Mixto"]
+        mode_map_to_ui = {"NUMEROS": "Modo Números", "GRUPOS": "Modo Grupos", "MIXTO": "Modo Mixto"}
         current_mode_ui = mode_map_to_ui.get(self.fidelizado_mode, "Modo Números")
-        
         self.fidelizado_mode_var = tk.StringVar(value=current_mode_ui)
-        mode_menu = ctk.CTkOptionMenu(
-            mode_container,
-            variable=self.fidelizado_mode_var,
-            values=fidelizado_modes,
-            font=self.fonts['setting_label'],
-            dropdown_font=self.fonts['setting_label'],
-            fg_color=self.colors['bg_card'],
-            button_color=self.colors['blue'],
-            button_hover_color=self.hover_colors['action_detect'],
-            text_color=self.colors['text'],
-            height=35,
-            width=280
-        )
+        mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['setting_label'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg'], button_color=self.colors['blue'], button_hover_color=self.hover_colors['action_detect'], text_color=self.colors['text'], height=35, width=280)
         mode_menu.pack(anchor='w')
 
-        # --- Selector de Variante de Modo Mixto ---
-        variant_container = ctk.CTkFrame(controls_frame, fg_color="transparent")
-        variant_container.grid(row=2, column=0, columnspan=3, sticky='w', pady=(15, 0))
-        ctk.CTkLabel(variant_container, text="Variante de Modo Mixto:", font=self.fonts['setting_label'], fg_color="transparent", text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
-        
-        mixto_variants = [
-            "Variante 1: G1→N1→G2→N2 (alternar 1 a 1)",
-            "Variante 2: G1→G2→N1→G3→G4→N2 (2 grupos por número)",
-            "Variante 3: G1→G2→G3→N1→G4→G5→G6→N2 (3 grupos por número)"
-        ]
-        
-        variant_map_to_ui = {
-            1: mixto_variants[0],
-            2: mixto_variants[1],
-            3: mixto_variants[2]
-        }
-        current_variant_ui = variant_map_to_ui.get(self.mixto_variant.get(), mixto_variants[0])
-        
-        self.mixto_variant_var = tk.StringVar(value=current_variant_ui)
-        variant_menu = ctk.CTkOptionMenu(
-            variant_container,
-            variable=self.mixto_variant_var,
-            values=mixto_variants,
-            font=self.fonts['setting_label'],
-            dropdown_font=self.fonts['setting_label'],
-            fg_color=self.colors['bg_card'],
-            button_color=self.colors['orange'],
-            button_hover_color=self.hover_colors['action_excel'],
-            text_color=self.colors['text'],
-            height=35,
-            width=450
-        )
-        variant_menu.pack(anchor='w')
-        
-        # Función para mostrar/ocultar el selector de variante
-        def _update_variant_visibility(*args):
-            mode = self.fidelizado_mode_var.get()
-            if mode == "Modo Mixto":
-                variant_container.grid(row=2, column=0, columnspan=3, sticky='w', pady=(15, 0))
+        # Control de Bucles
+        loops_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
+        loops_container.grid(row=0, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
+        ctk.CTkLabel(loops_container, text="Nº de Bucles/Repeticiones:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
+        self.manual_loops_var = tk.IntVar(value=max(1, self.manual_loops))
+        spinbox_loops = self._create_spinbox_widget(loops_container, self.manual_loops_var, min_val=1, max_val=100)
+        spinbox_loops.pack(anchor='w')
+
+        # Control de Velocidad y WhatsApp
+        speed_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
+        speed_container.grid(row=1, column=0, sticky='w', pady=(0, 15))
+        ctk.CTkLabel(speed_container, text="Velocidad de escritura:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
+        speed_menu = ctk.CTkSegmentedButton(speed_container, variable=self.write_speed, values=["Lento", "Normal", "Rápido"], font=self.fonts['setting_label'], fg_color=self.colors['bg'], selected_color=self.colors['blue'], selected_hover_color=self.hover_colors['action_detect'], unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'], text_color_disabled=self.colors['text'])
+        speed_menu.pack(anchor='w')
+
+        whatsapp_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
+        whatsapp_container.grid(row=1, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
+        ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
+        whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['setting_label'], fg_color=self.colors['bg'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'], text_color_disabled=self.colors['text'])
+        whatsapp_menu.pack(anchor='w')
+
+        # --- Controles de Variante Mixto (inicialmente ocultos) ---
+        self.mixto_variant_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
+        ctk.CTkLabel(self.mixto_variant_container, text="Variante Modo Mixto:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
+        mixto_radio_frame = ctk.CTkFrame(self.mixto_variant_container, fg_color="transparent")
+        mixto_radio_frame.pack(anchor='w')
+        ctk.CTkRadioButton(mixto_radio_frame, text="1G:1N", variable=self.mixto_variant, value=1, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 15))
+        ctk.CTkRadioButton(mixto_radio_frame, text="2G:1N", variable=self.mixto_variant, value=2, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 15))
+        ctk.CTkRadioButton(mixto_radio_frame, text="3G:1N", variable=self.mixto_variant, value=3, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
+
+        # --- Botones de Acción ---
+        actions_frame = ctk.CTkFrame(right_col, fg_color="transparent")
+        actions_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        actions_frame.grid_columnconfigure(0, weight=1)
+        actions_frame.grid_columnconfigure(1, weight=1)
+
+        self.fidelizado_btn_start = ctk.CTkButton(actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
+        self.fidelizado_btn_start.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 10))
+
+        # Reutilizar los botones de pausa/cancelar de la vista principal
+        # (se habilitarán/deshabilitarán juntos)
+        self.fidelizado_btn_pause = self.btn_pause
+        self.fidelizado_btn_stop = self.btn_stop
+
+        # --- Lógica de la Vista ---
+        self.fidelizado_mode_var.trace_add('write', self._update_fidelizado_ui_mode)
+        self._update_fidelizado_ui_mode()
+        self._populate_fidelizado_inputs()
+
+    def _update_fidelizado_ui_mode(self, *args):
+        """Muestra u oculta los widgets según el modo Fidelizado seleccionado."""
+        mode_ui = self.fidelizado_mode_var.get()
+
+        # Mapeo de UI a modo interno
+        mode_map_from_ui = {"Modo Números": "NUMEROS", "Modo Grupos": "GRUPOS", "Modo Mixto": "MIXTO"}
+        self.fidelizado_mode = mode_map_from_ui.get(mode_ui)
+
+        # Visibilidad de widgets
+        show_numbers = self.fidelizado_mode in ["NUMEROS", "MIXTO"]
+        show_groups = self.fidelizado_mode in ["GRUPOS", "MIXTO"]
+        show_mixto_variant = self.fidelizado_mode == "MIXTO"
+
+        # Función para gestionar la visibilidad de un widget y su label
+        def toggle_widget(widget, label, show):
+            if show:
+                label.grid()
+                widget.grid()
             else:
-                variant_container.grid_forget()
-        
-        self.fidelizado_mode_var.trace("w", _update_variant_visibility)
-        _update_variant_visibility()  # Llamar inicialmente
+                label.grid_remove()
+                widget.grid_remove()
 
-        # --- Tarjeta de Tiempos (Modo Grupos Dual) ---
-        timing_card = ctk.CTkFrame(content, fg_color=self.colors['bg_card'], corner_radius=15)
-        timing_card.pack(fill=tk.X, pady=(0, 20))
-        
-        # Título de la tarjeta
-        timing_title_frame = ctk.CTkFrame(timing_card, fg_color="transparent")
-        timing_title_frame.pack(fill=tk.X, pady=(20, 10), padx=20)
-        ctk.CTkLabel(timing_title_frame, text="⏱", font=('Inter', 20), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 10))
-        ctk.CTkLabel(timing_title_frame, text="Configuración de Tiempos (Modo Dual)", 
-                    font=self.fonts['card_title'], fg_color="transparent", text_color=self.colors['text']).pack(side=tk.LEFT)
-        
-        # Separador
-        ctk.CTkFrame(timing_card, fg_color=self.colors['text_light'], height=1).pack(fill=tk.X, pady=(0, 15), padx=20)
-        
-        timing_frame = ctk.CTkFrame(timing_card, fg_color="transparent")
-        timing_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-        
-        timing_grid = ctk.CTkFrame(timing_frame, fg_color="transparent")
-        timing_grid.pack(fill=tk.X)
-        timing_grid.grid_columnconfigure(0, weight=1)
-        timing_grid.grid_columnconfigure(1, weight=1)
-        timing_grid.grid_columnconfigure(2, weight=1)
-        
-        # Espera después de escribir
-        wait_write_container = ctk.CTkFrame(timing_grid, fg_color="transparent")
-        wait_write_container.grid(row=0, column=0, sticky='w', padx=(0, 10))
-        ctk.CTkLabel(wait_write_container, text="Espera después de escribir (seg):", 
-                     font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 4))
-        spinbox_wait_write = self._create_spinbox_widget(wait_write_container, self.wait_after_write, min_val=0, max_val=30)
-        spinbox_wait_write.pack(anchor='w')
-        
-        # Espera entre Enters
-        wait_enters_container = ctk.CTkFrame(timing_grid, fg_color="transparent")
-        wait_enters_container.grid(row=0, column=1, sticky='w', padx=(0, 10))
-        ctk.CTkLabel(wait_enters_container, text="Espera entre Enters (seg):", 
-                     font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 4))
-        spinbox_wait_enters = self._create_spinbox_widget(wait_enters_container, self.wait_between_enters, min_val=1, max_val=30)
-        spinbox_wait_enters.pack(anchor='w')
-        
-        # Espera entre mensajes (Business -> Normal)
-        wait_msgs_container = ctk.CTkFrame(timing_grid, fg_color="transparent")
-        wait_msgs_container.grid(row=0, column=2, sticky='w')
-        ctk.CTkLabel(wait_msgs_container, text="Espera entre apps (seg):", 
-                     font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 4))
-        spinbox_wait_msgs = self._create_spinbox_widget(wait_msgs_container, self.wait_between_messages, min_val=0, max_val=30)
-        spinbox_wait_msgs.pack(anchor='w')
+        # Labels de los textboxes (asumiendo que están en la misma grid que el textbox)
+        numbers_label = self.fidelizado_numbers_text.master.grid_slaves(row=0, column=0)[0]
+        messages_label = self.fidelizado_messages_numbers_text.master.grid_slaves(row=2, column=0)[0]
+        groups_label = self.fidelizado_groups_text.master.grid_slaves(row=0, column=0)[0]
 
-        # --- Tarjeta de Números ---
-        frame_numbers = ctk.CTkFrame(content, fg_color=self.colors['bg_card'], corner_radius=15)
-        frame_numbers.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
-        
-        # Título de la tarjeta
-        numbers_title_frame = ctk.CTkFrame(frame_numbers, fg_color="transparent")
-        numbers_title_frame.pack(fill=tk.X, pady=(20, 10), padx=20)
-        ctk.CTkLabel(numbers_title_frame, text="📱", font=('Inter', 20), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 10))
-        ctk.CTkLabel(numbers_title_frame, text="Números de Teléfono", font=self.fonts['card_title'], 
-                    fg_color="transparent", text_color=self.colors['text']).pack(side=tk.LEFT)
-        
-        # Separador
-        ctk.CTkFrame(frame_numbers, fg_color=self.colors['text_light'], height=1).pack(fill=tk.X, pady=(0, 10), padx=20)
-        
-        ctk.CTkLabel(frame_numbers, text="Pega NÚMEROS (uno por línea, sin +549):", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(anchor='w', pady=(5, 8), padx=20)
-        numbers_text_numbers = ctk.CTkTextbox(frame_numbers, height=150, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
-        numbers_text_numbers.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+        toggle_widget(self.fidelizado_numbers_text, numbers_label, show_numbers)
+        toggle_widget(self.fidelizado_messages_numbers_text, messages_label, True) # Mensajes siempre visibles
+        toggle_widget(self.fidelizado_groups_text, groups_label, show_groups)
+
+        if show_mixto_variant:
+            self.mixto_variant_container.grid(row=2, column=0, columnspan=2, sticky='w', pady=(0, 15))
+        else:
+            self.mixto_variant_container.grid_remove()
+
+    def _populate_fidelizado_inputs(self):
+        """Limpia y rellena los campos de texto con los datos guardados en las variables."""
+        # Limpiar contenido existente
+        self.fidelizado_numbers_text.delete("1.0", tk.END)
+        self.fidelizado_groups_text.delete("1.0", tk.END)
+        self.fidelizado_messages_numbers_text.delete("1.0", tk.END)
+
+        # Rellenar con datos guardados
         if self.manual_inputs_numbers:
-            numbers_text_numbers.insert('1.0', "\n".join(self.manual_inputs_numbers))
-
-        # --- Tarjeta de Grupos ---
-        frame_groups = ctk.CTkFrame(content, fg_color=self.colors['bg_card'], corner_radius=15)
-        frame_groups.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
-        
-        # Título de la tarjeta
-        groups_title_frame = ctk.CTkFrame(frame_groups, fg_color="transparent")
-        groups_title_frame.pack(fill=tk.X, pady=(20, 10), padx=20)
-        ctk.CTkLabel(groups_title_frame, text="👥", font=('Inter', 20), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 10))
-        ctk.CTkLabel(groups_title_frame, text="Grupos de WhatsApp", font=self.fonts['card_title'], 
-                    fg_color="transparent", text_color=self.colors['text']).pack(side=tk.LEFT)
-        
-        # Separador
-        ctk.CTkFrame(frame_groups, fg_color=self.colors['text_light'], height=1).pack(fill=tk.X, pady=(0, 10), padx=20)
-        
-        ctk.CTkLabel(frame_groups, text="Pega links de GRUPO (uno por línea):", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(anchor='w', pady=(5, 8), padx=20)
-        numbers_text_groups = ctk.CTkTextbox(frame_groups, height=150, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
-        numbers_text_groups.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+            self.fidelizado_numbers_text.insert("1.0", "\n".join(self.manual_inputs_numbers))
         if self.manual_inputs_groups:
-            numbers_text_groups.insert('1.0', "\n".join(self.manual_inputs_groups))
-            
-        # --- Tarjeta de Mensajes (unificada) ---
-        messages_card = ctk.CTkFrame(content, fg_color=self.colors['bg_card'], corner_radius=15)
-        messages_card.pack(fill=tk.X, pady=(0, 20))
+            self.fidelizado_groups_text.insert("1.0", "\n".join(self.manual_inputs_groups))
         
-        msg_controls = ctk.CTkFrame(messages_card, fg_color="transparent")
-        msg_controls.pack(fill=tk.X, padx=20, pady=20)
+        # Cargar mensajes (pueden ser los mismos para ambos al inicio)
+        if self.manual_messages_numbers:
+            self.fidelizado_messages_numbers_text.insert("1.0", "\n".join(self.manual_messages_numbers))
         
-        # Contador unificado
-        messages_count = tk.StringVar(value=f"{len(self.manual_messages_numbers)} mensajes" if self.manual_messages_numbers else "0 mensajes")
+        # Si no hay mensajes de grupo pero sí de número (caso común), usarlos también para grupos
+        elif self.manual_messages_numbers and not self.manual_messages_groups:
+             self.manual_messages_groups = self.manual_messages_numbers
 
-        def load_msg_file():
-            file_p = filedialog.askopenfilename(parent=manual_window, title="Seleccionar mensajes (.txt)", filetypes=[("Texto", "*.txt"), ("Todos", "*.*")])
-            manual_window.focus_force()
-            if not file_p: return
-            try:
-                with open(file_p, 'r', encoding='utf-8') as f: lines = [ln.strip() for ln in f.read().splitlines() if ln.strip()]
-                if not lines: messagebox.showerror("Error", "Archivo vacío.", parent=manual_window); return
-                # Cargar en ambas listas
-                self.manual_messages_numbers = lines
-                self.manual_messages_groups = lines
-                # Generar nuevo índice de inicio aleatorio
-                self.mensaje_start_index = random.randint(0, len(lines) - 1)
-                messages_count.set(f"{len(lines)} mensajes")
-                self.log(f"{len(lines)} mensajes cargados para Fidelizado (inicio aleatorio en posición {self.mensaje_start_index + 1})", 'success')
-            except Exception as e: messagebox.showerror("Error", f"No se pudo leer el archivo: {e}", parent=manual_window)
+    def start_fidelizado_sending(self):
+        """Función específica para validar y preparar el envío desde la vista Fidelizado."""
+        # 1. Guardar los datos de los TextBoxes en las variables de la clase
+        self.manual_inputs_numbers = [line.strip() for line in self.fidelizado_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
+        self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
+        self.manual_messages_numbers = [line.strip() for line in self.fidelizado_messages_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
+        # Asumimos que los mensajes de grupo son los mismos que los de número por simplicidad
+        self.manual_messages_groups = self.manual_messages_numbers
 
-        ctk.CTkButton(msg_controls, text="Cargar Mensajes", command=load_msg_file, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=('Inter', 11, 'bold'), corner_radius=10, height=32, width=140).pack(side=tk.LEFT, padx=(0, 15))
-        ctk.CTkLabel(msg_controls, textvariable=messages_count, font=self.fonts['setting_label'], fg_color="transparent", text_color=self.colors['text']).pack(side=tk.LEFT)
-        
-        # Variables dummy para compatibilidad con el código existente
-        frame_messages_numbers = messages_card
-        frame_messages_groups = messages_card
+        # 2. Validar los datos
+        if self.fidelizado_mode == "NUMEROS" and not self.manual_inputs_numbers:
+            messagebox.showerror("Error", "El 'Modo Números' requiere al menos un número.", parent=self.root)
+            return
+        if self.fidelizado_mode == "GRUPOS" and not self.manual_inputs_groups:
+            messagebox.showerror("Error", "El 'Modo Grupos' requiere al menos un link de grupo.", parent=self.root)
+            return
+        if self.fidelizado_mode == "MIXTO" and (not self.manual_inputs_numbers or not self.manual_inputs_groups):
+            messagebox.showerror("Error", "El 'Modo Mixto' requiere números y grupos.", parent=self.root)
+            return
+        if not self.manual_messages_numbers:
+            messagebox.showerror("Error", "Se requiere al menos un mensaje.", parent=self.root)
+            return
 
-        # --- Lógica para actualizar la UI según el modo ---
-        def _update_fidelizado_ui(*args):
-            mode = self.fidelizado_mode_var.get()
-            
-            # Ocultar todo excepto mensajes
-            frame_numbers.pack_forget()
-            frame_groups.pack_forget()
-            btn_unirse_grupos.pack_forget()  # Ocultar botón Unirse a Grupos
+        # 3. Marcar el modo manual y llamar a la función de envío principal
+        self.manual_mode = True
+        self.group_mode = self.fidelizado_mode == "GRUPOS" # Flag legacy
+        self.links = [] # Limpiar links del modo tradicional
 
-            if mode == "Modo Números":
-                frame_numbers.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
-                numbers_text_numbers.focus_set()
-            elif mode == "Modo Grupos":
-                frame_groups.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
-                numbers_text_groups.focus_set()
-                btn_unirse_grupos.pack(side=tk.RIGHT, padx=(10, 0))  # Mostrar botón solo en Modo Grupos
-            elif mode == "Modo Mixto":
-                # Modo Mixto: muestra números y grupos
-                frame_numbers.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
-                frame_groups.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
-                numbers_text_numbers.focus_set()
-            
-            # La tarjeta de mensajes siempre está visible (ya está empaquetada arriba)
-
-        self.fidelizado_mode_var.trace("w", _update_fidelizado_ui)
-
-        # Barra de botones inferior
-        buttons_frame = ctk.CTkFrame(main_cont, fg_color="transparent", corner_radius=0, border_width=0)
-        buttons_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=0)
-        btn_inner_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
-        btn_inner_frame.pack(fill=tk.X, padx=30, pady=20)
-
-        def close_win():
-            manual_window.destroy()
-            self.root.focus_force()
-        manual_window.protocol("WM_DELETE_WINDOW", close_win)
-
-        def confirm_data():
-            mode_ui = self.fidelizado_mode_var.get()
-            self.manual_mode = True # Activar modo Fidelizado
-            
-            try: loops_val = int(loops_var.get()); loops_val = max(1, loops_val)
-            except: loops_val = 1
-            self.manual_loops = loops_val
-
-            # Guardar variante de modo mixto si está en modo mixto
-            if mode_ui == "Modo Mixto":
-                variant_str = self.mixto_variant_var.get()
-                if "Variante 1" in variant_str:
-                    self.mixto_variant.set(1)
-                elif "Variante 2" in variant_str:
-                    self.mixto_variant.set(2)
-                elif "Variante 3" in variant_str:
-                    self.mixto_variant.set(3)
-            
-            log_msg = ""
-            
-            # Limpiar listas de tareas
-            self.links = []
-            self.manual_paired_messages = []
-            self.total_messages = 0
-
-            # --- Modo Números (Dual WhatsApp) ---
-            if mode_ui == "Modo Números":
-                inputs_raw = numbers_text_numbers.get('1.0', tk.END).splitlines()
-                inputs_clean_nums = self.validate_numbers(inputs_raw, manual_window)
-                if inputs_clean_nums is None: return
-
-                if not inputs_clean_nums: messagebox.showerror("Error", "Ingresa al menos un número.", parent=manual_window); return
-                if not self.manual_messages_numbers: messagebox.showerror("Error", "Debes cargar un archivo de mensajes para números.", parent=manual_window); return
-
-                self.manual_inputs_numbers = inputs_clean_nums
-                # No generamos links aquí, se manejará en el hilo como modo dual
-                self.links = []  # Vacío, se procesa en el hilo
-                self.total_messages = 0  # Se calculará en el hilo
-                self.fidelizado_mode = "NUMEROS"
-                self.group_mode = False
-                log_msg = f"Fidelizado (Modo Números Dual): {len(inputs_clean_nums)} números, {len(self.manual_messages_numbers)} mensajes, {loops_val} ciclo(s)"
-
-            # --- Modo Grupos ---
-            elif mode_ui == "Modo Grupos":
-                inputs_raw = numbers_text_groups.get('1.0', tk.END).splitlines()
-                inputs_clean_groups = self.validate_groups(inputs_raw, manual_window)
-                if inputs_clean_groups is None: return
-                
-                if not inputs_clean_groups: messagebox.showerror("Error", "Ingresa al menos un link de grupo.", parent=manual_window); return
-                if not self.manual_messages_groups: messagebox.showerror("Error", "Debes cargar un archivo de mensajes para grupos.", parent=manual_window); return
-
-                self.manual_inputs_groups = inputs_clean_groups
-                paired_data = self.generate_manual_pairs(inputs_clean_groups, self.manual_messages_groups, loops_val)
-                if not paired_data: messagebox.showerror("Error", "No se pudieron generar los pares de link/mensaje.", parent=manual_window); return
-
-                self.links = [link for link, msg in paired_data]
-                self.manual_paired_messages = [msg for link, msg in paired_data]
-                self.total_messages = len(self.links)
-                self.fidelizado_mode = "GRUPOS"
-                self.group_mode = True # Flag para send_thread
-                log_msg = f"Fidelizado (Modo Grupos): {self.total_messages} mensajes generados"
-
-            # --- Modo Mixto (Nuevo) ---
-            elif mode_ui == "Modo Mixto":
-                # 1. Validar Grupos
-                inputs_raw_groups = numbers_text_groups.get('1.0', tk.END).splitlines()
-                inputs_clean_groups = self.validate_groups(inputs_raw_groups, manual_window)
-                if inputs_clean_groups is None: return
-                if not inputs_clean_groups: messagebox.showerror("Error", "Ingresa al menos un link de grupo para Modo Mixto.", parent=manual_window); return
-                
-                # 2. Validar Números
-                inputs_raw_nums = numbers_text_numbers.get('1.0', tk.END).splitlines()
-                inputs_clean_nums = self.validate_numbers(inputs_raw_nums, manual_window)
-                if inputs_clean_nums is None: return
-                if not inputs_clean_nums: messagebox.showerror("Error", "Ingresa al menos un número para Modo Mixto.", parent=manual_window); return
-                
-                # 3. Validar mensajes (un solo archivo compartido)
-                if not self.manual_messages_numbers: messagebox.showerror("Error", "Debes cargar un archivo de mensajes.", parent=manual_window); return
-
-                self.manual_inputs_groups = inputs_clean_groups
-                self.manual_inputs_numbers = inputs_clean_nums
-                self.group_mode = False
-                self.fidelizado_mode = "MIXTO"
-                
-                # No generamos links, se procesa directamente en el hilo
-                self.links = []
-                self.total_messages = 0
-                log_msg = f"Fidelizado (Modo Mixto): {len(inputs_clean_groups)} grupo(s), {len(inputs_clean_nums)} número(s), {len(self.manual_messages_numbers)} mensaje(s), {loops_val} ciclo(s)"
-            
-            # --- Finalizar ---
-            self.update_stats()
-            self.log(log_msg, 'success')
-            
-            # Cerrar ventana primero
-            close_win()
-            
-            # Mensaje personalizado según el modo (después de cerrar)
-            if self.fidelizado_mode == "NUMEROS":
-                num_numeros = len(self.manual_inputs_numbers)
-                num_mensajes = len(self.manual_messages_numbers)
-                messagebox.showinfo("Fidelizado", f"Modo Números Dual configurado:\n\n• {num_numeros} número(s)\n• {num_mensajes} mensaje(s)\n• {self.manual_loops} ciclo(s)\n• {len(self.devices)} dispositivo(s)\n\nTotal de envíos se calculará al iniciar.", parent=self.root)
-            elif self.fidelizado_mode == "GRUPOS":
-                num_grupos = len(self.manual_inputs_groups)
-                num_mensajes = len(self.manual_messages_groups)
-                messagebox.showinfo("Fidelizado", f"Modo Grupos Dual configurado:\n\n• {num_grupos} grupo(s)\n• {num_mensajes} mensaje(s)\n• {self.manual_loops} ciclo(s)\n• {len(self.devices)} dispositivo(s)\n\nTotal de envíos se calculará al iniciar.", parent=self.root)
-            elif self.fidelizado_mode == "MIXTO":
-                num_grupos = len(self.manual_inputs_groups)
-                num_numeros = len(self.manual_inputs_numbers)
-                num_mensajes = len(self.manual_messages_numbers)
-                messagebox.showinfo("Fidelizado", f"Modo Mixto configurado:\n\n• {num_grupos} grupo(s)\n• {num_numeros} número(s)\n• {num_mensajes} mensaje(s) compartido(s)\n• {self.manual_loops} ciclo(s)\n• {len(self.devices)} dispositivo(s)\n\nIntercalará: Grupo → Número → Grupo → Número...\nTotal de envíos se calculará al iniciar.", parent=self.root)
-            else:
-                messagebox.showinfo("Fidelizado", f"Se generaron {self.total_messages} envíos listos.", parent=self.root)
-
-        def unirse_grupos():
-            """Función para unirse a grupos automáticamente."""
-            mode_ui = self.fidelizado_mode_var.get()
-            
-            if mode_ui != "Modo Grupos":
-                messagebox.showerror("Error", "Esta función solo está disponible en Modo Grupos.", parent=manual_window)
-                return
-            
-            # Validar grupos
-            inputs_raw_groups = numbers_text_groups.get('1.0', tk.END).splitlines()
-            inputs_clean_groups = self.validate_groups(inputs_raw_groups, manual_window)
-            if inputs_clean_groups is None: return
-            if not inputs_clean_groups:
-                messagebox.showerror("Error", "Ingresa al menos un link de grupo.", parent=manual_window)
-                return
-            
-            # Confirmar
-            if not messagebox.askyesno("Confirmar", f"¿Unirse a {len(inputs_clean_groups)} grupo(s) con {len(self.devices)} dispositivo(s)?\n\nCada dispositivo se unirá según el modo seleccionado.", parent=manual_window):
-                return
-            
-            # Cerrar ventana y ejecutar en hilo separado
-            close_win()
-            import threading
-            thread = threading.Thread(target=self.run_unirse_grupos, args=(inputs_clean_groups,), daemon=True)
-            thread.start()
-        
-        ctk.CTkButton(btn_inner_frame, text="Cancelar", command=close_win, fg_color=self.colors['action_cancel'], hover_color=self.hover_colors['action_cancel'], font=self.fonts['button_small'], corner_radius=10, height=35).pack(side=tk.RIGHT, padx=(10, 0))
-        
-        # Botón Unirse a Grupos (solo visible en Modo Grupos)
-        btn_unirse_grupos = ctk.CTkButton(btn_inner_frame, text="Unirse a Grupos", command=unirse_grupos, fg_color=self.colors['blue'], hover_color=self.hover_colors['action_detect'], font=self.fonts['button_small'], corner_radius=10, height=35)
-        
-        ctk.CTkButton(btn_inner_frame, text="Cargar Datos", command=confirm_data, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], font=self.fonts['button_small'], corner_radius=10, height=35).pack(side=tk.RIGHT)
-        
-        # Llamar _update_fidelizado_ui() después de crear todos los elementos
-        _update_fidelizado_ui()
+        self.start_sending() # Llamar a la lógica de envío compartida
 
     def validate_numbers(self, inputs_raw, parent_window):
         """Valida una lista de números. Devuelve lista limpia o None si hay error."""
@@ -3371,6 +3048,8 @@ class Hermes:
         self.is_running = False
         self.btn_start.configure(state=tk.NORMAL)
         self.btn_load.configure(state=tk.NORMAL)
+        if hasattr(self, 'fidelizado_btn_start'):
+            self.fidelizado_btn_start.configure(state=tk.NORMAL)
         if self.fidelizado_unlock_btn:
             self.fidelizado_unlock_btn.configure(state=tk.NORMAL)
         self.btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
@@ -3389,6 +3068,8 @@ class Hermes:
         # Actualizar UI
         self.btn_start.configure(state=tk.DISABLED)
         self.btn_load.configure(state=tk.DISABLED)
+        if hasattr(self, 'fidelizado_btn_start'): # Comprobar si ya se ha creado
+            self.fidelizado_btn_start.configure(state=tk.DISABLED)
         if self.fidelizado_unlock_btn:
             self.fidelizado_unlock_btn.configure(state=tk.DISABLED)
         self.btn_pause.configure(state=tk.NORMAL)
