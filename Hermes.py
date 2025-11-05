@@ -1412,7 +1412,7 @@ class Hermes:
 
         # --- Botones de Acción ---
         self.actions_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
-        self.actions_frame.pack(fill="x", pady=(10, 0))
+        self.actions_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
         self.actions_frame.grid_columnconfigure(0, weight=1)
         self.actions_frame.grid_columnconfigure(1, weight=1)
 
