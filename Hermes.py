@@ -1307,7 +1307,6 @@ class Hermes:
         controls_col = ctk.CTkFrame(inputs_and_controls_frame, fg_color="transparent")
         controls_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         controls_col.grid_columnconfigure(0, weight=1)
-        # Quitado: controls_col.grid_rowconfigure(2, weight=1) para que no se expanda
 
         # Card para Detección de Dispositivos
         device_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
@@ -1331,25 +1330,14 @@ class Hermes:
                                                         justify='left')
         self.fidelizado_device_list_label.pack(anchor='w')
 
-        # Card para Configuración
-        controls_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        controls_card.grid(row=1, column=0, sticky="ew", pady=(0, 15))
-
-        # Frame para los controles en grid
-        controls_grid = ctk.CTkFrame(controls_card, fg_color="transparent")
-        controls_grid.pack(fill=tk.X, padx=15, pady=15)
-        controls_grid.grid_columnconfigure([0, 1], weight=1)
-
         # Card para Mensajes
         messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        messages_card.grid(row=4, column=0, sticky="ew", pady=(15, 0)) # Movido a la fila 4
+        messages_card.grid(row=1, column=0, sticky="ew", pady=(0, 15))
         ctk.CTkLabel(messages_card, text="✍️ Mensajes", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(10, 5))
-        # Contenedor para la nueva UI de mensajes (se llenará en el siguiente paso)
         self.fidelizado_messages_container = ctk.CTkFrame(messages_card, fg_color="transparent")
         self.fidelizado_messages_container.pack(fill="x", padx=15, pady=(0, 15))
         self.fidelizado_messages_container.grid_columnconfigure(1, weight=1)
 
-        # Botón para cargar
         load_messages_btn = ctk.CTkButton(self.fidelizado_messages_container, text="Cargar Archivo",
                                           command=self._load_fidelizado_messages_from_file,
                                           font=self.fonts['button_small'],
@@ -1358,16 +1346,22 @@ class Hermes:
                                           height=30)
         load_messages_btn.grid(row=0, column=0, sticky='w')
 
-        # Label para el contador
         self.fidelizado_message_count_label = ctk.CTkLabel(self.fidelizado_messages_container, text="", font=self.fonts['setting_label'], text_color=self.colors['text'])
         self.fidelizado_message_count_label.grid(row=0, column=1, sticky='w', padx=10)
 
-        # Inicializar texto del label
         initial_message_count = len(self.manual_messages_numbers)
         if initial_message_count > 0:
             self.fidelizado_message_count_label.configure(text=f"✅ {initial_message_count} mensajes cargados")
         else:
             self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
+
+        # Card para Configuración
+        controls_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
+        controls_card.grid(row=2, column=0, sticky="ew", pady=(0, 15))
+
+        controls_grid = ctk.CTkFrame(controls_card, fg_color="transparent")
+        controls_grid.pack(fill=tk.X, padx=15, pady=15)
+        controls_grid.grid_columnconfigure([0, 1], weight=1)
 
         # Control de Modo
         mode_container = ctk.CTkFrame(controls_grid, fg_color="transparent")
@@ -1412,7 +1406,7 @@ class Hermes:
 
         # --- Botones de Acción ---
         self.actions_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
-        self.actions_frame.grid(row=2, column=0, sticky="ew", pady=(15, 0)) # Movido a la fila 2
+        self.actions_frame.grid(row=3, column=0, sticky="ew", pady=(15, 0))
         self.actions_frame.grid_columnconfigure(0, weight=1)
         self.actions_frame.grid_columnconfigure(1, weight=1)
 
@@ -1424,7 +1418,7 @@ class Hermes:
 
         # --- Botones de Control (Pausa/Cancelar) ---
         self.control_buttons_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
-        self.control_buttons_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        self.control_buttons_frame.grid(row=4, column=0, sticky="ew", pady=(10, 0))
         self.control_buttons_frame.grid_columnconfigure(0, weight=1)
         self.control_buttons_frame.grid_columnconfigure(1, weight=1)
 
