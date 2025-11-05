@@ -1306,10 +1306,12 @@ class Hermes:
         # --- Columna Derecha: Controles de Envío ---
         controls_col = ctk.CTkFrame(inputs_and_controls_frame, fg_color="transparent")
         controls_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        controls_col.grid_columnconfigure(0, weight=1)
+        controls_col.grid_rowconfigure(2, weight=1) # Fila de mensajes se expande
 
         # Card para Detección de Dispositivos
         device_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        device_card.pack(fill="x", pady=(0, 15))
+        device_card.grid(row=0, column=0, sticky="ew", pady=(0, 15))
         ctk.CTkLabel(device_card, text="📱 Dispositivos", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(10, 5))
         device_container = ctk.CTkFrame(device_card, fg_color="transparent")
         device_container.pack(fill="x", padx=15, pady=(0, 15))
@@ -1331,7 +1333,7 @@ class Hermes:
 
         # Card para Configuración
         controls_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        controls_card.pack(fill="x", pady=(0, 15))
+        controls_card.grid(row=1, column=0, sticky="ew", pady=(0, 15))
 
         # Frame para los controles en grid
         controls_grid = ctk.CTkFrame(controls_card, fg_color="transparent")
@@ -1340,7 +1342,7 @@ class Hermes:
 
         # Card para Mensajes
         messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        messages_card.pack(fill="x", expand=True)
+        messages_card.grid(row=2, column=0, sticky="nsew") # Se expande verticalmente
         ctk.CTkLabel(messages_card, text="✍️ Mensajes", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(10, 5))
         # Contenedor para la nueva UI de mensajes (se llenará en el siguiente paso)
         self.fidelizado_messages_container = ctk.CTkFrame(messages_card, fg_color="transparent")
@@ -1481,14 +1483,16 @@ class Hermes:
 
         # Visibilidad del botón "Unirse a Grupos"
         if self.fidelizado_mode == "GRUPOS":
+            # Reconfigurar el grid para dos botones, asegurando que columnspan no sea 2
+            self.fidelizado_btn_start.grid(row=0, column=0, columnspan=1, sticky='ew', padx=(0, 5))
             self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(5, 0))
-            self.fidelizado_btn_start.grid(row=0, column=0, sticky='ew', padx=(0, 5))
-            self.actions_frame.grid_columnconfigure(1, weight=1)
+            self.actions_frame.grid_columnconfigure(1, weight=1) # Activar la segunda columna
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO A GRUPOS")
         else:
+            # Ocultar "Unirse" y hacer que "Iniciar" ocupe todo el espacio
             self.unirse_grupos_btn.grid_remove()
             self.fidelizado_btn_start.grid(row=0, column=0, columnspan=2, sticky='ew', padx=0)
-            self.actions_frame.grid_columnconfigure(1, weight=0)
+            self.actions_frame.grid_columnconfigure(1, weight=0) # Desactivar la segunda columna
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO FIDELIZADO")
 
     def _populate_fidelizado_inputs(self):
@@ -2738,89 +2742,6 @@ class Hermes:
           - Presiona ENTER dos veces (doble Enter)
           - Presiona BACK para salir
         """
-        num_devices = len(self.devices)
-        num_grupos = len(grupos)
-        num_bucles = self.manual_loops
-        
-        if len(self.manual_messages_groups) < 1:
-            self.log("Error: Modo Grupos requiere al menos 1 mensaje cargado.", "error")
-            messagebox.showerror("Error", "Debes cargar al menos 1 archivo de mensajes.", parent=self.root)
-            return
-        
-        # Usar índice de inicio aleatorio
-        mensaje_index = self.mensaje_start_index
-        total_mensajes = len(self.manual_messages_groups)
-        task_counter = 0
-        whatsapp_apps = self._get_whatsapp_apps_to_use()
-        
-        self.log(f"Modo Grupos: {num_bucles} ciclo(s), {num_grupos} grupo(s), {num_devices} dispositivo(s)", 'info')
-        self.log(f"WhatsApp: {self.whatsapp_mode.get()}", 'info')
-        self.log(f"Total de envíos: {self.total_messages}", 'info')
-        
-        for ciclo in range(num_bucles):
-            if self.should_stop: break
-            self.log(f"\n--- CICLO {ciclo + 1}/{num_bucles} ---", 'info')
-            
-            # Por cada grupo
-            for idx_grupo, grupo_link in enumerate(self.manual_inputs_groups):
-                if self.should_stop: break
-                grupo_display = grupo_link[:50] + "..." if len(grupo_link) > 50 else grupo_link
-                self.log(f"\n=== GRUPO {idx_grupo + 1}/{num_grupos}: {grupo_display} ===", 'info')
-                
-                # Por cada dispositivo
-                for device in self.devices:
-                    if self.should_stop: break
-                    
-                    # Por cada WhatsApp (Normal, Business, o Ambos)
-                    for wa_name, wa_package in whatsapp_apps:
-                        if self.should_stop: break
-                        
-                        task_counter += 1
-                        self.current_index = task_counter
-                        self.root.after(0, self.update_stats)
-                        
-                        # Obtener mensaje rotativo
-                        mensaje = self.manual_messages_groups[mensaje_index % total_mensajes]
-                        mensaje_index += 1
-                        
-                        # Enviar usando la función auxiliar
-                        success = self._send_to_target_with_whatsapp(
-                            device, grupo_link, wa_name, wa_package, mensaje, task_counter
-                        )
-                        
-                        # Pausa entre WhatsApps si hay más de uno
-                        if success and len(whatsapp_apps) > 1 and wa_name == whatsapp_apps[0][0]:
-                            wait_between = self.wait_between_messages.get()
-                            if wait_between > 0:
-                                self.log(f"Esperando {wait_between}s antes del siguiente WhatsApp...", 'info')
-                                elapsed = 0
-                                while elapsed < wait_between and not self.should_stop:
-                                    while self.is_paused and not self.should_stop: time.sleep(0.1)
-                                    if self.should_stop: break
-                                    time.sleep(0.1)
-                                    elapsed += 0.1
-                        
-                        time.sleep(0.5)  # Pequeña pausa entre envíos
-                
-                if self.should_stop: break
-                self.log(f"\n=== GRUPO {idx_grupo + 1} completado ===", 'success')
-            
-            if self.should_stop: break
-            self.log(f"\n--- CICLO {ciclo + 1} completado ---", 'success')
-        
-        self.log(f"\nModo Grupos Dual finalizado", 'success')
-    
-    def run_unirse_grupos(self, grupos):
-        """
-        Función para unirse automáticamente a grupos.
-        NUEVA LÓGICA CON THREADING (EJECUCIÓN PARALELA):
-        Por cada grupo:
-          - TODOS los dispositivos se unen SIMULTÁNEAMENTE según la selección de WhatsApp
-        Proceso:
-          - Presiona DPAD_DOWN 3 veces (con pausas de 2s)
-          - Presiona ENTER dos veces (doble Enter)
-          - Presiona BACK para salir
-        """
         try:
             self._enter_task_mode()
             num_devices = len(self.devices)
@@ -2868,8 +2789,8 @@ class Hermes:
                         self.log(f"[{device}] Fallo al abrir grupo en {whatsapp_name}", "error")
                         return False
 
-                    # Esperar 2 segundos
-                    time.sleep(2)
+                    # Esperar 1 segundo (reducido de 2 para acelerar)
+                    time.sleep(1)
 
                     if self.should_stop:
                         return False
@@ -2880,7 +2801,7 @@ class Hermes:
                             return False
                         down_args = ['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_DPAD_DOWN']
                         self._run_adb_command(down_args, timeout=5)
-                        time.sleep(2)
+                        time.sleep(1) # Reducido de 2s
 
                     if self.should_stop:
                         return False
@@ -2889,22 +2810,22 @@ class Hermes:
                     enter_args = ['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENTER']
                     self._run_adb_command(enter_args, timeout=10)
 
-                    # Esperar 1 segundo entre Enters
-                    time.sleep(1)
+                    # Esperar 0.5 segundos entre Enters (reducido de 1s)
+                    time.sleep(0.5)
 
                     # Presionar ENTER (segundo Enter)
                     self._run_adb_command(enter_args, timeout=10)
 
-                    # Esperar 2 segundos
-                    time.sleep(2)
+                    # Esperar 1 segundo (reducido de 2s)
+                    time.sleep(1)
 
                     # Presionar BACK para salir del grupo
                     back_args = ['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_BACK']
                     self._run_adb_command(back_args, timeout=10)
                     self.log(f"[{device}] Presionando BACK para salir...", 'info')
 
-                    # Esperar 1 segundo final
-                    time.sleep(1)
+                    # Esperar 0.5 segundos final (reducido de 1s)
+                    time.sleep(0.5)
 
                     self.log(f"[{device}] Unido a grupo por {whatsapp_name}", 'success')
                     return True
