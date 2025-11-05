@@ -1307,7 +1307,7 @@ class Hermes:
         controls_col = ctk.CTkFrame(inputs_and_controls_frame, fg_color="transparent")
         controls_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         controls_col.grid_columnconfigure(0, weight=1)
-        controls_col.grid_rowconfigure(2, weight=1) # Fila de mensajes se expande
+        # Quitado: controls_col.grid_rowconfigure(2, weight=1) para que no se expanda
 
         # Card para Detección de Dispositivos
         device_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
@@ -1342,7 +1342,7 @@ class Hermes:
 
         # Card para Mensajes
         messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        messages_card.grid(row=2, column=0, sticky="nsew") # Se expande verticalmente
+        messages_card.grid(row=4, column=0, sticky="ew", pady=(15, 0)) # Movido a la fila 4
         ctk.CTkLabel(messages_card, text="✍️ Mensajes", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(10, 5))
         # Contenedor para la nueva UI de mensajes (se llenará en el siguiente paso)
         self.fidelizado_messages_container = ctk.CTkFrame(messages_card, fg_color="transparent")
@@ -1412,7 +1412,7 @@ class Hermes:
 
         # --- Botones de Acción ---
         self.actions_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
-        self.actions_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        self.actions_frame.grid(row=2, column=0, sticky="ew", pady=(15, 0)) # Movido a la fila 2
         self.actions_frame.grid_columnconfigure(0, weight=1)
         self.actions_frame.grid_columnconfigure(1, weight=1)
 
@@ -1422,10 +1422,20 @@ class Hermes:
         self.unirse_grupos_btn = ctk.CTkButton(self.actions_frame, text="🔗 UNIRSE A GRUPOS", command=self.start_unirse_grupos, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
         self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(5, 0))
 
-        # Reutilizar los botones de pausa/cancelar de la vista principal
-        # (se habilitarán/deshabilitarán juntos)
-        self.fidelizado_btn_pause = self.btn_pause
-        self.fidelizado_btn_stop = self.btn_stop
+        # --- Botones de Control (Pausa/Cancelar) ---
+        self.control_buttons_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
+        self.control_buttons_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        self.control_buttons_frame.grid_columnconfigure(0, weight=1)
+        self.control_buttons_frame.grid_columnconfigure(1, weight=1)
+
+        self.fidelizado_btn_pause = ctk.CTkButton(self.control_buttons_frame, text="⏸  PAUSAR", command=self.pause_sending, fg_color=self.colors['action_pause'], hover_color=self.hover_colors['action_pause'], text_color=self.colors['text_header_buttons'], font=self.fonts['button_small'], corner_radius=20, height=40)
+        self.fidelizado_btn_pause.grid(row=0, column=0, sticky='ew', padx=(0, 5))
+
+        self.fidelizado_btn_stop = ctk.CTkButton(self.control_buttons_frame, text="⏹  CANCELAR", command=self.stop_sending, fg_color=self.colors['action_cancel'], hover_color=self.hover_colors['action_cancel'], text_color=self.colors['text_header_buttons'], font=self.fonts['button_small'], corner_radius=20, height=40)
+        self.fidelizado_btn_stop.grid(row=0, column=1, sticky='ew', padx=(5, 0))
+
+        # Ocultar el frame de botones de control inicialmente
+        self.control_buttons_frame.grid_remove()
 
         # --- Lógica de la Vista ---
         self.fidelizado_mode_var.trace_add('write', self._update_fidelizado_ui_mode)
@@ -2026,10 +2036,14 @@ class Hermes:
             if self.is_paused:
                 self.is_paused = False
                 self.btn_pause.configure(text="⏸  PAUSAR")
+                if hasattr(self, 'fidelizado_btn_pause'):
+                    self.fidelizado_btn_pause.configure(text="⏸  PAUSAR")
                 self.log("Reanudado", 'success')
             else:
                 self.is_paused = True
                 self.btn_pause.configure(text="▶  REANUDAR")
+                if hasattr(self, 'fidelizado_btn_pause'):
+                    self.fidelizado_btn_pause.configure(text="▶  REANUDAR")
                 self.log("Pausado", 'warning')
 
     def stop_sending(self):
@@ -3114,14 +3128,26 @@ class Hermes:
     def _finalize_sending(self):
         """Reestablece la UI al finalizar o cancelar el envío."""
         self.is_running = False
+
+        # -- Vista Tradicional --
         self.btn_start.configure(state=tk.NORMAL)
         self.btn_load.configure(state=tk.NORMAL)
-        if hasattr(self, 'fidelizado_btn_start'):
-            self.fidelizado_btn_start.configure(state=tk.NORMAL)
         if self.fidelizado_unlock_btn:
             self.fidelizado_unlock_btn.configure(state=tk.NORMAL)
         self.btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
         self.btn_stop.configure(state=tk.DISABLED)
+
+        # -- Vista Fidelizado --
+        if hasattr(self, 'fidelizado_btn_start'):
+            # Ocultar botones de control, mostrar los de inicio
+            self.control_buttons_frame.grid_remove()
+            self.actions_frame.grid()
+
+            # Configurar estado de botones
+            self.fidelizado_btn_start.configure(state=tk.NORMAL)
+            self.unirse_grupos_btn.configure(state=tk.NORMAL)
+            self.fidelizado_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
+            self.fidelizado_btn_stop.configure(state=tk.DISABLED)
 
     def _enter_task_mode(self):
         """Configura la UI para un estado de 'tarea en ejecución'."""
@@ -3134,14 +3160,25 @@ class Hermes:
         self.start_time = datetime.now()
 
         # Actualizar UI
+        # -- Vista Tradicional --
         self.btn_start.configure(state=tk.DISABLED)
         self.btn_load.configure(state=tk.DISABLED)
-        if hasattr(self, 'fidelizado_btn_start'): # Comprobar si ya se ha creado
-            self.fidelizado_btn_start.configure(state=tk.DISABLED)
         if self.fidelizado_unlock_btn:
             self.fidelizado_unlock_btn.configure(state=tk.DISABLED)
         self.btn_pause.configure(state=tk.NORMAL)
         self.btn_stop.configure(state=tk.NORMAL)
+
+        # -- Vista Fidelizado --
+        if hasattr(self, 'fidelizado_btn_start'):
+            # Ocultar botones de inicio, mostrar los de control
+            self.actions_frame.grid_remove()
+            self.control_buttons_frame.grid()
+
+            # Configurar estado de botones
+            self.fidelizado_btn_start.configure(state=tk.DISABLED)
+            self.unirse_grupos_btn.configure(state=tk.DISABLED)
+            self.fidelizado_btn_pause.configure(state=tk.NORMAL)
+            self.fidelizado_btn_stop.configure(state=tk.NORMAL)
 
     def _update_device_labels(self):
         """Actualiza todas las etiquetas de la UI que muestran la lista de dispositivos."""
