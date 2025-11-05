@@ -441,7 +441,7 @@ class Hermes:
         if hasattr(self, 'fidelizado_numbers_text'): # Comprobar si los widgets existen
             self.manual_inputs_numbers = [line.strip() for line in self.fidelizado_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
             self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
-            self.manual_messages_numbers = [line.strip() for line in self.fidelizado_messages_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
+            # Los mensajes se gestionan al cargar el archivo, no se guardan desde un widget.
             # Asumir que los mensajes de grupo son los mismos
             self.manual_messages_groups = self.manual_messages_numbers
 
