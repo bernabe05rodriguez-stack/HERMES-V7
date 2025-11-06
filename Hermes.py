@@ -422,6 +422,112 @@ class Hermes:
 
         self._current_main_layout = mode
 
+    def _ejecutar_perfil(self, choice):
+        """Inicia la ejecución de un perfil de comandos en un hilo separado."""
+        if not self.devices:
+            messagebox.showerror("Error", "No hay dispositivos detectados. Por favor, detecta los dispositivos primero.", parent=self.root)
+            return
+
+        profile_name = choice.replace(" ", "_").lower()
+        self.log(f"Iniciando ejecución del {choice} en {len(self.devices)} dispositivo(s)...", 'info')
+
+        # Iniciar la ejecución en un hilo para no bloquear la UI
+        threading.Thread(target=self._run_profile_thread, args=(profile_name,), daemon=True).start()
+
+    def _run_profile_thread(self, profile_name):
+        """
+        Hilo de trabajo que ejecuta un perfil de comandos en todos los dispositivos simultáneamente.
+        """
+        # Estructura de datos con los perfiles de comandos
+        profiles = {
+            'perfil_1': {
+                'rapido_1': [("shell input keyevent KEYCODE_BACK", 5),
+                             ("shell am force-stop com.android.settings", 1),
+                             ("shell am force-stop com.whatsapp", 1),
+                             ("shell am force-stop com.whatsapp.w4b", 1)],
+                'medio_1': [("shell cmd statusbar expand-settings", 1),
+                            ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
+                            ("shell input keyevent KEYCODE_ENTER", 1),
+                            ("shell input keyevent KEYCODE_TAB", 2)],
+                'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
+                             ("shell am force-stop com.android.settings", 1),
+                             ("shell am force-stop com.whatsapp", 1),
+                             ("shell am force-stop com.whatsapp.w4b", 1)]
+            },
+            'perfil_2': {
+                'rapido_1': [("shell input keyevent KEYCODE_BACK", 5),
+                             ("shell am force-stop com.android.settings", 1),
+                             ("shell am force-stop com.whatsapp", 1),
+                             ("shell am force-stop com.whatsapp.w4b", 1)],
+                'medio_1': [("shell cmd statusbar expand-settings", 1),
+                            ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
+                            ("shell input keyevent KEYCODE_ENTER", 1),
+                            ("shell input keyevent KEYCODE_TAB", 3)],
+                'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
+                             ("shell am force-stop com.android.settings", 1),
+                             ("shell am force-stop com.whatsapp", 1),
+                             ("shell am force-stop com.whatsapp.w4b", 1)]
+            },
+            'perfil_3': {
+                'rapido_1': [("shell input keyevent KEYCODE_BACK", 5),
+                             ("shell am force-stop com.android.settings", 1),
+                             ("shell am force-stop com.whatsapp", 1),
+                             ("shell am force-stop com.whatsapp.w4b", 1)],
+                'medio_1': [("shell cmd statusbar expand-settings", 1),
+                            ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
+                            ("shell input keyevent KEYCODE_ENTER", 1),
+                            ("shell input keyevent KEYCODE_TAB", 4)],
+                'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
+                             ("shell am force-stop com.android.settings", 1),
+                             ("shell am force-stop com.whatsapp", 1),
+                             ("shell am force-stop com.whatsapp.w4b", 1)]
+            },
+            'perfil_4': {
+                'rapido_1': [("shell input keyevent KEYCODE_BACK", 5),
+                             ("shell am force-stop com.android.settings", 1),
+                             ("shell am force-stop com.whatsapp", 1),
+                             ("shell am force-stop com.whatsapp.w4b", 1)],
+                'medio_1': [("shell cmd statusbar expand-settings", 1),
+                            ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
+                            ("shell input keyevent KEYCODE_ENTER", 1),
+                            ("shell input keyevent KEYCODE_TAB", 5)],
+                'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
+                             ("shell am force-stop com.android.settings", 1),
+                             ("shell am force-stop com.whatsapp", 1),
+                             ("shell am force-stop com.whatsapp.w4b", 1)]
+            }
+        }
+
+        command_sequence = profiles.get(profile_name)
+        if not command_sequence:
+            self.log(f"Error: Perfil '{profile_name}' no encontrado.", 'error')
+            return
+
+        for block_name, commands in command_sequence.items():
+            delay = 0.2 if 'rapido' in block_name else 0.7
+            self.log(f"Ejecutando bloque '{block_name}' con delay de {delay}s...", 'info')
+
+            for command_str, repetitions in commands:
+                for i in range(repetitions):
+                    # Usar hilos para ejecutar el comando en todos los dispositivos a la vez
+                    device_threads = []
+                    for device in self.devices:
+                        # self._run_adb_command espera una lista de argumentos
+                        args = ['-s', device] + command_str.split()
+                        thread = threading.Thread(target=self._run_adb_command, args=(args,), daemon=True)
+                        device_threads.append(thread)
+                        thread.start()
+
+                    # Esperar a que todos los dispositivos terminen el comando actual
+                    for thread in device_threads:
+                        thread.join()
+
+                    self.log(f"Comando '{command_str}' (rep {i+1}/{repetitions}) ejecutado.", 'info')
+                    time.sleep(delay) # Pausa después de cada ejecución de comando
+
+        self.log(f"Perfil {profile_name.replace('_', ' ').title()} completado.", 'success')
+
+
     def setup_left(self, parent):
         # Contenedor principal para las vistas
         self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
@@ -577,6 +683,35 @@ class Hermes:
 
             if num == 1: self.btn_detect = btn
             elif num == 2: self.btn_load = btn
+
+        # Menú de Perfiles de Comandos
+        perfil_frame = ctk.CTkFrame(acts, fg_color="transparent")
+        perfil_frame.pack(fill=tk.X, pady=(0, 15))
+        perfil_frame.grid_columnconfigure(0, weight=0)
+        perfil_frame.grid_columnconfigure(1, weight=1)
+
+        num_lbl_perfil = ctk.CTkLabel(perfil_frame, text="CMD", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'], width=40)
+        num_lbl_perfil.grid(row=0, column=0, padx=(0, 15))
+
+        perfil_selector_frame = ctk.CTkFrame(perfil_frame, fg_color=self.colors['bg_card'], corner_radius=10, height=50)
+        perfil_selector_frame.grid(row=0, column=1, sticky='nsew')
+        perfil_selector_frame.grid_columnconfigure(1, weight=1) # The optionmenu will expand
+        perfil_selector_frame.grid_rowconfigure(0, weight=1)
+
+        perfil_label = ctk.CTkLabel(perfil_selector_frame, text="Ejecutar Perfil:", font=self.fonts['button'], text_color=self.colors['text'])
+        perfil_label.grid(row=0, column=0, padx=(20, 10), sticky='w')
+
+        self.perfil_selector = ctk.CTkOptionMenu(perfil_selector_frame,
+                                                 values=["Perfil 1", "Perfil 2", "Perfil 3", "Perfil 4"],
+                                                 command=self._ejecutar_perfil,
+                                                 font=self.fonts['button'],
+                                                 dropdown_font=self.fonts['setting_label'],
+                                                 fg_color=self.colors['bg_card'],
+                                                 button_color=self.colors['action_detect'],
+                                                 button_hover_color=self.hover_colors['action_detect'],
+                                                 text_color=self.colors['text'],
+                                                 height=35)
+        self.perfil_selector.grid(row=0, column=1, padx=(10, 20), sticky='ew')
         
         # Selector de Modo de Envío (Simple/Doble/Triple) - SOLO para modo tradicional
         mode_frame = ctk.CTkFrame(acts, fg_color="transparent")
