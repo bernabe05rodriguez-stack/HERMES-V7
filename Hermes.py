@@ -666,17 +666,13 @@ class Hermes:
         self.progress_bar.place(x=0, y=0, relwidth=0, relheight=1)
 
         # Tiempos
-        tt = ctk.CTkFrame(sc, fg_color="transparent")
-        tt.pack(fill=tk.X, pady=(0, 8), padx=25)
-        ctk.CTkLabel(tt, text="Tiempo:", font=('Inter', 14), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 8))
-        ctk.CTkLabel(tt, text="Tiempo", font=self.fonts['progress_label'], fg_color="transparent", text_color=self.colors['text_light']).pack(side=tk.LEFT)
-        self.time_elapsed = ctk.CTkLabel(sc, text="Transcurrido: --:--:--", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
+        self.time_elapsed = ctk.CTkLabel(sc, text="Transcurrido: --:--:--", font=('Inter', 14), fg_color="transparent", text_color=self.colors['text'])
         self.time_elapsed.pack(anchor='w', pady=2, padx=25)
-        self.time_remaining = ctk.CTkLabel(sc, text="Restante: --:--:--", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
+        self.time_remaining = ctk.CTkLabel(sc, text="Restante: --:--:--", font=('Inter', 14), fg_color="transparent", text_color=self.colors['text'])
         self.time_remaining.pack(anchor='w', pady=2, padx=25)
 
         # Estadística de mensajes por WhatsApp
-        self.stat_per_whatsapp = ctk.CTkLabel(sc, text="Mensajes por WhatsApp: --", font=self.fonts['time_label'], fg_color="transparent", text_color=self.colors['text_light'])
+        self.stat_per_whatsapp = ctk.CTkLabel(sc, text="Mensajes por WhatsApp: --", font=('Inter', 14), fg_color="transparent", text_color=self.colors['text'])
         self.stat_per_whatsapp.pack(anchor='w', pady=(2, 25), padx=25)
 
         # Bloque 2: Registro de actividad
