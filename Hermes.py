@@ -1488,14 +1488,14 @@ class Hermes:
 
         # Configurar el grid del contenedor de inputs según el modo
         if self.fidelizado_mode == "MIXTO":
-            # Modo Mixto: 1 fila, 2 columnas para mostrar ambos inputs
+            # Modo Mixto: 2 filas, 1 columna para mostrar ambos inputs uno debajo del otro
             self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_columnconfigure(1, weight=1)
-            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_rowconfigure(1, weight=0) # Asegurarse de que no haya una segunda fila
+            self.fidelizado_inputs_container.grid_columnconfigure(1, weight=0)  # No usar la segunda columna
+            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)    # Fila para números
+            self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1)    # Fila para grupos
 
-            self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
-            self.fidelizado_groups_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+            self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+            self.fidelizado_groups_frame.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
 
         elif self.fidelizado_mode == "NUMEROS":
             # Modo Números: 1 fila, 1 columna
