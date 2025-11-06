@@ -1313,13 +1313,13 @@ class Hermes:
 
         # Widgets de Números (Label y Textbox)
         self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
-        ctk.CTkLabel(self.fidelizado_numbers_frame, text="📞 Números (+549 sin prefijo)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 10))
+        ctk.CTkLabel(self.fidelizado_numbers_frame, text="Números (+549 sin prefijo)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 10))
         self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
         self.fidelizado_numbers_text.pack(fill="both", expand=True)
 
         # Widgets de Grupos (Label y Textbox)
         self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
-        ctk.CTkLabel(self.fidelizado_groups_frame, text="🔗 Links de Grupos (https://...)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 10))
+        ctk.CTkLabel(self.fidelizado_groups_frame, text="Links de Grupos (https://...)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 10))
         self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
         self.fidelizado_groups_text.pack(fill="both", expand=True)
 
