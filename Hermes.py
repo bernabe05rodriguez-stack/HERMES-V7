@@ -1157,26 +1157,26 @@ class Hermes:
             if not self.raw_data:
                 self.log("Archivo sin datos.", 'warning'); messagebox.showwarning("Vacío", "El archivo seleccionado está vacío o no tiene datos válidos."); return
 
-            # Ordenar por '$ Asig.' si la columna existe
-            if '$ Asig.' in self.columns:
-                try:
-                    # Función auxiliar para convertir el valor monetario a número flotante
-                    def to_float(value):
-                        if isinstance(value, (int, float)):
-                            return float(value)
-                        # Limpiar el string de símbolos y comas
-                        cleaned_value = str(value).replace('$', '').replace(',', '').strip()
-                        return float(cleaned_value) if cleaned_value else 0.0
+        # Ordenar por '$ Asig.' si la columna existe
+        if '$ Asig.' in self.columns:
+            try:
+                # Función auxiliar para convertir el valor monetario a número flotante
+                def to_float(value):
+                    if isinstance(value, (int, float)):
+                        return float(value)
+                    # Limpiar el string de símbolos y comas
+                    cleaned_value = str(value).replace('$', '').replace(',', '').strip()
+                    return float(cleaned_value) if cleaned_value else 0.0
 
-                    # Ordenar la lista de diccionarios (las filas)
-                    self.raw_data.sort(key=lambda row: to_float(row.get('$ Asig.', 0)), reverse=True)
-                    self.log("✓ Filas ordenadas por '$ Asig.' de mayor a menor.", 'success')
-                except (ValueError, TypeError) as e:
-                    self.log(f"Advertencia: No se pudo ordenar por '$ Asig.'. Error: {e}", 'warning')
-                    messagebox.showwarning("Error de Ordenamiento",
-                                           f"No se pudo ordenar por la columna '$ Asig.'.\n"
-                                           f"Asegúrate de que los valores sean numéricos.\n\nError: {e}",
-                                           parent=self.root)
+                # Ordenar la lista de diccionarios (las filas)
+                self.raw_data.sort(key=lambda row: to_float(row.get('$ Asig.', 0)), reverse=True)
+                self.log("✓ Filas ordenadas por '$ Asig.' de mayor a menor.", 'success')
+            except (ValueError, TypeError) as e:
+                self.log(f"Advertencia: No se pudo ordenar por '$ Asig.'. Error: {e}", 'warning')
+                messagebox.showwarning("Error de Ordenamiento",
+                                       f"No se pudo ordenar por la columna '$ Asig.'.\n"
+                                       f"Asegúrate de que los valores sean numéricos.\n\nError: {e}",
+                                       parent=self.root)
 
             # Caso 1: El archivo ya tiene una columna 'URL'
             if 'URL' in self.columns or 'url' in self.columns:
