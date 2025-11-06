@@ -422,14 +422,13 @@ class Hermes:
 
         self._current_main_layout = mode
 
-    def _ejecutar_perfil(self, choice):
+    def _ejecutar_perfil(self, profile_name):
         """Inicia la ejecución de un perfil de comandos en un hilo separado."""
         if not self.devices:
             messagebox.showerror("Error", "No hay dispositivos detectados. Por favor, detecta los dispositivos primero.", parent=self.root)
             return
 
-        profile_name = choice.replace(" ", "_").lower()
-        self.log(f"Iniciando ejecución del {choice} en {len(self.devices)} dispositivo(s)...", 'info')
+        self.log(f"Iniciando ejecución del {profile_name.replace('_', ' ').title()} en {len(self.devices)} dispositivo(s)...", 'info')
 
         # Iniciar la ejecución en un hilo para no bloquear la UI
         threading.Thread(target=self._run_profile_thread, args=(profile_name,), daemon=True).start()
@@ -448,7 +447,8 @@ class Hermes:
                 'medio_1': [("shell cmd statusbar expand-settings", 1),
                             ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
                             ("shell input keyevent KEYCODE_ENTER", 1),
-                            ("shell input keyevent KEYCODE_TAB", 2)],
+                            ("shell input keyevent KEYCODE_TAB", 2),
+                            ("shell input keyevent KEYCODE_ENTER", 1)],
                 'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
@@ -462,7 +462,8 @@ class Hermes:
                 'medio_1': [("shell cmd statusbar expand-settings", 1),
                             ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
                             ("shell input keyevent KEYCODE_ENTER", 1),
-                            ("shell input keyevent KEYCODE_TAB", 3)],
+                            ("shell input keyevent KEYCODE_TAB", 3),
+                            ("shell input keyevent KEYCODE_ENTER", 1)],
                 'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
@@ -476,7 +477,8 @@ class Hermes:
                 'medio_1': [("shell cmd statusbar expand-settings", 1),
                             ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
                             ("shell input keyevent KEYCODE_ENTER", 1),
-                            ("shell input keyevent KEYCODE_TAB", 4)],
+                            ("shell input keyevent KEYCODE_TAB", 4),
+                            ("shell input keyevent KEYCODE_ENTER", 1)],
                 'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
@@ -490,7 +492,8 @@ class Hermes:
                 'medio_1': [("shell cmd statusbar expand-settings", 1),
                             ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
                             ("shell input keyevent KEYCODE_ENTER", 1),
-                            ("shell input keyevent KEYCODE_TAB", 5)],
+                            ("shell input keyevent KEYCODE_TAB", 5),
+                            ("shell input keyevent KEYCODE_ENTER", 1)],
                 'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
@@ -504,7 +507,7 @@ class Hermes:
             return
 
         for block_name, commands in command_sequence.items():
-            delay = 0.2 if 'rapido' in block_name else 0.7
+            delay = 0.1 if 'rapido' in block_name else 0.4
             self.log(f"Ejecutando bloque '{block_name}' con delay de {delay}s...", 'info')
 
             for command_str, repetitions in commands:
@@ -606,6 +609,7 @@ class Hermes:
         self.additional_actions_frame.grid_columnconfigure(0, weight=0)
         self.additional_actions_frame.grid_columnconfigure(1, weight=0)
         self.additional_actions_frame.grid_columnconfigure(2, weight=0)
+        self.additional_actions_frame.grid_columnconfigure(3, weight=0) # New column for layout
         
         # Primera fila de botones
         # Botón Fidelizado
@@ -654,6 +658,35 @@ class Hermes:
                                           border_width=1, border_color=self.colors["text_light"])
         self.dark_mode_btn.grid(row=0, column=2, padx=8, pady=4)
 
+        # Botones de Perfil
+        self.perfil_1_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 1", command=lambda: self._ejecutar_perfil('perfil_1'),
+                                           fg_color=self.colors['bg_card'], text_color=self.colors['text'],
+                                           hover_color=self.colors["bg"], font=('Inter', 13),
+                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
+                                           border_width=1, border_color=self.colors["text_light"])
+        self.perfil_1_btn.grid(row=1, column=0, padx=(12, 8), pady=4)
+
+        self.perfil_2_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 2", command=lambda: self._ejecutar_perfil('perfil_2'),
+                                           fg_color=self.colors['bg_card'], text_color=self.colors['text'],
+                                           hover_color=self.colors["bg"], font=('Inter', 13),
+                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
+                                           border_width=1, border_color=self.colors["text_light"])
+        self.perfil_2_btn.grid(row=1, column=1, padx=8, pady=4)
+
+        self.perfil_3_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 3", command=lambda: self._ejecutar_perfil('perfil_3'),
+                                           fg_color=self.colors['bg_card'], text_color=self.colors['text'],
+                                           hover_color=self.colors["bg"], font=('Inter', 13),
+                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
+                                           border_width=1, border_color=self.colors["text_light"])
+        self.perfil_3_btn.grid(row=1, column=2, padx=8, pady=4)
+
+        self.perfil_4_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 4", command=lambda: self._ejecutar_perfil('perfil_4'),
+                                           fg_color=self.colors['bg_card'], text_color=self.colors['text'],
+                                           hover_color=self.colors["bg"], font=('Inter', 13),
+                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
+                                           border_width=1, border_color=self.colors["text_light"])
+        self.perfil_4_btn.grid(row=1, column=3, padx=8, pady=4)
+
         ctk.CTkFrame(ac, fg_color=self.colors['text_light'], height=1).pack(fill=tk.X, pady=(0, 25), padx=25)
 
         acts = ctk.CTkFrame(ac, fg_color="transparent")
@@ -684,35 +717,6 @@ class Hermes:
             if num == 1: self.btn_detect = btn
             elif num == 2: self.btn_load = btn
 
-        # Menú de Perfiles de Comandos
-        perfil_frame = ctk.CTkFrame(acts, fg_color="transparent")
-        perfil_frame.pack(fill=tk.X, pady=(0, 15))
-        perfil_frame.grid_columnconfigure(0, weight=0)
-        perfil_frame.grid_columnconfigure(1, weight=1)
-
-        num_lbl_perfil = ctk.CTkLabel(perfil_frame, text="CMD", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'], width=40)
-        num_lbl_perfil.grid(row=0, column=0, padx=(0, 15))
-
-        perfil_selector_frame = ctk.CTkFrame(perfil_frame, fg_color=self.colors['bg_card'], corner_radius=10, height=50)
-        perfil_selector_frame.grid(row=0, column=1, sticky='nsew')
-        perfil_selector_frame.grid_columnconfigure(1, weight=1) # The optionmenu will expand
-        perfil_selector_frame.grid_rowconfigure(0, weight=1)
-
-        perfil_label = ctk.CTkLabel(perfil_selector_frame, text="Ejecutar Perfil:", font=self.fonts['button'], text_color=self.colors['text'])
-        perfil_label.grid(row=0, column=0, padx=(20, 10), sticky='w')
-
-        self.perfil_selector = ctk.CTkOptionMenu(perfil_selector_frame,
-                                                 values=["Perfil 1", "Perfil 2", "Perfil 3", "Perfil 4"],
-                                                 command=self._ejecutar_perfil,
-                                                 font=self.fonts['button'],
-                                                 dropdown_font=self.fonts['setting_label'],
-                                                 fg_color=self.colors['bg_card'],
-                                                 button_color=self.colors['action_detect'],
-                                                 button_hover_color=self.hover_colors['action_detect'],
-                                                 text_color=self.colors['text'],
-                                                 height=35)
-        self.perfil_selector.grid(row=0, column=1, padx=(10, 20), sticky='ew')
-        
         # Selector de Modo de Envío (Simple/Doble/Triple) - SOLO para modo tradicional
         mode_frame = ctk.CTkFrame(acts, fg_color="transparent")
         mode_frame.pack(fill=tk.X, pady=(0, 15))
