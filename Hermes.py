@@ -422,6 +422,60 @@ class Hermes:
 
         self._current_main_layout = mode
 
+    def _iniciar_ver_pantalla(self):
+        """Handles the logic for the 'Ver Pantalla' button."""
+        if not self.devices:
+            messagebox.showerror("Error", "No hay dispositivos detectados. Por favor, detecta los dispositivos primero.", parent=self.root)
+            return
+
+        if len(self.devices) == 1:
+            self._lanzar_scrcpy(self.devices[0])
+        else:
+            self._open_device_selection_window()
+
+    def _open_device_selection_window(self):
+        """Opens a window to select a device for screen mirroring."""
+        selection_window = ctk.CTkToplevel(self.root)
+        selection_window.title("Seleccionar Dispositivo")
+        selection_window.transient(self.root)
+        selection_window.grab_set()
+
+        # Center the window
+        width, height = 300, len(self.devices) * 50 + 40
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (width // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (height // 2)
+        selection_window.geometry(f"{width}x{height}+{x}+{y}")
+
+        ctk.CTkLabel(selection_window, text="Selecciona un dispositivo:", font=self.fonts['button']).pack(pady=10)
+
+        def on_select(device_id):
+            selection_window.destroy()
+            self._lanzar_scrcpy(device_id)
+
+        for device_id in self.devices:
+            btn = ctk.CTkButton(selection_window, text=device_id, command=lambda d=device_id: on_select(d),
+                                font=self.fonts['button'], height=40)
+            btn.pack(fill=tk.X, padx=20, pady=5)
+
+    def _lanzar_scrcpy(self, device_id):
+        """Launches scrcpy for a specific device."""
+        scrcpy_path = os.path.join(BASE_DIR, "scrcpy-win64-v3.2", "scrcpy.exe")
+
+        if not os.path.exists(scrcpy_path):
+            self.log(f"Error: No se encontró scrcpy.exe en la ruta esperada: {scrcpy_path}", 'error')
+            messagebox.showerror("Error", "No se encontró 'scrcpy.exe'.\nAsegúrate de que la carpeta 'scrcpy-win64-v3.2' está en el directorio del programa.", parent=self.root)
+            return
+
+        self.log(f"Iniciando scrcpy para el dispositivo: {device_id}", 'info')
+
+        try:
+            # Use Popen to run scrcpy in a non-blocking way
+            command = [scrcpy_path, "-s", device_id]
+            subprocess.Popen(command)
+        except Exception as e:
+            self.log(f"Error al iniciar scrcpy: {e}", 'error')
+            messagebox.showerror("Error", f"No se pudo iniciar scrcpy:\n{e}", parent=self.root)
+
     def _ejecutar_perfil(self, profile_name):
         """Inicia la ejecución de un perfil de comandos en un hilo separado."""
         if not self.devices:
@@ -641,6 +695,15 @@ class Hermes:
                                               cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                               border_width=1, border_color=self.colors["text_light"])
         # self.adb_injector_btn.grid(row=0, column=1, padx=8, pady=4)
+
+        # Botón Ver Pantalla
+        self.ver_pantalla_btn = ctk.CTkButton(self.additional_actions_frame, text="Ver Pantalla", command=self._iniciar_ver_pantalla,
+                                              fg_color=self.colors['bg_card'], text_color=self.colors['text'],
+                                              hover_color=self.colors["bg"],
+                                              font=('Inter', 13),
+                                              cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
+                                              border_width=1, border_color=self.colors["text_light"])
+        self.ver_pantalla_btn.grid(row=0, column=1, padx=8, pady=4)
         
         # Botón Cambiar Cuenta WhatsApp
         self.switch_account_btn = ctk.CTkButton(self.additional_actions_frame, text="Cambiar Cuenta", command=self.switch_whatsapp_account,
