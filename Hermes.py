@@ -1271,7 +1271,7 @@ class Hermes:
 
         # Contenido principal de Fidelizado
         content = ctk.CTkFrame(fidelizado_container, fg_color=self.colors['bg_card'], corner_radius=30)
-        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=(20,0)) # Añadido pady para despegar del borde superior
+        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=(20, 20))
 
         # Layout principal de 2 columnas
         content.grid_columnconfigure(0, weight=1)
@@ -1281,7 +1281,7 @@ class Hermes:
         # --- Fila 0: Botón Volver ---
         back_button_frame = ctk.CTkFrame(content, fg_color="transparent")
         back_button_frame.grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(10, 0))
-        back_button = ctk.CTkButton(back_button_frame, text="⬅️ Volver al Modo Tradicional",
+        back_button = ctk.CTkButton(back_button_frame, text="Volver al modo Masivos",
                                       command=self.show_traditional_view,
                                       fg_color="transparent",
                                       text_color=self.colors['text_light'],
@@ -1291,7 +1291,7 @@ class Hermes:
         # --- Fila 1: Título ---
         title_frame = ctk.CTkFrame(content, fg_color="transparent")
         title_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=20, pady=(5, 10))
-        ctk.CTkLabel(title_frame, text="🚀 Modo Fidelizado (Envío por Bucles)", font=self.fonts['card_title'], text_color=self.colors['text']).pack(anchor='w')
+        ctk.CTkLabel(title_frame, text="Modo Fidelizado", font=self.fonts['card_title'], text_color=self.colors['text']).pack(anchor='w')
 
         # --- Fila 2: Inputs (Números y Grupos) y Controles ---
         inputs_and_controls_frame = ctk.CTkFrame(content, fg_color="transparent")
@@ -1313,13 +1313,13 @@ class Hermes:
 
         # Widgets de Números (Label y Textbox)
         self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
-        ctk.CTkLabel(self.fidelizado_numbers_frame, text="📞 Números (+549 sin prefijo)", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor="w", pady=(0, 5))
+        ctk.CTkLabel(self.fidelizado_numbers_frame, text="📞 Números (+549 sin prefijo)", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 8))
         self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
         self.fidelizado_numbers_text.pack(fill="both", expand=True)
 
         # Widgets de Grupos (Label y Textbox)
         self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
-        ctk.CTkLabel(self.fidelizado_groups_frame, text="🔗 Links de Grupos (https://...)", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor="w", pady=(0, 5))
+        ctk.CTkLabel(self.fidelizado_groups_frame, text="🔗 Links de Grupos (https://...)", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 8))
         self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
         self.fidelizado_groups_text.pack(fill="both", expand=True)
 
@@ -1330,8 +1330,8 @@ class Hermes:
 
         # Card para Detección de Dispositivos
         device_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        device_card.grid(row=0, column=0, sticky="ew", pady=(0, 15))
-        ctk.CTkLabel(device_card, text="📱 Dispositivos", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(10, 5))
+        device_card.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        ctk.CTkLabel(device_card, text="📱 Dispositivos", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(15, 10))
         device_container = ctk.CTkFrame(device_card, fg_color="transparent")
         device_container.pack(fill="x", padx=15, pady=(0, 15))
 
