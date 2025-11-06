@@ -4005,6 +4005,7 @@ def main():
 
     def show_main_app():
         """Destruye los widgets de login y construye la app principal."""
+        root.unbind('<Return>')  # --- FIX: Desactivar el atajo de teclado de login ---
         for w in root.winfo_children():
             w.destroy()
         app = Hermes(root) # Reutiliza la ventana raíz
