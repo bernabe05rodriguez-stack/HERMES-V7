@@ -1271,7 +1271,7 @@ class Hermes:
 
         # Contenido principal de Fidelizado
         content = ctk.CTkFrame(fidelizado_container, fg_color=self.colors['bg_card'], corner_radius=30)
-        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=(20, 20))
+        content.pack(fill=tk.BOTH, expand=True, padx=0, pady=(10, 20))
 
         # Layout principal de 2 columnas
         content.grid_columnconfigure(0, weight=1)
@@ -1280,7 +1280,7 @@ class Hermes:
 
         # --- Fila 0: Botón Volver ---
         back_button_frame = ctk.CTkFrame(content, fg_color="transparent")
-        back_button_frame.grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(10, 0))
+        back_button_frame.grid(row=0, column=0, columnspan=2, sticky="w", padx=30, pady=(15, 5))
         back_button = ctk.CTkButton(back_button_frame, text="Volver al modo Masivos",
                                       command=self.show_traditional_view,
                                       fg_color="transparent",
@@ -1290,19 +1290,19 @@ class Hermes:
 
         # --- Fila 1: Título ---
         title_frame = ctk.CTkFrame(content, fg_color="transparent")
-        title_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=20, pady=(5, 10))
-        ctk.CTkLabel(title_frame, text="Modo Fidelizado", font=self.fonts['card_title'], text_color=self.colors['text']).pack(anchor='w')
+        title_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=30, pady=(5, 15))
+        ctk.CTkLabel(title_frame, text="Modo Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(anchor='w')
 
         # --- Fila 2: Inputs (Números y Grupos) y Controles ---
         inputs_and_controls_frame = ctk.CTkFrame(content, fg_color="transparent")
-        inputs_and_controls_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=20, pady=(0, 20))
-        inputs_and_controls_frame.grid_columnconfigure(0, weight=1) # Columna de inputs
-        inputs_and_controls_frame.grid_columnconfigure(1, weight=1) # Columna de controles
+        inputs_and_controls_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=30, pady=(0, 20))
+        inputs_and_controls_frame.grid_columnconfigure(0, weight=55) # Columna de inputs
+        inputs_and_controls_frame.grid_columnconfigure(1, weight=45) # Columna de controles
         inputs_and_controls_frame.grid_rowconfigure(0, weight=1)
 
         # --- Columna Izquierda: Inputs (Números y Grupos) ---
         inputs_col = ctk.CTkFrame(inputs_and_controls_frame, fg_color="transparent")
-        inputs_col.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        inputs_col.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
         inputs_col.grid_rowconfigure(0, weight=1) # Permitir que el frame interno crezca
         inputs_col.grid_columnconfigure(0, weight=1)
 
@@ -1313,114 +1313,114 @@ class Hermes:
 
         # Widgets de Números (Label y Textbox)
         self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
-        ctk.CTkLabel(self.fidelizado_numbers_frame, text="📞 Números (+549 sin prefijo)", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 8))
-        self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
+        ctk.CTkLabel(self.fidelizado_numbers_frame, text="📞 Números (+549 sin prefijo)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 10))
+        self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
         self.fidelizado_numbers_text.pack(fill="both", expand=True)
 
         # Widgets de Grupos (Label y Textbox)
         self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
-        ctk.CTkLabel(self.fidelizado_groups_frame, text="🔗 Links de Grupos (https://...)", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 8))
-        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
+        ctk.CTkLabel(self.fidelizado_groups_frame, text="🔗 Links de Grupos (https://...)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 10))
+        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
         self.fidelizado_groups_text.pack(fill="both", expand=True)
 
         # --- Columna Derecha: Controles de Envío ---
         controls_col = ctk.CTkFrame(inputs_and_controls_frame, fg_color="transparent")
-        controls_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        controls_col.grid(row=0, column=1, sticky="nsew", padx=(20, 0))
         controls_col.grid_columnconfigure(0, weight=1)
 
         # Card para Detección de Dispositivos
         device_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
         device_card.grid(row=0, column=0, sticky="ew", pady=(0, 20))
-        ctk.CTkLabel(device_card, text="📱 Dispositivos", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(15, 10))
+        ctk.CTkLabel(device_card, text="📱 Dispositivos", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
         device_container = ctk.CTkFrame(device_card, fg_color="transparent")
-        device_container.pack(fill="x", padx=15, pady=(0, 15))
+        device_container.pack(fill="x", padx=20, pady=(0, 20))
 
         self.fidelizado_detect_btn = ctk.CTkButton(device_container, text="🔍 Detectar Dispositivos",
                                                   command=self.detect_devices,
-                                                  font=self.fonts['button_small'],
+                                                  font=self.fonts['button'],
                                                   fg_color=self.colors['action_detect'],
                                                   hover_color=self.hover_colors['action_detect'],
-                                                  height=30)
-        self.fidelizado_detect_btn.pack(fill='x', pady=(0, 10))
+                                                  height=40)
+        self.fidelizado_detect_btn.pack(fill='x', pady=(0, 15))
 
         self.fidelizado_device_list_label = ctk.CTkLabel(device_container, text="No hay dispositivos detectados.",
                                                         font=self.fonts['setting_label'],
                                                         text_color=self.colors['text_light'],
-                                                        wraplength=250,
+                                                        wraplength=350,
                                                         justify='left')
         self.fidelizado_device_list_label.pack(anchor='w')
 
         # Card para Configuración
         config_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        config_card.grid(row=1, column=0, sticky="ew", pady=(0, 15))
-        ctk.CTkLabel(config_card, text="⚙️ Configuración", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(10, 5))
+        config_card.grid(row=1, column=0, sticky="ew", pady=(0, 20))
+        ctk.CTkLabel(config_card, text="⚙️ Configuración", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
 
         config_grid = ctk.CTkFrame(config_card, fg_color="transparent")
-        config_grid.pack(fill=tk.X, padx=15, pady=(0, 15))
+        config_grid.pack(fill=tk.X, padx=20, pady=(0, 20))
         config_grid.grid_columnconfigure([0, 1], weight=1)
 
         # Fila 0: Modo de envío
         mode_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        mode_container.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 10))
-        ctk.CTkLabel(mode_container, text="Modo de envío:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        mode_container.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        ctk.CTkLabel(mode_container, text="Modo de envío:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         fidelizado_modes = ["Modo Números", "Modo Grupos", "Modo Mixto"]
         mode_map_to_ui = {"NUMEROS": "Modo Números", "GRUPOS": "Modo Grupos", "MIXTO": "Modo Mixto"}
         current_mode_ui = mode_map_to_ui.get(self.fidelizado_mode, "Modo Números")
         self.fidelizado_mode_var = tk.StringVar(value=current_mode_ui)
-        mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['setting_label'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg_card'], button_color=self.colors['blue'], button_hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text'], height=30)
+        mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['button'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg_card'], button_color=self.colors['blue'], button_hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text'], height=35)
         mode_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
         # Fila 1: Bucles y Delay
         loops_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 10), padx=(0, 5))
-        ctk.CTkLabel(loops_container, text="Bucle:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
+        ctk.CTkLabel(loops_container, text="Bucle:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         self.manual_loops_var = tk.IntVar(value=max(1, self.manual_loops))
         spinbox_loops = self._create_spinbox_widget(loops_container, self.manual_loops_var, min_val=1, max_val=100)
         spinbox_loops.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
         delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        delay_container.grid(row=1, column=1, sticky='ew', pady=(0, 10), padx=(5, 0))
-        ctk.CTkLabel(delay_container, text="Tiempo (seg):", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        delay_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
+        ctk.CTkLabel(delay_container, text="Tiempo (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
 
         delay_spinboxes = ctk.CTkFrame(delay_container, fg_color="transparent")
         delay_spinboxes.pack(side=tk.LEFT, expand=True, fill=tk.X)
         spinbox_delay_min = self._create_spinbox_widget(delay_spinboxes, self.fidelizado_delay_min, min_val=1, max_val=300)
         spinbox_delay_min.pack(side=tk.LEFT, expand=True)
-        ctk.CTkLabel(delay_spinboxes, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.LEFT, padx=4)
+        ctk.CTkLabel(delay_spinboxes, text="-", font=self.fonts['button'], fg_color="transparent").pack(side=tk.LEFT, padx=4)
         spinbox_delay_max = self._create_spinbox_widget(delay_spinboxes, self.fidelizado_delay_max, min_val=1, max_val=300)
         spinbox_delay_max.pack(side=tk.LEFT, expand=True)
 
         # Fila 2: Velocidad y WhatsApp
         speed_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        speed_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 10))
-        ctk.CTkLabel(speed_container, text="Velocidad escritura:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        speed_menu = ctk.CTkSegmentedButton(speed_container, variable=self.write_speed, values=["Lento", "Normal", "Rápido"], font=('Inter', 10, 'bold'), height=30, fg_color=self.colors['bg_card'], selected_color=self.colors['blue'], selected_hover_color=darken_color(self.colors['blue'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
+        speed_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        ctk.CTkLabel(speed_container, text="Velocidad escritura:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        speed_menu = ctk.CTkSegmentedButton(speed_container, variable=self.write_speed, values=["Lento", "Normal", "Rápido"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['blue'], selected_hover_color=darken_color(self.colors['blue'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
         speed_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
         whatsapp_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        whatsapp_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 10))
-        ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=('Inter', 10, 'bold'), height=30, fg_color=self.colors['bg_card'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
+        whatsapp_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
         whatsapp_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
         # Card para Mensajes
         messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 15))
-        ctk.CTkLabel(messages_card, text="✍️ Mensajes", font=self.fonts['button'], text_color=self.colors['text']).pack(anchor='w', padx=15, pady=(10, 5))
+        messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 20))
+        ctk.CTkLabel(messages_card, text="✍️ Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
         self.fidelizado_messages_container = ctk.CTkFrame(messages_card, fg_color="transparent")
-        self.fidelizado_messages_container.pack(fill="x", padx=15, pady=(0, 15))
+        self.fidelizado_messages_container.pack(fill="x", padx=20, pady=(0, 20))
         self.fidelizado_messages_container.grid_columnconfigure(1, weight=1)
 
         load_messages_btn = ctk.CTkButton(self.fidelizado_messages_container, text="Cargar Archivo",
                                           command=self._load_fidelizado_messages_from_file,
-                                          font=self.fonts['button_small'],
+                                          font=self.fonts['button'],
                                           fg_color=self.colors['blue'],
                                           hover_color=darken_color(self.colors['blue'], 0.15),
-                                          height=30)
+                                          height=35)
         load_messages_btn.grid(row=0, column=0, sticky='w')
 
         self.fidelizado_message_count_label = ctk.CTkLabel(self.fidelizado_messages_container, text="", font=self.fonts['setting_label'], text_color=self.colors['text'])
-        self.fidelizado_message_count_label.grid(row=0, column=1, sticky='w', padx=10)
+        self.fidelizado_message_count_label.grid(row=0, column=1, sticky='w', padx=15)
 
         initial_message_count = len(self.manual_messages_numbers)
         if initial_message_count > 0:
@@ -1439,15 +1439,15 @@ class Hermes:
 
         # --- Botones de Acción ---
         self.actions_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
-        self.actions_frame.grid(row=3, column=0, sticky="ew", pady=(15, 0))
+        self.actions_frame.grid(row=3, column=0, sticky="sew", pady=(15, 0))
         self.actions_frame.grid_columnconfigure(0, weight=1)
         self.actions_frame.grid_columnconfigure(1, weight=1)
 
-        self.fidelizado_btn_start = ctk.CTkButton(self.actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
-        self.fidelizado_btn_start.grid(row=0, column=0, sticky='ew', padx=(0, 5))
+        self.fidelizado_btn_start = ctk.CTkButton(self.actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
+        self.fidelizado_btn_start.grid(row=0, column=0, sticky='ew', padx=(0, 10))
 
-        self.unirse_grupos_btn = ctk.CTkButton(self.actions_frame, text="🔗 UNIRSE A GRUPOS", command=self.start_unirse_grupos, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
-        self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(5, 0))
+        self.unirse_grupos_btn = ctk.CTkButton(self.actions_frame, text="🔗 UNIRSE A GRUPOS", command=self.start_unirse_grupos, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
+        self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(10, 0))
 
         # --- Botones de Control (Pausa/Cancelar) ---
         self.control_buttons_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
@@ -1455,11 +1455,11 @@ class Hermes:
         self.control_buttons_frame.grid_columnconfigure(0, weight=1)
         self.control_buttons_frame.grid_columnconfigure(1, weight=1)
 
-        self.fidelizado_btn_pause = ctk.CTkButton(self.control_buttons_frame, text="⏸  PAUSAR", command=self.pause_sending, fg_color=self.colors['action_pause'], hover_color=self.hover_colors['action_pause'], text_color=self.colors['text_header_buttons'], font=self.fonts['button_small'], corner_radius=20, height=40)
-        self.fidelizado_btn_pause.grid(row=0, column=0, sticky='ew', padx=(0, 5))
+        self.fidelizado_btn_pause = ctk.CTkButton(self.control_buttons_frame, text="⏸  PAUSAR", command=self.pause_sending, fg_color=self.colors['action_pause'], hover_color=self.hover_colors['action_pause'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
+        self.fidelizado_btn_pause.grid(row=0, column=0, sticky='ew', padx=(0, 10))
 
-        self.fidelizado_btn_stop = ctk.CTkButton(self.control_buttons_frame, text="⏹  CANCELAR", command=self.stop_sending, fg_color=self.colors['action_cancel'], hover_color=self.hover_colors['action_cancel'], text_color=self.colors['text_header_buttons'], font=self.fonts['button_small'], corner_radius=20, height=40)
-        self.fidelizado_btn_stop.grid(row=0, column=1, sticky='ew', padx=(5, 0))
+        self.fidelizado_btn_stop = ctk.CTkButton(self.control_buttons_frame, text="⏹  CANCELAR", command=self.stop_sending, fg_color=self.colors['action_cancel'], hover_color=self.hover_colors['action_cancel'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
+        self.fidelizado_btn_stop.grid(row=0, column=1, sticky='ew', padx=(10, 0))
 
         # Ocultar el frame de botones de control inicialmente
         self.control_buttons_frame.grid_remove()
