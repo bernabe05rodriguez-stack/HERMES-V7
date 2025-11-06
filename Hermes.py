@@ -640,7 +640,7 @@ class Hermes:
                                               font=('Inter', 13),
                                               cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                               border_width=1, border_color=self.colors["text_light"])
-        self.adb_injector_btn.grid(row=0, column=1, padx=8, pady=4)
+        # self.adb_injector_btn.grid(row=0, column=1, padx=8, pady=4)
         
         # Botón Cambiar Cuenta WhatsApp
         self.switch_account_btn = ctk.CTkButton(self.additional_actions_frame, text="Cambiar Cuenta", command=self.switch_whatsapp_account,
@@ -676,28 +676,28 @@ class Hermes:
                                            hover_color=self.colors["bg"], font=('Inter', 13),
                                            cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                            border_width=1, border_color=self.colors["text_light"])
-        self.perfil_1_btn.grid(row=1, column=0, padx=(12, 8), pady=4)
+        # self.perfil_1_btn.grid(row=1, column=0, padx=(12, 8), pady=4)
 
         self.perfil_2_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 2", command=lambda: self._ejecutar_perfil('perfil_2'),
                                            fg_color=self.colors['bg_card'], text_color=self.colors['text'],
                                            hover_color=self.colors["bg"], font=('Inter', 13),
                                            cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                            border_width=1, border_color=self.colors["text_light"])
-        self.perfil_2_btn.grid(row=1, column=1, padx=8, pady=4)
+        # self.perfil_2_btn.grid(row=1, column=1, padx=8, pady=4)
 
         self.perfil_3_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 3", command=lambda: self._ejecutar_perfil('perfil_3'),
                                            fg_color=self.colors['bg_card'], text_color=self.colors['text'],
                                            hover_color=self.colors["bg"], font=('Inter', 13),
                                            cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                            border_width=1, border_color=self.colors["text_light"])
-        self.perfil_3_btn.grid(row=1, column=2, padx=8, pady=4)
+        # self.perfil_3_btn.grid(row=1, column=2, padx=8, pady=4)
 
         self.perfil_4_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 4", command=lambda: self._ejecutar_perfil('perfil_4'),
                                            fg_color=self.colors['bg_card'], text_color=self.colors['text'],
                                            hover_color=self.colors["bg"], font=('Inter', 13),
                                            cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                            border_width=1, border_color=self.colors["text_light"])
-        self.perfil_4_btn.grid(row=1, column=3, padx=8, pady=4)
+        # self.perfil_4_btn.grid(row=1, column=3, padx=8, pady=4)
 
         ctk.CTkFrame(ac, fg_color=self.colors['text_light'], height=1).pack(fill=tk.X, pady=(0, 25), padx=25)
 
