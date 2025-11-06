@@ -444,11 +444,12 @@ class Hermes:
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
                              ("shell am force-stop com.whatsapp.w4b", 1)],
-                'medio_1': [("shell cmd statusbar expand-settings", 1),
-                            ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
+                'lento_1': [("shell cmd statusbar expand-settings", 1),
+                            ("shell input keyevent KEYCODE_TAB", 13),
                             ("shell input keyevent KEYCODE_ENTER", 1),
                             ("shell input keyevent KEYCODE_TAB", 2),
                             ("shell input keyevent KEYCODE_ENTER", 1)],
+                'pausa_1': [("sleep", 8)],
                 'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
@@ -459,11 +460,12 @@ class Hermes:
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
                              ("shell am force-stop com.whatsapp.w4b", 1)],
-                'medio_1': [("shell cmd statusbar expand-settings", 1),
-                            ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
+                'lento_1': [("shell cmd statusbar expand-settings", 1),
+                            ("shell input keyevent KEYCODE_TAB", 13),
                             ("shell input keyevent KEYCODE_ENTER", 1),
                             ("shell input keyevent KEYCODE_TAB", 3),
                             ("shell input keyevent KEYCODE_ENTER", 1)],
+                'pausa_1': [("sleep", 8)],
                 'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
@@ -474,11 +476,12 @@ class Hermes:
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
                              ("shell am force-stop com.whatsapp.w4b", 1)],
-                'medio_1': [("shell cmd statusbar expand-settings", 1),
-                            ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
+                'lento_1': [("shell cmd statusbar expand-settings", 1),
+                            ("shell input keyevent KEYCODE_TAB", 13),
                             ("shell input keyevent KEYCODE_ENTER", 1),
                             ("shell input keyevent KEYCODE_TAB", 4),
                             ("shell input keyevent KEYCODE_ENTER", 1)],
+                'pausa_1': [("sleep", 8)],
                 'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
@@ -489,11 +492,12 @@ class Hermes:
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
                              ("shell am force-stop com.whatsapp.w4b", 1)],
-                'medio_1': [("shell cmd statusbar expand-settings", 1),
-                            ("shell input keyevent KEYCODE_DPAD_DOWN", 7),
+                'lento_1': [("shell cmd statusbar expand-settings", 1),
+                            ("shell input keyevent KEYCODE_TAB", 13),
                             ("shell input keyevent KEYCODE_ENTER", 1),
                             ("shell input keyevent KEYCODE_TAB", 5),
                             ("shell input keyevent KEYCODE_ENTER", 1)],
+                'pausa_1': [("sleep", 8)],
                 'rapido_2': [("shell input keyevent KEYCODE_BACK", 5),
                              ("shell am force-stop com.android.settings", 1),
                              ("shell am force-stop com.whatsapp", 1),
@@ -507,10 +511,19 @@ class Hermes:
             return
 
         for block_name, commands in command_sequence.items():
-            delay = 0.1 if 'rapido' in block_name else 0.4
-            self.log(f"Ejecutando bloque '{block_name}' con delay de {delay}s...", 'info')
+            if 'rapido' in block_name:
+                delay = 0.3
+            elif 'lento' in block_name:
+                delay = 1.2
+            else: # Es un bloque de pausa
+                delay = 0
 
             for command_str, repetitions in commands:
+                if command_str == "sleep":
+                    self.log(f"Esperando {repetitions} segundos...", 'info')
+                    time.sleep(repetitions)
+                    continue
+
                 for i in range(repetitions):
                     # Usar hilos para ejecutar el comando en todos los dispositivos a la vez
                     device_threads = []
@@ -525,7 +538,6 @@ class Hermes:
                     for thread in device_threads:
                         thread.join()
 
-                    self.log(f"Comando '{command_str}' (rep {i+1}/{repetitions}) ejecutado.", 'info')
                     time.sleep(delay) # Pausa después de cada ejecución de comando
 
         self.log(f"Perfil {profile_name.replace('_', ' ').title()} completado.", 'success')
