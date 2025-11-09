@@ -694,7 +694,7 @@ class Hermes:
                                               font=('Inter', 13),
                                               cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                               border_width=1, border_color=self.colors["text_light"])
-        # self.adb_injector_btn.grid(row=0, column=1, padx=8, pady=4)
+        self.adb_injector_btn.grid(row=0, column=1, padx=8, pady=4)
 
         # Botón Ver Pantalla
         self.ver_pantalla_btn = ctk.CTkButton(self.additional_actions_frame, text="Ver Pantalla", command=self._iniciar_ver_pantalla,
@@ -703,7 +703,7 @@ class Hermes:
                                               font=('Inter', 13),
                                               cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                               border_width=1, border_color=self.colors["text_light"])
-        self.ver_pantalla_btn.grid(row=0, column=1, padx=8, pady=4)
+        self.ver_pantalla_btn.grid(row=0, column=2, padx=8, pady=4)
         
         # Botón Cambiar Cuenta WhatsApp
         self.switch_account_btn = ctk.CTkButton(self.additional_actions_frame, text="Cambiar Cuenta", command=self.switch_whatsapp_account,
@@ -731,7 +731,7 @@ class Hermes:
                                           font=('Inter', 13),
                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
                                           border_width=1, border_color=self.colors["text_light"])
-        self.dark_mode_btn.grid(row=0, column=2, padx=8, pady=4)
+        self.dark_mode_btn.grid(row=0, column=3, padx=8, pady=4)
 
         # Botones de Perfil
         self.perfil_1_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 1", command=lambda: self._ejecutar_perfil('perfil_1'),
