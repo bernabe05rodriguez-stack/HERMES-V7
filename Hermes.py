@@ -4004,6 +4004,18 @@ class Hermes:
         self.log("Iniciando detección de números de teléfono...", 'info')
         self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.DISABLED, 'text': "Detectando..."})
 
+        # Mostrar advertencia al usuario
+        instructions = (
+            "Se iniciará el proceso de copia de seguridad en tu teléfono.\n\n"
+            "1. Revisa la pantalla de tu dispositivo AHORA.\n"
+            "2. DEJA EN BLANCO el campo de la contraseña.\n"
+            "3. Pulsa 'Copia de seguridad de mis datos'.\n\n"
+            "Este proceso se podría repetir para cada aplicación de WhatsApp."
+        )
+        self.root.after(0, lambda: messagebox.showinfo("Acción Requerida en el Teléfono", instructions, parent=self.root))
+        # Pequeña pausa para que el usuario pueda leer
+        time.sleep(2)
+
         results = {}
         # Crear un directorio temporal para los backups
         temp_dir = tempfile.mkdtemp(prefix="hermes_adb_backup_")
