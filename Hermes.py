@@ -26,6 +26,12 @@ import csv
 import io
 import urllib.parse
 import shlex # Import shlex for better command splitting
+import tarfile
+import zlib
+import xml.etree.ElementTree as ET
+import tempfile
+import shutil
+
 
 # --- Función para encontrar archivos en modo compilado ---
 def resource_path(relative_path):
@@ -705,6 +711,15 @@ class Hermes:
                                               border_width=1, border_color=self.colors["text_light"])
         self.ver_pantalla_btn.grid(row=0, column=2, padx=8, pady=4)
         
+        # Botón Detectar Números
+        self.detect_numbers_btn = ctk.CTkButton(self.additional_actions_frame, text="Detectar Números", command=self.detect_phone_numbers_thread,
+                                              fg_color=self.colors['bg_card'], text_color=self.colors['text'],
+                                              hover_color=self.colors["bg"],
+                                              font=('Inter', 13),
+                                              cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
+                                              border_width=1, border_color=self.colors["text_light"])
+        self.detect_numbers_btn.grid(row=1, column=0, padx=(12, 8), pady=4)
+
         # Botón Cambiar Cuenta WhatsApp
         self.switch_account_btn = ctk.CTkButton(self.additional_actions_frame, text="Cambiar Cuenta", command=self.switch_whatsapp_account,
                                                fg_color=self.colors['bg_card'], text_color=self.colors['text'],
@@ -3973,7 +3988,118 @@ class Hermes:
         
         # Bind Enter para ejecutar
         cmd_entry.bind('<Return>', lambda e: execute_command())
-    
+
+    def detect_phone_numbers_thread(self):
+        """Inicia la detección de números de teléfono en un hilo separado."""
+        if not self.devices:
+            messagebox.showwarning("Sin dispositivos", "No hay dispositivos conectados. Detecta dispositivos primero.", parent=self.root)
+            return
+        threading.Thread(target=self.detect_phone_numbers, daemon=True).start()
+
+    def detect_phone_numbers(self):
+        """
+        Intenta extraer el número de teléfono de WhatsApp y WhatsApp Business
+        de cada dispositivo conectado usando 'adb backup'.
+        """
+        self.log("Iniciando detección de números de teléfono...", 'info')
+        self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.DISABLED, 'text': "Detectando..."})
+
+        results = {}
+        # Crear un directorio temporal para los backups
+        temp_dir = tempfile.mkdtemp(prefix="hermes_adb_backup_")
+        self.log(f"Directorio temporal creado en: {temp_dir}", "info")
+
+        try:
+            for device in self.devices:
+                self.log(f"Procesando dispositivo: {device}", 'info')
+                results[device] = {}
+
+                # WhatsApp Normal
+                wa_number = self._extract_and_find_number(device, "com.whatsapp", temp_dir)
+                results[device]['WhatsApp'] = wa_number if wa_number else "No encontrado"
+
+                # WhatsApp Business
+                w4b_number = self._extract_and_find_number(device, "com.whatsapp.w4b", temp_dir)
+                results[device]['WhatsApp Business'] = w4b_number if w4b_number else "No encontrado"
+
+            # Formatear y mostrar resultados
+            result_str = "Resultados de Detección de Números:\n\n"
+            for device, numbers in results.items():
+                result_str += f"📱 Dispositivo: {device}\n"
+                result_str += f"  - WhatsApp: {numbers['WhatsApp']}\n"
+                result_str += f"  - WhatsApp Business: {numbers['WhatsApp Business']}\n\n"
+
+            self.log("Detección de números finalizada.", 'success')
+            self.root.after(0, lambda: messagebox.showinfo("Detección Finalizada", result_str, parent=self.root))
+
+        except Exception as e:
+            self.log(f"Error durante la detección de números: {e}", 'error')
+            self.root.after(0, lambda: messagebox.showerror("Error", f"Ocurrió un error inesperado:\n{e}", parent=self.root))
+        finally:
+            # Limpiar el directorio temporal
+            try:
+                shutil.rmtree(temp_dir)
+                self.log(f"Directorio temporal eliminado.", "info")
+            except Exception as e:
+                self.log(f"Error al eliminar el directorio temporal: {e}", "warning")
+            self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.NORMAL, 'text': "Detectar Números"})
+
+    def _extract_and_find_number(self, device, package_name, temp_dir):
+        """Ejecuta el backup, extrae y busca el número para un paquete específico."""
+        backup_path = os.path.join(temp_dir, f"{package_name}.ab")
+
+        # 1. Crear backup
+        self.log(f"  Creando backup para {package_name}...", 'info')
+        # NOTA: Este comando puede requerir confirmación en el teléfono.
+        backup_cmd = ['-s', device, 'backup', '-f', backup_path, package_name]
+        success = self._run_adb_command(backup_cmd, timeout=60) # Timeout largo por si el backup es grande
+
+        if not success or not os.path.exists(backup_path):
+            self.log(f"  Fallo al crear backup para {package_name}. ¿Se denegó en el teléfono?", 'warning')
+            return None
+
+        # 2. Extraer el backup
+        self.log(f"  Extrayendo backup de {package_name}...", 'info')
+        try:
+            with open(backup_path, 'rb') as f:
+                # El header de Android Backup es de 24 bytes
+                f.seek(24)
+                compressed_data = f.read()
+
+                # Decomprimir los datos zlib
+                decompressed_data = zlib.decompress(compressed_data)
+
+                # El resultado es un archivo TAR, leerlo desde la memoria
+                with tarfile.open(fileobj=io.BytesIO(decompressed_data)) as tar:
+                    # Buscar el archivo de preferencias
+                    xml_path = f"apps/{package_name}/sp/com.whatsapp_preferences.xml"
+                    try:
+                        xml_file = tar.extractfile(xml_path)
+                        if xml_file:
+                            # 3. Parsear el XML
+                            self.log(f"    Archivo de preferencias encontrado. Analizando...", 'info')
+                            tree = ET.parse(xml_file)
+                            root = tree.getroot()
+                            # El número de teléfono suele estar en el string con name="registration_phone_number"
+                            number_element = root.find(".//string[@name='registration_phone_number']")
+                            if number_element is not None:
+                                number = number_element.text
+                                self.log(f"    ¡Número encontrado!: +{number}", 'success')
+                                return f"+{number}"
+                            else:
+                                self.log("    No se encontró el elemento 'registration_phone_number' en el XML.", 'warning')
+                                return None
+                    except KeyError:
+                        self.log(f"    No se encontró el archivo '{xml_path}' en el backup. La app podría no estar instalada.", 'warning')
+                        return None
+
+        except Exception as e:
+            self.log(f"  Error al extraer o parsear el backup: {e}", 'error')
+            # Esto puede ocurrir si el backup está encriptado con contraseña
+            if "Error -3" in str(e) and "invalid distance too far back" in str(e):
+                 self.log(f"  El error sugiere que el backup de {package_name} podría estar encriptado. No se puede procesar.", 'error')
+            return None
+        return None
 
     def close_all_apps(self, device):
         """Fuerza el cierre de WhatsApp y Google (MOD 25)."""
