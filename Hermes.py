@@ -26,11 +26,14 @@ import csv
 import io
 import urllib.parse
 import shlex # Import shlex for better command splitting
-import tarfile
-import zlib
-import xml.etree.ElementTree as ET
 import tempfile
 import shutil
+import adbutils
+import uiautomator2 as u2
+import pytesseract
+from PIL import Image
+import re
+import xml.etree.ElementTree as ET
 
 
 # --- Función para encontrar archivos en modo compilado ---
@@ -4010,17 +4013,9 @@ class Hermes:
         self.log(f"Directorio temporal para UI dumps creado en: {temp_dir}", "info")
 
         try:
-            for device in self.devices:
-                self.log(f"Procesando dispositivo: {device}", 'info')
-                results[device] = {}
-
-                # WhatsApp Normal
-                wa_number = self._get_number_from_ui(device, "com.whatsapp", temp_dir)
-                results[device]['WhatsApp'] = wa_number if wa_number else "No encontrado"
-
-                # WhatsApp Business
-                w4b_number = self._get_number_from_ui(device, "com.whatsapp.w4b", temp_dir)
-                results[device]['WhatsApp Business'] = w4b_number if w4b_number else "No encontrado"
+            for device_serial in self.devices:
+                self.log(f"Procesando dispositivo: {device_serial}", 'info')
+                results[device_serial] = self._get_number_with_uiautomator2(device_serial, temp_dir)
 
             # Formatear y mostrar resultados
             result_str = "Resultados de Detección de Números:\n\n"
@@ -4044,103 +4039,101 @@ class Hermes:
                 self.log(f"Error al eliminar el directorio temporal: {e}", "warning")
             self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.NORMAL, 'text': "Detectar Números"})
 
-    def _get_number_from_ui(self, device, package_name, temp_dir):
-        """Navega la UI de WhatsApp para extraer el número de teléfono."""
-        self.log(f"  Intentando UI Automation para {package_name}...", 'info')
-        xml_path_device = "/sdcard/window_dump.xml"
-        xml_path_local = os.path.join(temp_dir, f"{package_name}_dump.xml")
-
-        def dump_and_pull_ui():
-            """Función auxiliar para volcar, transferir y leer el XML de la UI."""
-            self._run_adb_command(['-s', device, 'shell', 'uiautomator', 'dump', xml_path_device])
-            self._run_adb_command(['-s', device, 'pull', xml_path_device, xml_path_local])
-            self._run_adb_command(['-s', device, 'shell', 'rm', xml_path_device])
-            if os.path.exists(xml_path_local):
-                with open(xml_path_local, 'r', encoding='utf-8') as f:
-                    return f.read()
-            return None
-
+    def _get_number_with_uiautomator2(self, device_serial, temp_dir):
+        """Usa uiautomator2 para encontrar los números de teléfono en un dispositivo."""
+        device_numbers = {}
         try:
-            # 1. Limpiar y lanzar la app
-            self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', package_name])
-            time.sleep(1)
-            self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', f"{package_name}/.Main"])
-            self.log("    Esperando que la app inicie (8s)...", "info")
-            time.sleep(8) # Aumentado para dar tiempo a dispositivos lentos
+            d = u2.connect(device_serial)
+            # Desbloquear si es necesario (mejor si el usuario lo hace)
+            d.unlock()
 
-            # 2. Navegar a Ajustes
-            self.log("    Navegando a Ajustes (el dispositivo debe estar en español)...", "info")
-            xml_content = dump_and_pull_ui()
-            if not xml_content: self.log("    Fallo al obtener UI (Paso 1)", "error"); return None
+            # 1. Listar todos los paquetes de WhatsApp
+            packages = d.shell('pm list packages | grep whatsapp').output.splitlines()
+            whatsapp_packages = [p.split(':')[1] for p in packages if 'whatsapp' in p]
 
-            # 'Más opciones' suele tener un content-desc, que es más fiable
-            more_options_x, more_options_y = self._get_coords_by_attribute(xml_content, 'content-desc', 'Más opciones')
-            if not more_options_x: self.log("    No se encontró el botón 'Más opciones'. Asegúrate de que el idioma sea Español.", "error"); return None
-            self._run_adb_command(['-s', device, 'shell', 'input', 'tap', str(more_options_x), str(more_options_y)])
-            time.sleep(3) # Aumentado
+            if not whatsapp_packages:
+                self.log(f"  No se encontraron apps de WhatsApp en {device_serial}.", 'warning')
+                return {"WhatsApp": "No encontrado", "WhatsApp Business": "No encontrado"}
 
-            xml_content = dump_and_pull_ui()
-            if not xml_content: self.log("    Fallo al obtener UI (Paso 2)", "error"); return None
-            settings_x, settings_y = self._get_coords_by_attribute(xml_content, 'text', 'Ajustes')
-            if not settings_x: self.log("    No se encontró la opción 'Ajustes'.", "error"); return None
-            self._run_adb_command(['-s', device, 'shell', 'input', 'tap', str(settings_x), str(settings_y)])
-            time.sleep(3) # Aumentado
+            for pkg in whatsapp_packages:
+                self.log(f"  Analizando paquete: {pkg} en {device_serial}", 'info')
+                number = "No encontrado"
+                try:
+                    # 2. Abrir la app
+                    d.app_start(pkg, stop=True)
+                    d.wait_activity(".Main", timeout=20)
+                    self.log(f"    {pkg} iniciado.", 'info')
 
-            # 3. Navegar al Perfil
-            self.log("    Navegando al Perfil...", "info")
-            xml_content = dump_and_pull_ui()
-            if not xml_content: self.log("    Fallo al obtener UI (Paso 3)", "error"); return None
-            # El perfil suele estar en un contenedor con un ID específico
-            profile_x, profile_y = self._get_coords_by_attribute(xml_content, 'resource-id', f'{package_name}:id/profile_info_holder')
-            if not profile_x:
-                self.log("    No se encontró el contenedor del perfil. La estructura de la app puede haber cambiado.", "error")
-                return None
-            self._run_adb_command(['-s', device, 'shell', 'input', 'tap', str(profile_x), str(profile_y)])
-            time.sleep(4) # Aumentado
+                    # 3. Navegar a Ajustes -> Perfil
+                    # 'Más opciones' tiene un content-desc
+                    if d(description="Más opciones").wait(timeout=10):
+                        d(description="Más opciones").click()
+                        # 'Ajustes' es un texto
+                        if d(text="Ajustes").wait(timeout=5):
+                            d(text="Ajustes").click()
+                            # El perfil suele ser el primer elemento de la lista
+                            if d(className="android.widget.LinearLayout", instance=0).wait(timeout=5):
+                                d(className="android.widget.LinearLayout", instance=0).click()
 
-            # 4. Extraer y analizar la pantalla final
-            self.log("    Extrayendo datos de la pantalla final...", "info")
-            xml_content = dump_and_pull_ui()
-            if not xml_content: self.log("    Fallo al obtener UI (Paso 4)", "error"); return None
+                                # 4. Leer el número de la pantalla
+                                self.log("    En la pantalla de perfil, buscando número...", 'info')
+                                time.sleep(2) # Esperar a que cargue la pantalla
 
-            root = ET.fromstring(xml_content)
-            for node in root.iter('node'):
-                text = node.get('text', '')
-                if text.startswith('+') and any(char.isdigit() for char in text):
-                    cleaned_text = ''.join(filter(lambda char: char.isdigit() or char == '+', text.split()))
-                    if len(cleaned_text) > 7:
-                         self.log(f"    ¡Número encontrado!: {cleaned_text}", 'success')
-                         return cleaned_text
+                                # Estrategia 1: Buscar un elemento que contenga '+'
+                                phone_element = d(textContains="+")
+                                if phone_element.exists:
+                                    number = phone_element.get_text()
+                                    self.log(f"    Número encontrado por texto: {number}", 'success')
+                                else:
+                                    self.log("    No se encontró el número por texto directo. Intentando OCR...", 'warning')
+                                    number = self._get_number_with_ocr(d, temp_dir)
 
-            self.log("    No se encontró un número de teléfono en la pantalla de perfil.", 'warning')
-            return None
+                except Exception as e:
+                    self.log(f"    Error procesando {pkg}: {e}", 'error')
+
+                # Asignar nombre amigable
+                if 'w4b' in pkg:
+                    device_numbers['WhatsApp Business'] = number
+                else:
+                    device_numbers['WhatsApp'] = number
+
+                d.app_stop(pkg) # Limpiar para la siguiente app
 
         except Exception as e:
-            self.log(f"  Error durante la automatización de UI: {e}", 'error')
-            return None
-        finally:
-            # 5. Asegurarse de cerrar la app
-            self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', package_name])
+            self.log(f"  Fallo grave al conectar o procesar {device_serial}: {e}", 'error')
+            return {"WhatsApp": "Error", "WhatsApp Business": "Error"}
 
-    def _get_coords_by_attribute(self, xml_content, attribute, value):
-        """Analiza un XML y devuelve las coordenadas del centro de un nodo por atributo y valor."""
+        return device_numbers
+
+    def _get_number_with_ocr(self, d, temp_dir):
+        """Usa OCR como fallback para encontrar el número de teléfono."""
         try:
-            root = ET.fromstring(xml_content)
-            # XPath para encontrar el nodo directamente
-            # Ej: ".//node[@text='Ajustes']"
-            nodes = root.findall(f".//node[@{attribute}='{value}']")
+            # 1. Tomar captura de pantalla
+            screenshot_path = os.path.join(temp_dir, "profile_screenshot.png")
+            d.screenshot(screenshot_path)
 
-            for node in nodes:
-                bounds = node.get('bounds')
-                if bounds:
-                    coords = bounds.replace('][', ',').strip('[]').split(',')
-                    x1, y1, x2, y2 = map(int, coords)
-                    center_x = (x1 + x2) // 2
-                    center_y = (y1 + y2) // 2
-                    return center_x, center_y
-            return None, None # Si no se encuentra el nodo o no tiene bounds
-        except Exception:
-            return None, None
+            # 2. Usar pytesseract para leer el texto de la imagen
+            image = Image.open(screenshot_path)
+            text = pytesseract.image_to_string(image)
+
+            # 3. Buscar un número de teléfono con regex
+            # Este regex busca un '+' seguido de espacios y dígitos (mínimo 7)
+            match = re.search(r'(\+\s?[\d\s]{7,})', text)
+            if match:
+                number = match.group(1).replace(" ", "") # Limpiar espacios
+                self.log(f"    Número encontrado por OCR: {number}", 'success')
+                return number
+            else:
+                self.log("    OCR no pudo encontrar un número de teléfono.", 'warning')
+                return "No encontrado (OCR)"
+
+        except FileNotFoundError:
+            self.log("    ERROR: Tesseract OCR no está instalado o no está en el PATH del sistema.", 'error')
+            self.log("    La funcionalidad de OCR no está disponible.", 'error')
+            return "No encontrado (OCR no instalado)"
+        except Exception as e:
+            self.log(f"    Error durante el OCR: {e}", 'error')
+            return "No encontrado (Error OCR)"
 
     def close_all_apps(self, device):
         """Fuerza el cierre de WhatsApp y Google (MOD 25)."""

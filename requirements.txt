@@ -1,3 +1,6 @@
 customtkinter
 openpyxl
+adbutils
+uiautomator2
+pytesseract
 Pillow
