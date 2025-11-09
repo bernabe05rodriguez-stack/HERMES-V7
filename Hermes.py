@@ -4069,40 +4069,41 @@ class Hermes:
                     new_chat_button = d(description="Nuevo chat")
                     if new_chat_button.wait(timeout=10):
                         new_chat_button.click()
+                        time.sleep(2) # Esperar a que cargue la lista de contactos
 
-                        self.log("    Seleccionando el contacto propio (Tú)...", 'info')
-                        # El contacto propio suele ser el primero en un RecyclerView o ListView
-                        contact_list = d(resourceId=f"{pkg}:id/contact_list") # ID genérico
-                        if not contact_list.exists: contact_list = d(className="androidx.recyclerview.widget.RecyclerView")
+                        self.log("    Buscando contacto propio (Tú)...", 'info')
+                        own_contact_element = d(textContains="Tú")
 
-                        # Asumimos que el contacto propio es el primer elemento clicable en la lista.
-                        # Buscamos un texto que contenga '(Tú)'
-                        own_contact = contact_list.child(textContains="Tú")
-                        if own_contact.wait(timeout=10):
-                            own_contact.click()
+                        if own_contact_element.wait(timeout=10):
+                            # Estrategia 1: Intentar extraer el número directamente de la lista
+                            contact_text = own_contact_element.get_text()
+                            match = re.search(r'(\+\s?[\d\s]{7,})', contact_text)
+                            if match:
+                                number = match.group(1).replace(" ", "")
+                                self.log(f"    Número encontrado directamente en la lista de contactos: {number}", 'success')
+                            else:
+                                # Estrategia 2: Si no se encuentra, navegar
+                                self.log("    Número no visible en la lista. Navegando a la info de contacto...", 'info')
+                                own_contact_element.click()
 
-                            self.log("    Abriendo pantalla de información...", 'info')
-                            # Hacer clic en la barra de título para ver la info del contacto
-                            toolbar = d(resourceId=f"{pkg}:id/toolbar")
-                            if toolbar.wait(timeout=10):
-                                toolbar.click()
+                                self.log("    Abriendo pantalla de información...", 'info')
+                                toolbar = d(resourceId=f"{pkg}:id/toolbar")
+                                if toolbar.wait(timeout=10):
+                                    toolbar.click()
 
-                                # 4. Leer el número de la pantalla
-                                self.log("    En la pantalla de información, buscando número...", 'info')
-                                time.sleep(2) # Esperar a que cargue la pantalla
+                                    # Ahora buscar el número en la pantalla de info
+                                    self.log("    En la pantalla de información, buscando número...", 'info')
+                                    time.sleep(2)
 
-                                # En la pantalla de info de contacto, el número suele ser el texto de un elemento específico.
-                                # El ID puede ser algo como "conversation_contact_name" o similar, pero busquemos primero por texto.
-
-                                # Estrategia 1: Buscar directamente un elemento que contenga '+'
-                                phone_element = d(textContains="+")
-                                if phone_element.exists:
-                                    number = phone_element.get_text()
-                                    self.log(f"    Número encontrado por texto: {number}", 'success')
-                                else:
-                                    # Estrategia 2: Fallback a OCR
-                                    self.log("    No se encontró el número por texto directo. Intentando OCR...", 'warning')
-                                    number = self._get_number_with_ocr(d, temp_dir)
+                                    phone_element = d(textContains="+")
+                                    if phone_element.exists:
+                                        number = phone_element.get_text()
+                                        self.log(f"    Número encontrado en la pantalla de info: {number}", 'success')
+                                    else:
+                                        self.log("    No se encontró el número por texto. Intentando OCR...", 'warning')
+                                        number = self._get_number_with_ocr(d, temp_dir)
+                        else:
+                            self.log("    No se encontró el contacto '(Tú)' en la lista.", 'error')
 
                 except Exception as e:
                     self.log(f"    Error procesando {pkg}: {e}", 'error')
