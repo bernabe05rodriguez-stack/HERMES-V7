@@ -4004,22 +4004,10 @@ class Hermes:
         self.log("Iniciando detección de números de teléfono...", 'info')
         self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.DISABLED, 'text': "Detectando..."})
 
-        # Mostrar advertencia al usuario
-        instructions = (
-            "Se iniciará el proceso de copia de seguridad en tu teléfono.\n\n"
-            "1. Revisa la pantalla de tu dispositivo AHORA.\n"
-            "2. DEJA EN BLANCO el campo de la contraseña.\n"
-            "3. Pulsa 'Copia de seguridad de mis datos'.\n\n"
-            "Este proceso se podría repetir para cada aplicación de WhatsApp."
-        )
-        self.root.after(0, lambda: messagebox.showinfo("Acción Requerida en el Teléfono", instructions, parent=self.root))
-        # Pequeña pausa para que el usuario pueda leer
-        time.sleep(2)
-
         results = {}
-        # Crear un directorio temporal para los backups
-        temp_dir = tempfile.mkdtemp(prefix="hermes_adb_backup_")
-        self.log(f"Directorio temporal creado en: {temp_dir}", "info")
+        # Crear un directorio temporal para los archivos XML
+        temp_dir = tempfile.mkdtemp(prefix="hermes_ui_dump_")
+        self.log(f"Directorio temporal para UI dumps creado en: {temp_dir}", "info")
 
         try:
             for device in self.devices:
@@ -4027,11 +4015,11 @@ class Hermes:
                 results[device] = {}
 
                 # WhatsApp Normal
-                wa_number = self._extract_and_find_number(device, "com.whatsapp", temp_dir)
+                wa_number = self._get_number_from_ui(device, "com.whatsapp", temp_dir)
                 results[device]['WhatsApp'] = wa_number if wa_number else "No encontrado"
 
                 # WhatsApp Business
-                w4b_number = self._extract_and_find_number(device, "com.whatsapp.w4b", temp_dir)
+                w4b_number = self._get_number_from_ui(device, "com.whatsapp.w4b", temp_dir)
                 results[device]['WhatsApp Business'] = w4b_number if w4b_number else "No encontrado"
 
             # Formatear y mostrar resultados
@@ -4056,62 +4044,103 @@ class Hermes:
                 self.log(f"Error al eliminar el directorio temporal: {e}", "warning")
             self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.NORMAL, 'text': "Detectar Números"})
 
-    def _extract_and_find_number(self, device, package_name, temp_dir):
-        """Ejecuta el backup, extrae y busca el número para un paquete específico."""
-        backup_path = os.path.join(temp_dir, f"{package_name}.ab")
+    def _get_number_from_ui(self, device, package_name, temp_dir):
+        """Navega la UI de WhatsApp para extraer el número de teléfono."""
+        self.log(f"  Intentando UI Automation para {package_name}...", 'info')
+        xml_path_device = "/sdcard/window_dump.xml"
+        xml_path_local = os.path.join(temp_dir, f"{package_name}_dump.xml")
 
-        # 1. Crear backup
-        self.log(f"  Creando backup para {package_name}...", 'info')
-        # NOTA: Este comando puede requerir confirmación en el teléfono.
-        backup_cmd = ['-s', device, 'backup', '-f', backup_path, package_name]
-        success = self._run_adb_command(backup_cmd, timeout=60) # Timeout largo por si el backup es grande
-
-        if not success or not os.path.exists(backup_path):
-            self.log(f"  Fallo al crear backup para {package_name}. ¿Se denegó en el teléfono?", 'warning')
+        def dump_and_pull_ui():
+            """Función auxiliar para volcar, transferir y leer el XML de la UI."""
+            self._run_adb_command(['-s', device, 'shell', 'uiautomator', 'dump', xml_path_device])
+            self._run_adb_command(['-s', device, 'pull', xml_path_device, xml_path_local])
+            self._run_adb_command(['-s', device, 'shell', 'rm', xml_path_device])
+            if os.path.exists(xml_path_local):
+                with open(xml_path_local, 'r', encoding='utf-8') as f:
+                    return f.read()
             return None
 
-        # 2. Extraer el backup
-        self.log(f"  Extrayendo backup de {package_name}...", 'info')
         try:
-            with open(backup_path, 'rb') as f:
-                # El header de Android Backup es de 24 bytes
-                f.seek(24)
-                compressed_data = f.read()
+            # 1. Limpiar y lanzar la app
+            self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', package_name])
+            time.sleep(1)
+            self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', f"{package_name}/.Main"])
+            self.log("    Esperando que la app inicie (8s)...", "info")
+            time.sleep(8) # Aumentado para dar tiempo a dispositivos lentos
 
-                # Decomprimir los datos zlib
-                decompressed_data = zlib.decompress(compressed_data)
+            # 2. Navegar a Ajustes
+            self.log("    Navegando a Ajustes (el dispositivo debe estar en español)...", "info")
+            xml_content = dump_and_pull_ui()
+            if not xml_content: self.log("    Fallo al obtener UI (Paso 1)", "error"); return None
 
-                # El resultado es un archivo TAR, leerlo desde la memoria
-                with tarfile.open(fileobj=io.BytesIO(decompressed_data)) as tar:
-                    # Buscar el archivo de preferencias
-                    xml_path = f"apps/{package_name}/sp/com.whatsapp_preferences.xml"
-                    try:
-                        xml_file = tar.extractfile(xml_path)
-                        if xml_file:
-                            # 3. Parsear el XML
-                            self.log(f"    Archivo de preferencias encontrado. Analizando...", 'info')
-                            tree = ET.parse(xml_file)
-                            root = tree.getroot()
-                            # El número de teléfono suele estar en el string con name="registration_phone_number"
-                            number_element = root.find(".//string[@name='registration_phone_number']")
-                            if number_element is not None:
-                                number = number_element.text
-                                self.log(f"    ¡Número encontrado!: +{number}", 'success')
-                                return f"+{number}"
-                            else:
-                                self.log("    No se encontró el elemento 'registration_phone_number' en el XML.", 'warning')
-                                return None
-                    except KeyError:
-                        self.log(f"    No se encontró el archivo '{xml_path}' en el backup. La app podría no estar instalada.", 'warning')
-                        return None
+            # 'Más opciones' suele tener un content-desc, que es más fiable
+            more_options_x, more_options_y = self._get_coords_by_attribute(xml_content, 'content-desc', 'Más opciones')
+            if not more_options_x: self.log("    No se encontró el botón 'Más opciones'. Asegúrate de que el idioma sea Español.", "error"); return None
+            self._run_adb_command(['-s', device, 'shell', 'input', 'tap', str(more_options_x), str(more_options_y)])
+            time.sleep(3) # Aumentado
+
+            xml_content = dump_and_pull_ui()
+            if not xml_content: self.log("    Fallo al obtener UI (Paso 2)", "error"); return None
+            settings_x, settings_y = self._get_coords_by_attribute(xml_content, 'text', 'Ajustes')
+            if not settings_x: self.log("    No se encontró la opción 'Ajustes'.", "error"); return None
+            self._run_adb_command(['-s', device, 'shell', 'input', 'tap', str(settings_x), str(settings_y)])
+            time.sleep(3) # Aumentado
+
+            # 3. Navegar al Perfil
+            self.log("    Navegando al Perfil...", "info")
+            xml_content = dump_and_pull_ui()
+            if not xml_content: self.log("    Fallo al obtener UI (Paso 3)", "error"); return None
+            # El perfil suele estar en un contenedor con un ID específico
+            profile_x, profile_y = self._get_coords_by_attribute(xml_content, 'resource-id', f'{package_name}:id/profile_info_holder')
+            if not profile_x:
+                self.log("    No se encontró el contenedor del perfil. La estructura de la app puede haber cambiado.", "error")
+                return None
+            self._run_adb_command(['-s', device, 'shell', 'input', 'tap', str(profile_x), str(profile_y)])
+            time.sleep(4) # Aumentado
+
+            # 4. Extraer y analizar la pantalla final
+            self.log("    Extrayendo datos de la pantalla final...", "info")
+            xml_content = dump_and_pull_ui()
+            if not xml_content: self.log("    Fallo al obtener UI (Paso 4)", "error"); return None
+
+            root = ET.fromstring(xml_content)
+            for node in root.iter('node'):
+                text = node.get('text', '')
+                if text.startswith('+') and any(char.isdigit() for char in text):
+                    cleaned_text = ''.join(filter(lambda char: char.isdigit() or char == '+', text.split()))
+                    if len(cleaned_text) > 7:
+                         self.log(f"    ¡Número encontrado!: {cleaned_text}", 'success')
+                         return cleaned_text
+
+            self.log("    No se encontró un número de teléfono en la pantalla de perfil.", 'warning')
+            return None
 
         except Exception as e:
-            self.log(f"  Error al extraer o parsear el backup: {e}", 'error')
-            # Esto puede ocurrir si el backup está encriptado con contraseña
-            if "Error -3" in str(e) and "invalid distance too far back" in str(e):
-                 self.log(f"  El error sugiere que el backup de {package_name} podría estar encriptado. No se puede procesar.", 'error')
+            self.log(f"  Error durante la automatización de UI: {e}", 'error')
             return None
-        return None
+        finally:
+            # 5. Asegurarse de cerrar la app
+            self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', package_name])
+
+    def _get_coords_by_attribute(self, xml_content, attribute, value):
+        """Analiza un XML y devuelve las coordenadas del centro de un nodo por atributo y valor."""
+        try:
+            root = ET.fromstring(xml_content)
+            # XPath para encontrar el nodo directamente
+            # Ej: ".//node[@text='Ajustes']"
+            nodes = root.findall(f".//node[@{attribute}='{value}']")
+
+            for node in nodes:
+                bounds = node.get('bounds')
+                if bounds:
+                    coords = bounds.replace('][', ',').strip('[]').split(',')
+                    x1, y1, x2, y2 = map(int, coords)
+                    center_x = (x1 + x2) // 2
+                    center_y = (y1 + y2) // 2
+                    return center_x, center_y
+            return None, None # Si no se encuentra el nodo o no tiene bounds
+        except Exception:
+            return None, None
 
     def close_all_apps(self, device):
         """Fuerza el cierre de WhatsApp y Google (MOD 25)."""
