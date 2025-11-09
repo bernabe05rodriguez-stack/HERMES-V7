@@ -4071,22 +4071,37 @@ class Hermes:
                         # 'Ajustes' es un texto
                         if d(text="Ajustes").wait(timeout=5):
                             d(text="Ajustes").click()
-                            # El perfil suele ser el primer elemento de la lista
-                            if d(className="android.widget.LinearLayout", instance=0).wait(timeout=5):
-                                d(className="android.widget.LinearLayout", instance=0).click()
+
+                            self.log("    Navegando a la pantalla de Perfil...", 'info')
+                            # CORRECCIÓN: Usar un selector más robusto para el perfil.
+                            # El área del perfil suele tener un ID de recurso específico o ser el primer FrameLayout clickable.
+                            profile_selector = d(resourceId=f"{pkg}:id/profile_info_rl")
+                            if not profile_selector.exists:
+                                self.log("    Selector de perfil por ID no encontrado, intentando fallback...", "warning")
+                                profile_selector = d(className="android.widget.FrameLayout", clickable=True, instance=0)
+
+                            if profile_selector.wait(timeout=5):
+                                profile_selector.click()
 
                                 # 4. Leer el número de la pantalla
                                 self.log("    En la pantalla de perfil, buscando número...", 'info')
                                 time.sleep(2) # Esperar a que cargue la pantalla
 
-                                # Estrategia 1: Buscar un elemento que contenga '+'
-                                phone_element = d(textContains="+")
+                                # Estrategia 1: Buscar por ID de recurso (el más fiable)
+                                phone_element = d(resourceId=f"{pkg}:id/phone_number_text")
                                 if phone_element.exists:
                                     number = phone_element.get_text()
-                                    self.log(f"    Número encontrado por texto: {number}", 'success')
+                                    self.log(f"    Número encontrado por ID de recurso: {number}", 'success')
                                 else:
-                                    self.log("    No se encontró el número por texto directo. Intentando OCR...", 'warning')
-                                    number = self._get_number_with_ocr(d, temp_dir)
+                                    # Estrategia 2: Buscar un elemento que contenga '+'
+                                    self.log("    No se encontró por ID, buscando por texto que contenga '+'...", 'info')
+                                    phone_element = d(textContains="+")
+                                    if phone_element.exists:
+                                        number = phone_element.get_text()
+                                        self.log(f"    Número encontrado por texto: {number}", 'success')
+                                    else:
+                                        self.log("    No se encontró el número por texto directo. Intentando OCR...", 'warning')
+                                        number = self._get_number_with_ocr(d, temp_dir)
 
                 except Exception as e:
                     self.log(f"    Error procesando {pkg}: {e}", 'error')
