@@ -4064,44 +4064,45 @@ class Hermes:
                     d.wait_activity(".Main", timeout=20)
                     self.log(f"    {pkg} iniciado.", 'info')
 
-                    # 3. Navegar a Ajustes -> Perfil
-                    # 'Más opciones' tiene un content-desc
-                    if d(description="Más opciones").wait(timeout=10):
-                        d(description="Más opciones").click()
-                        # 'Ajustes' es un texto
-                        if d(text="Ajustes").wait(timeout=5):
-                            d(text="Ajustes").click()
+                    # 3. Navegar a "Nuevo Chat" -> Contacto Propio -> Info
+                    self.log("    Navegando a 'Nuevo Chat'...", 'info')
+                    new_chat_button = d(description="Nuevo chat")
+                    if new_chat_button.wait(timeout=10):
+                        new_chat_button.click()
 
-                            self.log("    Navegando a la pantalla de Perfil...", 'info')
-                            # CORRECCIÓN: Usar un selector más robusto para el perfil.
-                            # El área del perfil suele tener un ID de recurso específico o ser el primer FrameLayout clickable.
-                            profile_selector = d(resourceId=f"{pkg}:id/profile_info_rl")
-                            if not profile_selector.exists:
-                                self.log("    Selector de perfil por ID no encontrado, intentando fallback...", "warning")
-                                profile_selector = d(className="android.widget.FrameLayout", clickable=True, instance=0)
+                        self.log("    Seleccionando el contacto propio (Tú)...", 'info')
+                        # El contacto propio suele ser el primero en un RecyclerView o ListView
+                        contact_list = d(resourceId=f"{pkg}:id/contact_list") # ID genérico
+                        if not contact_list.exists: contact_list = d(className="androidx.recyclerview.widget.RecyclerView")
 
-                            if profile_selector.wait(timeout=5):
-                                profile_selector.click()
+                        # Asumimos que el contacto propio es el primer elemento clicable en la lista.
+                        # Buscamos un texto que contenga '(Tú)'
+                        own_contact = contact_list.child(textContains="Tú")
+                        if own_contact.wait(timeout=10):
+                            own_contact.click()
+
+                            self.log("    Abriendo pantalla de información...", 'info')
+                            # Hacer clic en la barra de título para ver la info del contacto
+                            toolbar = d(resourceId=f"{pkg}:id/toolbar")
+                            if toolbar.wait(timeout=10):
+                                toolbar.click()
 
                                 # 4. Leer el número de la pantalla
-                                self.log("    En la pantalla de perfil, buscando número...", 'info')
+                                self.log("    En la pantalla de información, buscando número...", 'info')
                                 time.sleep(2) # Esperar a que cargue la pantalla
 
-                                # Estrategia 1: Buscar por ID de recurso (el más fiable)
-                                phone_element = d(resourceId=f"{pkg}:id/phone_number_text")
+                                # En la pantalla de info de contacto, el número suele ser el texto de un elemento específico.
+                                # El ID puede ser algo como "conversation_contact_name" o similar, pero busquemos primero por texto.
+
+                                # Estrategia 1: Buscar directamente un elemento que contenga '+'
+                                phone_element = d(textContains="+")
                                 if phone_element.exists:
                                     number = phone_element.get_text()
-                                    self.log(f"    Número encontrado por ID de recurso: {number}", 'success')
+                                    self.log(f"    Número encontrado por texto: {number}", 'success')
                                 else:
-                                    # Estrategia 2: Buscar un elemento que contenga '+'
-                                    self.log("    No se encontró por ID, buscando por texto que contenga '+'...", 'info')
-                                    phone_element = d(textContains="+")
-                                    if phone_element.exists:
-                                        number = phone_element.get_text()
-                                        self.log(f"    Número encontrado por texto: {number}", 'success')
-                                    else:
-                                        self.log("    No se encontró el número por texto directo. Intentando OCR...", 'warning')
-                                        number = self._get_number_with_ocr(d, temp_dir)
+                                    # Estrategia 2: Fallback a OCR
+                                    self.log("    No se encontró el número por texto directo. Intentando OCR...", 'warning')
+                                    number = self._get_number_with_ocr(d, temp_dir)
 
                 except Exception as e:
                     self.log(f"    Error procesando {pkg}: {e}", 'error')
