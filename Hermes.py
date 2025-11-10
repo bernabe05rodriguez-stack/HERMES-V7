@@ -4076,17 +4076,21 @@ class Hermes:
 
                         if own_contact_element.wait(timeout=10):
                             # Estrategia 1: Intentar extraer el número directamente de la lista
-                            contact_text = own_contact_element.get_text()
-                            match = re.search(r'(\+\s?[\d\s]{7,})', contact_text)
-                            if match:
-                                number = match.group(1).replace(" ", "")
-                                self.log(f"    Número encontrado directamente en la lista de contactos: {number}", 'success')
-                            else:
-                                # Estrategia 2: Si no se encuentra, navegar
-                                self.log("    Número no visible en la lista. Navegando a la info de contacto...", 'info')
-                                own_contact_element.click()
+                            contact_text = own_contact_element.get_text(timeout=5)
+                            if contact_text:
+                                match = re.search(r'(\+[\d\s\-\(\)]+)', contact_text)
+                                if match:
+                                    number = re.sub(r'[\s\-\(\)]', '', match.group(1)) # Limpiar todos los símbolos no numéricos
+                                    self.log(f"    Número encontrado directamente en la lista de contactos: {number}", 'success')
+                                    # Saltar la navegación si encontramos el número aquí
+                                    d.press("back") # Volver de la lista de contactos
+                                    continue # Ir al siguiente paquete de whatsapp
 
-                                self.log("    Abriendo pantalla de información...", 'info')
+                            # Estrategia 2: Si no se encuentra, navegar
+                            self.log("    Número no visible en la lista. Navegando a la info de contacto...", 'info')
+                            own_contact_element.click()
+
+                            self.log("    Abriendo pantalla de información...", 'info')
                                 toolbar = d(resourceId=f"{pkg}:id/toolbar")
                                 if toolbar.wait(timeout=10):
                                     toolbar.click()
@@ -4095,9 +4099,11 @@ class Hermes:
                                     self.log("    En la pantalla de información, buscando número...", 'info')
                                     time.sleep(2)
 
-                                    phone_element = d(textContains="+")
-                                    if phone_element.exists:
-                                        number = phone_element.get_text()
+                                    # Estrategia mejorada: obtener todo el texto de la pantalla
+                                    all_text = " ".join([elem.text for elem in d(className="android.widget.TextView") if elem.text])
+                                    match = re.search(r'(\+[\d\s\-\(\)]+)', all_text)
+                                    if match:
+                                        number = re.sub(r'[\s\-\(\)]', '', match.group(1))
                                         self.log(f"    Número encontrado en la pantalla de info: {number}", 'success')
                                     else:
                                         self.log("    No se encontró el número por texto. Intentando OCR...", 'warning')
@@ -4134,10 +4140,10 @@ class Hermes:
             text = pytesseract.image_to_string(image)
 
             # 3. Buscar un número de teléfono con regex
-            # Este regex busca un '+' seguido de espacios y dígitos (mínimo 7)
-            match = re.search(r'(\+\s?[\d\s]{7,})', text)
+            # Expresión regular mejorada para incluir guiones y paréntesis
+            match = re.search(r'(\+[\d\s\-\(\)]+)', text)
             if match:
-                number = match.group(1).replace(" ", "") # Limpiar espacios
+                number = re.sub(r'[\s\-\(\)]', '', match.group(1)) # Limpiar todos los símbolos no numéricos
                 self.log(f"    Número encontrado por OCR: {number}", 'success')
                 return number
             else:
