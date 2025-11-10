@@ -254,6 +254,9 @@ class Hermes:
 
         self.fidelizado_delay_min = tk.IntVar(value=10)
         self.fidelizado_delay_max = tk.IntVar(value=15)
+        # --- FIX: Añadir variables separadas para el retardo entre envíos ---
+        self.fidelizado_send_delay_min = tk.IntVar(value=10)
+        self.fidelizado_send_delay_max = tk.IntVar(value=15)
         
         # Variables de tiempo para Modo Grupos Dual
         self.wait_after_write = tk.IntVar(value=2)  # Tiempo después de escribir antes del primer Enter
@@ -1618,7 +1621,7 @@ class Hermes:
         mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['button'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg_card'], button_color=self.colors['blue'], button_hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text'], height=35)
         mode_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Fila 1: Bucles, Ciclos y Delay
+        # Fila 1: Bucles y Ciclos
         self.loops_container = ctk.CTkFrame(config_grid, fg_color="transparent")
         self.loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
         ctk.CTkLabel(self.loops_container, text="Bucle:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
@@ -1632,21 +1635,22 @@ class Hermes:
         spinbox_cycles = self._create_spinbox_widget(self.cycles_container, self.manual_cycles_var, min_val=1, max_val=100)
         spinbox_cycles.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        self.delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        self.delay_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
-        ctk.CTkLabel(self.delay_container, text="Tiempo (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        # FIX: Contenedor para el nuevo retardo entre envíos
+        self.send_delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        self.send_delay_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        ctk.CTkLabel(self.send_delay_container, text="Retardo Envíos (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
 
-        delay_spinboxes = ctk.CTkFrame(self.delay_container, fg_color="transparent")
-        delay_spinboxes.pack(side=tk.LEFT, expand=True, fill=tk.X)
-        spinbox_delay_min = self._create_spinbox_widget(delay_spinboxes, self.fidelizado_delay_min, min_val=1, max_val=300)
-        spinbox_delay_min.pack(side=tk.LEFT, expand=True)
-        ctk.CTkLabel(delay_spinboxes, text="-", font=self.fonts['button'], fg_color="transparent").pack(side=tk.LEFT, padx=4)
-        spinbox_delay_max = self._create_spinbox_widget(delay_spinboxes, self.fidelizado_delay_max, min_val=1, max_val=300)
-        spinbox_delay_max.pack(side=tk.LEFT, expand=True)
+        send_delay_spinboxes = ctk.CTkFrame(self.send_delay_container, fg_color="transparent")
+        send_delay_spinboxes.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        spinbox_send_delay_min = self._create_spinbox_widget(send_delay_spinboxes, self.fidelizado_send_delay_min, min_val=1, max_val=300)
+        spinbox_send_delay_min.pack(side=tk.LEFT, expand=True)
+        ctk.CTkLabel(send_delay_spinboxes, text="-", font=self.fonts['button'], fg_color="transparent").pack(side=tk.LEFT, padx=4)
+        spinbox_send_delay_max = self._create_spinbox_widget(send_delay_spinboxes, self.fidelizado_send_delay_max, min_val=1, max_val=300)
+        spinbox_send_delay_max.pack(side=tk.LEFT, expand=True)
 
-        # Fila 2: Velocidad y WhatsApp
+        # Fila 3: Velocidad y WhatsApp (se movió una fila hacia abajo)
         speed_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        speed_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        speed_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         ctk.CTkLabel(speed_container, text="Velocidad escritura:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         speed_menu = ctk.CTkSegmentedButton(speed_container, variable=self.write_speed, values=["Lento", "Normal", "Rápido"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['blue'], selected_hover_color=darken_color(self.colors['blue'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
         speed_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
@@ -1654,8 +1658,8 @@ class Hermes:
         whatsapp_container = ctk.CTkFrame(config_grid, fg_color="transparent")
         whatsapp_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
-        whatsapp_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        self.fidelizado_whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
+        self.fidelizado_whatsapp_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
         # Card para Mensajes
         messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
@@ -1799,6 +1803,15 @@ class Hermes:
             self.actions_frame.grid_columnconfigure(1, weight=0) # Desactivar la segunda columna
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO FIDELIZADO")
 
+    # --- FIX: Lógica para mostrar/ocultar "Todas" ---
+    if self.fidelizado_mode == "NUMEROS":
+        self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas"])
+        # Si "Todas" estaba seleccionado, cambiar a "Ambas" para evitar un estado inválido
+        if self.whatsapp_mode.get() == "Todas":
+            self.whatsapp_mode.set("Ambas")
+    else:
+        self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas", "Todas"])
+
     def _populate_fidelizado_inputs(self):
         """Limpia y rellena los campos de texto con los datos guardados en las variables."""
         # Limpiar contenido existente
@@ -1856,6 +1869,26 @@ class Hermes:
         if not self._detect_and_prepare_phone_lines():
             self.root.after(0, lambda: messagebox.showerror("Error", "No se detectaron suficientes líneas de WhatsApp para iniciar (se requieren al menos 2).", parent=self.root))
             return
+
+        # --- FILTRADO DE LÍNEAS POR TIPO DE WHATSAPP ---
+        whatsapp_mode = self.whatsapp_mode.get()
+        original_line_count = len(self.detected_phone_lines)
+
+        if whatsapp_mode == "Normal":
+            self.detected_phone_lines = [line for line in self.detected_phone_lines if line['type'] == 'WhatsApp']
+            self.log(f"Filtrando por 'Normal'. Líneas a usar: {len(self.detected_phone_lines)} de {original_line_count}", 'info')
+        elif whatsapp_mode == "Business":
+            self.detected_phone_lines = [line for line in self.detected_phone_lines if line['type'] == 'WhatsApp Business']
+            self.log(f"Filtrando por 'Business'. Líneas a usar: {len(self.detected_phone_lines)} de {original_line_count}", 'info')
+        else: # Ambas
+            self.log(f"Modo 'Ambas'. Usando {len(self.detected_phone_lines)} líneas detectadas.", 'info')
+
+        if len(self.detected_phone_lines) < 2 and self.fidelizado_numeros_mode.get() != "Uno a muchos":
+             msg = f"Después de filtrar por '{whatsapp_mode}', solo quedan {len(self.detected_phone_lines)} líneas. Se requieren al menos 2 para este modo."
+             self.log(msg, 'error')
+             self.root.after(0, lambda: messagebox.showerror("Error", msg, parent=self.root))
+             return
+        # --- FIN FILTRADO ---
 
         # Calcular total_messages
         num_lines = len(self.detected_phone_lines)
@@ -2523,7 +2556,8 @@ class Hermes:
         # Espera entre mensajes (solo si no es la última tarea)
         if task_index < self.total_messages and not self.should_stop:
             if self.manual_mode:
-                delay = random.uniform(self.fidelizado_delay_min.get(), self.fidelizado_delay_max.get())
+                # FIX: Usar las nuevas variables de retardo de envío
+                delay = random.uniform(self.fidelizado_send_delay_min.get(), self.fidelizado_send_delay_max.get())
             else:
                 delay = random.uniform(self.delay_min.get(), self.delay_max.get())
             self.log(f"Esperando {delay:.1f}s... (Post-tarea {task_index})", 'info')
@@ -2665,6 +2699,31 @@ class Hermes:
                 time.sleep(1)
     
     
+    def _get_filtered_devices(self):
+        """
+        Filtra self.devices según el tipo de WhatsApp seleccionado.
+        Devuelve una lista de series de dispositivos a utilizar.
+        """
+        whatsapp_mode = self.whatsapp_mode.get()
+
+        if whatsapp_mode == "Ambas":
+            self.log("Modo 'Ambas' seleccionado, usando todos los dispositivos.", 'info')
+            return self.devices
+
+        if not self.detected_phone_lines:
+            self.log("No se han detectado líneas de WhatsApp. No se puede filtrar. Usando todos los dispositivos.", 'warning')
+            return self.devices
+
+        target_type = "WhatsApp" if whatsapp_mode == "Normal" else "WhatsApp Business"
+
+        allowed_serials = {line['device'] for line in self.detected_phone_lines if line['type'] == target_type}
+
+        filtered_devices = [device for device in self.devices if device in allowed_serials]
+
+        self.log(f"Filtrando por '{whatsapp_mode}'. Dispositivos a usar: {len(filtered_devices)} de {len(self.devices)}", 'info')
+
+        return filtered_devices
+
     def _get_whatsapp_apps_to_use(self):
         """
         Retorna una lista de tuplas (nombre, package) según la selección del usuario.
@@ -2796,7 +2855,15 @@ class Hermes:
         Los grupos y números se repiten en bucle si hay menos de los necesarios.
         Todas las líneas (dispositivos) siguen la misma secuencia.
         """
-        num_devices = len(self.devices)
+        # --- FILTRADO DE DISPOSITIVOS ---
+        active_devices = self._get_filtered_devices()
+        if not active_devices:
+            self.log("No hay dispositivos que cumplan con el filtro seleccionado.", "error")
+            self.root.after(0, lambda: messagebox.showerror("Error", "No se encontraron dispositivos que cumplan con el filtro de WhatsApp seleccionado.", parent=self.root))
+            return
+        # --- FIN FILTRADO ---
+
+        num_devices = len(active_devices)
         num_grupos = len(self.manual_inputs_groups)
         num_numeros = len(self.manual_inputs_numbers)
         num_bucles = self.manual_loops
@@ -3052,7 +3119,16 @@ class Hermes:
         """
         try:
             self._enter_task_mode()
-            num_devices = len(self.devices)
+
+            # --- FILTRADO DE DISPOSITIVOS ---
+            active_devices = self._get_filtered_devices()
+            if not active_devices:
+                self.log("No hay dispositivos que cumplan con el filtro seleccionado.", "error")
+                self.root.after(0, lambda: messagebox.showerror("Error", "No se encontraron dispositivos que cumplan con el filtro de WhatsApp seleccionado.", parent=self.root))
+                return
+            # --- FIN FILTRADO ---
+
+            num_devices = len(active_devices)
             num_grupos = len(self.manual_inputs_groups)
             num_bucles = self.manual_loops
 
@@ -3624,6 +3700,13 @@ class Hermes:
     
     def _run_adb_command(self, args, timeout=10):
         """Ejecuta un comando ADB y maneja errores comunes."""
+        # --- FIX: Añadir bucle de pausa ---
+        while self.is_paused and not self.should_stop:
+            time.sleep(0.1)
+        if self.should_stop:
+            return False # Indicar que la tarea fue cancelada
+        # --- FIN FIX ---
+
         adb = self.adb_path.get()
         full_args = [adb] + args # Construye la lista completa de argumentos
 
@@ -4197,22 +4280,22 @@ class Hermes:
                 try:
                     # 2. Abrir la app
                     d.app_start(pkg, stop=True)
-                    d.wait_activity(".Main", timeout=20)
+                    d.wait_activity(".Main", timeout=12)
                     self.log(f"    {pkg} iniciado.", 'info')
 
                     # 3. Navegar a "Nuevo Chat" -> Contacto Propio -> Info
                     self.log("    Navegando a 'Nuevo Chat'...", 'info')
                     new_chat_button = d(description="Nuevo chat")
-                    if new_chat_button.wait(timeout=10):
+                    if new_chat_button.wait(timeout=7):
                         new_chat_button.click()
-                        time.sleep(2) # Esperar a que cargue la lista de contactos
+                        time.sleep(1) # Reducido para acelerar
 
                         self.log("    Buscando contacto propio (Tú)...", 'info')
                         own_contact_element = d(textContains="Tú")
 
-                        if own_contact_element.wait(timeout=10):
+                        if own_contact_element.wait(timeout=7):
                             # Estrategia 1: Intentar extraer el número directamente de la lista
-                            contact_text = own_contact_element.get_text(timeout=5)
+                            contact_text = own_contact_element.get_text(timeout=3)
                             if contact_text:
                                 match = re.search(r'(\+[\d\s\-\(\)]+)', contact_text)
                                 if match:
@@ -4232,12 +4315,12 @@ class Hermes:
 
                             self.log("    Abriendo pantalla de información...", 'info')
                             toolbar = d(resourceId=f"{pkg}:id/toolbar")
-                            if toolbar.wait(timeout=10):
+                            if toolbar.wait(timeout=7):
                                 toolbar.click()
 
                                 # Ahora buscar el número en la pantalla de info
                                 self.log("    En la pantalla de información, buscando número...", 'info')
-                                time.sleep(2)
+                                time.sleep(1) # Reducido para acelerar
 
                                 # Estrategia mejorada: obtener todo el texto de la pantalla
                                 all_text = " ".join([elem.text for elem in d(className="android.widget.TextView") if elem.text])
