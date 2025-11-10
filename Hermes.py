@@ -1662,7 +1662,7 @@ class Hermes:
         spinbox_min.pack(side=tk.RIGHT)
 
         # Card para Mensajes
-        self.messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
+        self.messages_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
         self.messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 20))
         ctk.CTkLabel(self.messages_card, text="✍️ Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
         self.fidelizado_messages_container = ctk.CTkFrame(self.messages_card, fg_color="transparent")
@@ -1696,7 +1696,7 @@ class Hermes:
         ctk.CTkRadioButton(mixto_radio_frame, text="3G:1N", variable=self.mixto_variant, value=3, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
 
         # --- Botones de Acción ---
-        self.actions_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
+        self.actions_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color="transparent")
         self.actions_frame.grid(row=3, column=0, sticky="sew", pady=(15, 0))
         self.actions_frame.grid_columnconfigure(0, weight=1)
         self.actions_frame.grid_columnconfigure(1, weight=1)
@@ -1708,7 +1708,7 @@ class Hermes:
         self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(10, 0))
 
         # --- Botones de Control (Pausa/Cancelar) ---
-        self.control_buttons_frame = ctk.CTkFrame(controls_col, fg_color="transparent")
+        self.control_buttons_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color="transparent")
         self.control_buttons_frame.grid(row=4, column=0, sticky="ew", pady=(10, 0))
         self.control_buttons_frame.grid_columnconfigure(0, weight=1)
         self.control_buttons_frame.grid_columnconfigure(1, weight=1)
