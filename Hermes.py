@@ -1555,8 +1555,6 @@ class Hermes:
         # Widgets de Números (MODIFICADO para el nuevo modo automático)
         self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
         self.fidelizado_numbers_frame.grid_columnconfigure(0, weight=1)
-        self.fidelizado_numbers_frame.grid_rowconfigure(1, weight=1) # La lista de números se expande
-
         # Controles para el modo "Uno a uno" vs "Uno a muchos"
         numeros_mode_container = ctk.CTkFrame(self.fidelizado_numbers_frame, fg_color="transparent")
         numeros_mode_container.grid(row=0, column=0, sticky='ew', pady=(0, 15))
@@ -1564,10 +1562,6 @@ class Hermes:
 
         ctk.CTkRadioButton(numeros_mode_container, text="Uno a uno", variable=self.fidelizado_numeros_mode, value="Uno a uno", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(15, 10))
         ctk.CTkRadioButton(numeros_mode_container, text="Uno a muchos", variable=self.fidelizado_numeros_mode, value="Uno a muchos", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=10)
-
-        # Frame para mostrar los números detectados
-        self.detected_numbers_display = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, state=tk.DISABLED, fg_color=self.colors['bg'])
-        self.detected_numbers_display.grid(row=1, column=0, sticky='nsew')
 
         # Widgets de Grupos (Label y Textbox) - SIN CAMBIOS
         self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
@@ -1744,11 +1738,11 @@ class Hermes:
             # Layout de 1 columna: Apilar inputs y controles verticalmente
             self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=1)
             self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=0) # Anular segunda columna
-            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=1) # Fila de inputs
-            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=0) # Fila de controles
+            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=0) # Fila de inputs (arriba) no se expande
+            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=1) # Fila de controles (abajo) ocupa el resto del espacio
 
-            self.fidelizado_inputs_col.grid(row=0, column=0, sticky="nsew", padx=0, pady=(0, 20))
-            self.fidelizado_controls_col.grid(row=1, column=0, sticky="new", padx=0) # Controles abajo
+            self.fidelizado_inputs_col.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 20))
+            self.fidelizado_controls_col.grid(row=1, column=0, sticky="nsew", padx=0) # Controles abajo
         else:
             # Layout de 2 columnas: Inputs a la izquierda, controles a la derecha
             self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=55)
@@ -4185,11 +4179,6 @@ class Hermes:
                     display_text += f"  - {line['type']}: {line['number']}\n"
             else:
                 display_text = "No se encontraron líneas de WhatsApp válidas."
-
-            self.root.after(0, self.detected_numbers_display.configure, {'state': tk.NORMAL})
-            self.root.after(0, self.detected_numbers_display.delete, "1.0", tk.END)
-            self.root.after(0, self.detected_numbers_display.insert, "1.0", display_text)
-            self.root.after(0, self.detected_numbers_display.configure, {'state': tk.DISABLED})
 
             if show_results_popup:
                 self.log("Detección de números finalizada.", 'success')
