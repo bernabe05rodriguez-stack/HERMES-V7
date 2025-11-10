@@ -1534,21 +1534,22 @@ class Hermes:
         ctk.CTkLabel(title_frame, text="Modo Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(anchor='w')
 
         # --- Fila 2: Inputs (Números y Grupos) y Controles ---
-        inputs_and_controls_frame = ctk.CTkFrame(content, fg_color="transparent")
-        inputs_and_controls_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=30, pady=(0, 20))
-        inputs_and_controls_frame.grid_columnconfigure(0, weight=55) # Columna de inputs
-        inputs_and_controls_frame.grid_columnconfigure(1, weight=45) # Columna de controles
-        inputs_and_controls_frame.grid_rowconfigure(0, weight=1)
+        self.fidelizado_main_content_frame = ctk.CTkFrame(content, fg_color="transparent")
+        self.fidelizado_main_content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=30, pady=(0, 20))
+        self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=55) # Columna de inputs
+        self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=45) # Columna de controles
+        self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=1)
 
         # --- Columna Izquierda: Inputs (Números y Grupos) ---
-        inputs_col = ctk.CTkFrame(inputs_and_controls_frame, fg_color="transparent")
-        inputs_col.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
-        inputs_col.grid_rowconfigure(0, weight=1) # Permitir que el frame interno crezca
-        inputs_col.grid_columnconfigure(0, weight=1)
+        self.fidelizado_inputs_col = ctk.CTkFrame(self.fidelizado_main_content_frame, fg_color="transparent")
+        self.fidelizado_inputs_col.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
+        self.fidelizado_inputs_col.grid_rowconfigure(0, weight=1) # Permitir que el frame interno crezca
+        self.fidelizado_inputs_col.grid_columnconfigure(0, weight=1)
 
         # Frame para los textboxes
-        self.fidelizado_inputs_container = ctk.CTkFrame(inputs_col, fg_color="transparent")
+        self.fidelizado_inputs_container = ctk.CTkFrame(self.fidelizado_inputs_col, fg_color="transparent")
         self.fidelizado_inputs_container.grid(row=0, column=0, sticky="nsew")
+        self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
         self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1) # Los textboxes se expanden
 
         # Widgets de Números (MODIFICADO para el nuevo modo automático)
@@ -1575,12 +1576,12 @@ class Hermes:
         self.fidelizado_groups_text.pack(fill="both", expand=True)
 
         # --- Columna Derecha: Controles de Envío ---
-        controls_col = ctk.CTkFrame(inputs_and_controls_frame, fg_color="transparent")
-        controls_col.grid(row=0, column=1, sticky="nsew", padx=(20, 0))
-        controls_col.grid_columnconfigure(0, weight=1)
+        self.fidelizado_controls_col = ctk.CTkFrame(self.fidelizado_main_content_frame, fg_color="transparent")
+        self.fidelizado_controls_col.grid(row=0, column=1, sticky="nsew", padx=(20, 0))
+        self.fidelizado_controls_col.grid_columnconfigure(0, weight=1)
 
         # Card para Detección de Dispositivos
-        device_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
+        device_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
         device_card.grid(row=0, column=0, sticky="ew", pady=(0, 20))
         ctk.CTkLabel(device_card, text="📱 Dispositivos", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
         device_container = ctk.CTkFrame(device_card, fg_color="transparent")
@@ -1648,9 +1649,21 @@ class Hermes:
         self.fidelizado_whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
         self.fidelizado_whatsapp_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
+        # --- Fila 4: Retardo entre envíos ---
+        delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        delay_container.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        ctk.CTkLabel(delay_container, text="Retardo Envíos (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        spinbox_frame = ctk.CTkFrame(delay_container, fg_color="transparent")
+        spinbox_frame.pack(side=tk.RIGHT)
+        spinbox_max = self._create_spinbox_widget(spinbox_frame, self.fidelizado_send_delay_max, min_val=1, max_val=300)
+        spinbox_max.pack(side=tk.RIGHT)
+        ctk.CTkLabel(spinbox_frame, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.RIGHT, padx=8)
+        spinbox_min = self._create_spinbox_widget(spinbox_frame, self.fidelizado_send_delay_min, min_val=1, max_val=300)
+        spinbox_min.pack(side=tk.RIGHT)
+
         # Card para Mensajes
         self.messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        self.messages_card.grid(row=3, column=0, sticky="ew", pady=(0, 20))
+        self.messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 20))
         ctk.CTkLabel(self.messages_card, text="✍️ Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
         self.fidelizado_messages_container = ctk.CTkFrame(self.messages_card, fg_color="transparent")
         self.fidelizado_messages_container.pack(fill="x", padx=20, pady=(0, 20))
@@ -1716,7 +1729,7 @@ class Hermes:
         self._populate_fidelizado_inputs()
 
     def _update_fidelizado_ui_mode(self, *args):
-        """Muestra u oculta los widgets según el modo Fidelizado seleccionado."""
+        """Muestra u oculta los widgets y reorganiza el layout según el modo Fidelizado seleccionado."""
         mode_ui = self.fidelizado_mode_var.get()
         numeros_submode = self.fidelizado_numeros_mode.get()
 
@@ -1726,21 +1739,40 @@ class Hermes:
         show_mixto_variant = self.fidelizado_mode == "MIXTO"
         show_cycles = self.fidelizado_mode == "NUMEROS" and numeros_submode == "Uno a uno"
 
-        # --- Visibilidad de Inputs y Tarjeta de Mensajes ---
+        # --- 1. Reorganización del Layout Principal ---
+        if self.fidelizado_mode == "NUMEROS":
+            # Layout de 1 columna: Apilar inputs y controles verticalmente
+            self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=1)
+            self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=0) # Anular segunda columna
+            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=1) # Fila de inputs
+            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=0) # Fila de controles
+
+            self.fidelizado_inputs_col.grid(row=0, column=0, sticky="nsew", padx=0, pady=(0, 20))
+            self.fidelizado_controls_col.grid(row=1, column=0, sticky="new", padx=0) # Controles abajo
+        else:
+            # Layout de 2 columnas: Inputs a la izquierda, controles a la derecha
+            self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=55)
+            self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=45)
+            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=0) # Anular segunda fila
+
+            self.fidelizado_inputs_col.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
+            self.fidelizado_controls_col.grid(row=0, column=1, sticky="nsew", padx=(20, 0))
+
+        # --- 2. Visibilidad de Widgets de Input ---
         if self.fidelizado_mode == "NUMEROS":
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew")
             self.fidelizado_groups_frame.grid_forget()
-            self.messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 20)) # FIX: Mostrar siempre la tarjeta de mensajes
         elif self.fidelizado_mode == "GRUPOS":
             self.fidelizado_numbers_frame.grid_forget()
             self.fidelizado_groups_frame.grid(row=0, column=0, sticky="nsew")
-            self.messages_card.grid(row=5, column=0, sticky="ew", pady=(0, 20)) # Mostrar tarjeta
         elif self.fidelizado_mode == "MIXTO":
+            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
+            self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1)
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
             self.fidelizado_groups_frame.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
-            self.messages_card.grid(row=5, column=0, sticky="ew", pady=(0, 20)) # Mostrar tarjeta
 
-        # --- Visibilidad de Configuración Adicional ---
+
+        # --- 3. Visibilidad de Configuración Adicional ---
         if show_mixto_variant:
             self.mixto_variant_container.grid(row=4, column=0, columnspan=2, sticky='w', pady=(0, 15))
         else:
@@ -1753,7 +1785,8 @@ class Hermes:
             self.cycles_container.grid_remove()
             self.loops_container.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=0)
 
-        # --- Visibilidad de Botones de Acción ---
+
+        # --- 4. Visibilidad de Botones de Acción ---
         if self.fidelizado_mode == "GRUPOS":
             self.fidelizado_btn_start.grid(row=0, column=0, columnspan=1, sticky='ew', padx=(0, 5))
             self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(5, 0))
@@ -1765,13 +1798,12 @@ class Hermes:
             self.actions_frame.grid_columnconfigure(1, weight=0)
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO FIDELIZADO")
 
-        # --- Actualización del Menú de WhatsApp ---
+        # --- 5. Actualización del Menú de WhatsApp ---
         if self.fidelizado_mode == "NUMEROS":
             self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas"])
             if self.whatsapp_mode.get() == "Todas":
                 self.whatsapp_mode.set("Ambas")
         else:
-            # Asegurarse de que el widget exista antes de configurarlo
             if hasattr(self, 'fidelizado_whatsapp_menu'):
                  self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas", "Todas"])
 
@@ -2485,26 +2517,30 @@ class Hermes:
     
     def run_single_task(self, device, link, message_to_send, task_index, whatsapp_package="com.whatsapp.w4b"):
         """
-        Ejecuta una única tarea de envío (abrir link, enviar, esperar).
-        Esta función es el cuerpo del bucle de los hilos de envío.
+        Ejecuta una única tarea de envío (abrir link, enviar, esperar), gestionando la conexión de uiautomator2.
         """
+        ui_device = None
+        if self.fidelizado_mode in ["NUMEROS", "GRUPOS", "MIXTO"]:
+            try:
+                ui_device = u2.connect(device)
+                ui_device.unlock()
+            except Exception as e:
+                self.log(f"No se pudo conectar uiautomator2 a {device}: {e}", "warning")
+                ui_device = None # Asegurarse de que es None para activar el fallback
+
         # Bucle de pausa
         while self.is_paused and not self.should_stop:
             time.sleep(0.1)
-        if self.should_stop: return False # Indicar que la tarea no se completó
+        if self.should_stop: return False
 
-        # Actualizar UI (índice actual)
-        # Solo actualizamos el índice que se está procesando
         self.current_index = task_index
         self.root.after(0, self.update_stats)
 
-        # Limpiar apps
         self.close_all_apps(device)
-        while self.is_paused and not self.should_stop: time.sleep(0.1)
         if self.should_stop: return False
 
-        # Enviar mensaje
-        success = self.send_msg(device, link, task_index, self.total_messages, message_to_send, whatsapp_package)
+        # Enviar mensaje, pasando el objeto ui_device
+        success = self.send_msg(device, link, task_index, self.total_messages, message_to_send, whatsapp_package, ui_device)
         
         # --- Importante: Actualizar contadores DESPUÉS de send_msg ---
         if success:
@@ -2707,77 +2743,24 @@ class Hermes:
     
     def _send_to_target_with_whatsapp(self, device, target_link, wa_name, wa_package, mensaje, task_counter):
         """
-        Envía un mensaje a un target usando el WhatsApp especificado.
-        Retorna True si tuvo éxito, False si falló.
+        Envía un mensaje a un target, gestionando la conexión de uiautomator2 y usando el método de envío unificado.
         """
-        self.log(f"\n[{device}] Envío {task_counter}/{self.total_messages}: {wa_name}", 'info')
+        # Conectar con uiautomator2 al inicio de la tarea
+        ui_device = None
+        try:
+            ui_device = u2.connect(device)
+            ui_device.unlock()
+        except Exception as e:
+            self.log(f"No se pudo conectar uiautomator2 a {device}: {e}", "warning")
+            ui_device = None
+
+        # Llamar a send_msg, que ahora contiene toda la lógica de envío y fallback
+        success = self.send_msg(device, target_link, task_counter, self.total_messages, message_to_send=mensaje, whatsapp_package=wa_package, ui_device=ui_device)
         
-        # Verificar pausa
-        while self.is_paused and not self.should_stop:
-            time.sleep(0.1)
-        if self.should_stop: return False
-        
-        # Abrir WhatsApp
-        self.log(f"Abriendo WhatsApp {wa_name} en {device}", 'info')
-        open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', 
-                     '-d', target_link, '-p', wa_package]
-        
-        if not self._run_adb_command(open_args, timeout=20):
-            self.log(f"Fallo al abrir WhatsApp {wa_name} en {device}", "error")
+        if success:
+            self.sent_count += 1
+        else:
             self.failed_count += 1
-            self.root.after(0, self.update_stats)
-            return False
-        
-        # Esperar 3 segundos después de abrir
-        self.log("Esperando 3s después de abrir...", 'info')
-        time.sleep(3)
-        
-        # Escribir mensaje
-        self.log(f"Escribiendo mensaje ({wa_name})...", 'info')
-        if not self._write_message_with_keyevents(device, mensaje):
-            self.log(f"Fallo al escribir mensaje en {device}", "error")
-            self.failed_count += 1
-            self.root.after(0, self.update_stats)
-            return False
-        
-        # Espera después de escribir
-        wait_write = self.wait_after_write.get()
-        if wait_write > 0:
-            self.log(f"Esperando {wait_write}s después de escribir...", 'info')
-            elapsed = 0
-            while elapsed < wait_write and not self.should_stop:
-                while self.is_paused and not self.should_stop: time.sleep(0.1)
-                if self.should_stop: return False
-                time.sleep(0.1)
-                elapsed += 0.1
-        
-        # Presionar Enter
-        enter_args = ['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENTER']
-        if not self._run_adb_command(enter_args, timeout=10):
-            self.log(f"Fallo al presionar Enter en {device}", "error")
-            self.failed_count += 1
-            self.root.after(0, self.update_stats)
-            return False
-        
-        # Esperar entre Enters
-        wait_enters = self.wait_between_enters.get()
-        self.log(f"Esperando {wait_enters}s entre Enters...", 'info')
-        elapsed = 0
-        while elapsed < wait_enters and not self.should_stop:
-            while self.is_paused and not self.should_stop: time.sleep(0.1)
-            if self.should_stop: return False
-            time.sleep(0.1)
-            elapsed += 0.1
-        
-        # Presionar Enter otra vez
-        if not self._run_adb_command(enter_args, timeout=10):
-            self.log(f"Fallo al presionar segundo Enter en {device}", "error")
-            self.failed_count += 1
-            self.root.after(0, self.update_stats)
-            return False
-        
-        self.log(f"Mensaje {wa_name} enviado correctamente", 'success')
-        self.sent_count += 1
         self.root.after(0, self.update_stats)
         
         # Si es Normal y el modo es "Todas", ejecutar el cambio de cuenta DESPUÉS de enviar
@@ -3710,81 +3693,86 @@ class Hermes:
             self.log(f"Error inesperado ejecutando ADB: {e}", 'error')
             return False
 
-    def send_msg(self, device, link, i, total, message_to_send=None, whatsapp_package="com.whatsapp.w4b"):
-        """Ejecuta los comandos ADB para enviar un único mensaje."""
+    def send_msg(self, device, link, i, total, message_to_send=None, whatsapp_package="com.whatsapp.w4b", ui_device=None):
+        """Ejecuta los comandos para enviar un único mensaje, usando uiautomator2 si está disponible."""
         try:
-            # Determinar display
-            if message_to_send:
-                # Es un MODO GRUPO (o Mixto-Grupo)
+            num_display = "?"
+            is_group = bool(message_to_send)
+            if is_group:
                 num_display = f"Grupo ({link[:40]}...)"
-            else:
-                # Es un MODO NUMERO (wa.me)
-                num_display = link.split('wa.me/')[1].split('?')[0] if 'wa.me/' in link else "?"
+            elif 'wa.me/' in link:
+                num_display = link.split('wa.me/')[1].split('?')[0]
 
             self.log(f"({i}/{total}) → {num_display} [en {device}]", 'info')
 
-            # 1. Abrir el enlace de WhatsApp
-            self.log(f"Abriendo link en {device}", 'info')
-            # Es importante mantener las comillas dobles alrededor del link para el shell de Android
+            # 1. Abrir el enlace de WhatsApp (siempre con ADB para fiabilidad)
+            self.log(f"Abriendo link en {device} con ADB...", 'info')
             open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{link}"', '-p', whatsapp_package]
-            if not self._run_adb_command(open_args, timeout=20): # Mayor timeout para abrir
-                 # Si falla al abrir, no tiene sentido continuar
-                 self.log(f"Fallo al abrir link para {num_display}. Saltando...", "warning")
-                 return False
-
-            time.sleep(1) # Pequeña pausa
+            if not self._run_adb_command(open_args, timeout=20):
+                self.log(f"Fallo al abrir link para {num_display}. Saltando...", "warning")
+                return False
             
-            # Pausa configurable (revisando 'stop' y 'pause')
-            delay = self.wait_after_open.get()
-            elapsed = 0
-            while elapsed < delay and not self.should_stop:
-                while self.is_paused and not self.should_stop: time.sleep(0.1)
-                if self.should_stop: break
-                time.sleep(0.1); elapsed += 0.1
+            time.sleep(self.wait_after_open.get())
             if self.should_stop: return False
-            
 
-            # --- Lógica condicional de envío ---
-            if message_to_send:
-                # --- MODO GRUPO (Escribir con velocidad configurable) ---
-                self.log("Escribiendo mensaje...", 'info')
-                
-                # Usar la función _write_message_with_keyevents que respeta la velocidad
-                if not self._write_message_with_keyevents(device, message_to_send):
-                    self.log("Escritura interrumpida o fallida.", "warning")
+            # 2. Determinar el mensaje a enviar
+            msg_to_send = message_to_send
+            if not msg_to_send and not is_group:
+                try:
+                    msg_to_send = urllib.parse.unquote(link.split('text=')[1])
+                except IndexError:
+                    self.log("No se pudo extraer el mensaje del link para uiautomator2.", "error")
                     return False
 
-                # Esperar después de escribir, antes de enviar
-                delay_enter = max(1, self.wait_after_first_enter.get() // 2)
-                elapsed_enter = 0
-                while elapsed_enter < delay_enter and not self.should_stop:
-                    while self.is_paused and not self.should_stop: time.sleep(0.1)
-                    if self.should_stop: break
-                    time.sleep(0.1); elapsed_enter += 0.1
+            # 3. Lógica de envío principal con uiautomator2 si está disponible
+            if ui_device:
+                self.log("Usando uiautomator2 para escribir y enviar.", 'info')
+                try:
+                    # Esperar a que aparezca el campo de texto y escribir
+                    edit_text = ui_device(className="android.widget.EditText")
+                    if not edit_text.wait(timeout=10):
+                        self.log("No se encontró el campo de texto para escribir.", "error")
+                        raise Exception("Timeout esperando EditText")
+
+                    edit_text.set_text(msg_to_send)
+
+                    # Esperar y hacer clic en el botón de enviar
+                    send_button = ui_device(description="Enviar")
+                    if not send_button.wait(timeout=5):
+                        self.log("No se encontró el botón 'Enviar'. Intentando fallback a Enter.", "warning")
+                        if not self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', '66'], timeout=10):
+                            raise Exception("Fallback a Enter también falló.")
+                    else:
+                        send_button.click()
+
+                    self.log("Mensaje enviado con uiautomator2.", 'success')
+                    time.sleep(1)
+                    return True
+
+                except Exception as e:
+                    self.log(f"Error con uiautomator2: {e}. Intentando fallback a ADB.", 'error')
+                    # No retornar False, dejar que continúe al bloque de fallback
+
+            # 4. Fallback a ADB si uiautomator2 no está disponible o falló
+            self.log("Usando fallback a ADB para enviar.", 'warning')
+            if is_group:
+                if not self._write_message_with_keyevents(device, msg_to_send): return False
+                time.sleep(max(1, self.wait_after_first_enter.get() // 2))
                 if self.should_stop: return False
 
-                # Presionar ENTER para enviar el texto escrito
-                enter_args = ['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENTER']
-                if not self._run_adb_command(enter_args, timeout=10):
-                    self.log("Fallo al presionar Enter después de escribir.", "error")
-                    return False
+            # Enter para enviar (para ambos modos en fallback)
+            if not self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', '66'], timeout=10):
+                self.log("Fallo al presionar Enter con ADB.", "error")
+                return False
 
-            else:
-                # --- MODO NORMAL (wa.me/?text=...) ---
-                # Presionar ENTER (Keyevent 66) para enviar (mensaje pre-cargado)
-                enter_args = ['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENTER']
-                if not self._run_adb_command(enter_args, timeout=10):
-                    self.log("Fallo al presionar Enter (modo normal).", "error")
-                    return False
-
-            time.sleep(1) # Pausa post-envío
-            self.log("Mensaje enviado", 'success')
+            self.log("Mensaje enviado (Fallback ADB).", 'success')
+            time.sleep(1)
             return True
 
         except Exception as e:
             self.log(f"Error inesperado en send_msg: {e}", 'error')
             import traceback
-            traceback.print_exc() # Imprimir traceback completo en consola
+            traceback.print_exc()
             return False
     # --- ################################################################## ---
     # --- FIN
@@ -4229,15 +4217,31 @@ class Hermes:
             # Desbloquear si es necesario (mejor si el usuario lo hace)
             d.unlock()
 
-            # 1. Listar todos los paquetes de WhatsApp
-            packages = d.shell('pm list packages | grep whatsapp').output.splitlines()
-            whatsapp_packages = [p.split(':')[1] for p in packages if 'whatsapp' in p]
+            # 1. Listar paquetes de WhatsApp según la selección del usuario
+            wa_mode = self.whatsapp_mode.get()
+            self.log(f"  Optimizando detección para el modo: {wa_mode}", 'info')
 
-            if not whatsapp_packages:
-                self.log(f"  No se encontraron apps de WhatsApp en {device_serial}.", 'warning')
+            packages_to_scan = []
+            if wa_mode == "Normal":
+                packages_to_scan.append("com.whatsapp")
+            elif wa_mode == "Business":
+                packages_to_scan.append("com.whatsapp.w4b")
+            else: # Ambas o Todas
+                packages_to_scan.append("com.whatsapp")
+                packages_to_scan.append("com.whatsapp.w4b")
+
+            # Verificar si los paquetes realmente existen en el dispositivo
+            installed_packages_raw = d.shell('pm list packages').output
+            installed_packages = installed_packages_raw.splitlines()
+
+            final_packages_to_scan = [f"package:{p}" for p in packages_to_scan if f"package:{p}" in installed_packages]
+
+            if not final_packages_to_scan:
+                self.log(f"  No se encontraron las apps de WhatsApp seleccionadas en {device_serial}.", 'warning')
                 return {"WhatsApp": "No encontrado", "WhatsApp Business": "No encontrado"}
 
-            for pkg in whatsapp_packages:
+            for pkg_full in final_packages_to_scan:
+                pkg = pkg_full.split(':')[1]
                 self.log(f"  Analizando paquete: {pkg} en {device_serial}", 'info')
                 number = "No encontrado"
                 try:
