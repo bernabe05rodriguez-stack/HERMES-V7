@@ -1636,7 +1636,7 @@ class Hermes:
         self.delay_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
         ctk.CTkLabel(self.delay_container, text="Tiempo (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
 
-        delay_spinboxes = ctk.CTkFrame(delay_container, fg_color="transparent")
+        delay_spinboxes = ctk.CTkFrame(self.delay_container, fg_color="transparent")
         delay_spinboxes.pack(side=tk.LEFT, expand=True, fill=tk.X)
         spinbox_delay_min = self._create_spinbox_widget(delay_spinboxes, self.fidelizado_delay_min, min_val=1, max_val=300)
         spinbox_delay_min.pack(side=tk.LEFT, expand=True)
