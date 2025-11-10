@@ -1603,7 +1603,7 @@ class Hermes:
         self.fidelizado_device_list_label.pack(anchor='w')
 
         # Card para Configuración
-        config_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
+        config_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
         config_card.grid(row=1, column=0, sticky="ew", pady=(0, 20))
         ctk.CTkLabel(config_card, text="⚙️ Configuración", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
 
