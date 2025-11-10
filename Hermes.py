@@ -1734,14 +1734,14 @@ class Hermes:
 
         # --- 1. Reorganización del Layout Principal ---
         if self.fidelizado_mode == "NUMEROS":
-            # Layout de 1 columna: Apilar inputs y controles verticalmente
+            # Layout de 1 columna: Solo mostrar los controles en la parte superior.
             self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=1)
             self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=0) # Anular segunda columna
-            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=0) # Fila de inputs (arriba) no se expande
-            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=1) # Fila de controles (abajo) ocupa el resto del espacio
+            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=0) # Fila de controles no se expande
+            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=0) # Fila de abajo tampoco
 
-            self.fidelizado_inputs_col.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 20))
-            self.fidelizado_controls_col.grid(row=1, column=0, sticky="nsew", padx=0) # Controles abajo
+            self.fidelizado_inputs_col.grid_forget() # Ocultar la columna de inputs que ya no se usa
+            self.fidelizado_controls_col.grid(row=0, column=0, sticky="ew", padx=0) # Mostrar solo los controles arriba
         elif self.fidelizado_mode == "GRUPOS":
             # Layout de 1 columna: Apilar controles arriba y inputs (links de grupo) abajo
             self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=1)
@@ -4292,20 +4292,32 @@ class Hermes:
                                     d.press("back") # Volver de la lista de contactos
                                     continue      # Ir al siguiente paquete de whatsapp
 
-                            # Estrategia 2: Si no se encuentra, navegar
+                            # Estrategia 2: Si no se encuentra el número, navegar a la pantalla de información
                             self.log("    Número no visible en la lista. Navegando a la info de contacto...", 'info')
                             own_contact_element.click()
+                            time.sleep(2) # Esperar a que se abra el chat
 
                             self.log("    Abriendo pantalla de información...", 'info')
+
+                            # Intentar hacer clic en el nombre del contacto o en la barra de herramientas
+                            contact_name_in_toolbar = d(resourceId=f"{pkg}:id/conversation_contact_name")
                             toolbar = d(resourceId=f"{pkg}:id/toolbar")
-                            if toolbar.wait(timeout=7):
+
+                            clicked_successfully = False
+                            if contact_name_in_toolbar.wait(timeout=5):
+                                self.log("    Selector 'conversation_contact_name' encontrado. Haciendo click...", 'info')
+                                contact_name_in_toolbar.click()
+                                clicked_successfully = True
+                            elif toolbar.wait(timeout=5):
+                                self.log("    Selector 'conversation_contact_name' no encontrado. Intentando click en 'toolbar'...", 'info')
                                 toolbar.click()
+                                clicked_successfully = True
 
-                                # Ahora buscar el número en la pantalla de info
+                            if clicked_successfully:
                                 self.log("    En la pantalla de información, buscando número...", 'info')
-                                time.sleep(1) # Reducido para acelerar
+                                time.sleep(2) # Esperar a que cargue la pantalla de info
 
-                                # Estrategia mejorada: obtener todo el texto de la pantalla
+                                # Estrategia de búsqueda de texto en toda la pantalla
                                 all_text = " ".join([elem.text for elem in d(className="android.widget.TextView") if elem.text])
                                 match = re.search(r'(\+[\d\s\-\(\)]+)', all_text)
                                 if match:
@@ -4314,6 +4326,8 @@ class Hermes:
                                 else:
                                     self.log("    No se encontró el número por texto. Intentando OCR...", 'warning')
                                     number = self._get_number_with_ocr(d, temp_dir)
+                            else:
+                                self.log("    No se pudo encontrar un elemento para abrir la pantalla de info.", 'error')
                         else:
                             self.log("    No se encontró el contacto '(Tú)' en la lista.", 'error')
 
