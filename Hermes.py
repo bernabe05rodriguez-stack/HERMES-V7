@@ -244,6 +244,11 @@ class Hermes:
         # Índice de inicio aleatorio para rotación de mensajes
         self.mensaje_start_index = 0
         
+        # --- INICIO MODIFICACIÓN: Variables para el nuevo Modo Números Automático ---
+        self.fidelizado_numeros_mode = tk.StringVar(value="Uno a uno")
+        self.detected_phone_lines = [] # Almacenará {"device": str, "type": "WA/WB", "number": str}
+        # --- FIN MODIFICACIÓN ---
+
         self.manual_loops = 1
 
         self.fidelizado_delay_min = tk.IntVar(value=10)
@@ -625,8 +630,7 @@ class Hermes:
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
         # Guardar datos de los textboxes para persistencia
-        if hasattr(self, 'fidelizado_numbers_text'): # Comprobar si los widgets existen
-            self.manual_inputs_numbers = [line.strip() for line in self.fidelizado_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
+        if hasattr(self, 'fidelizado_groups_text'): # Comprobar si los widgets existen
             self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
             # Los mensajes se gestionan al cargar el archivo, no se guardan desde un widget.
             # Asumir que los mensajes de grupo son los mismos
@@ -1543,13 +1547,24 @@ class Hermes:
         self.fidelizado_inputs_container.grid(row=0, column=0, sticky="nsew")
         self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1) # Los textboxes se expanden
 
-        # Widgets de Números (Label y Textbox)
+        # Widgets de Números (MODIFICADO para el nuevo modo automático)
         self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
-        ctk.CTkLabel(self.fidelizado_numbers_frame, text="Números (+549 sin prefijo)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 10))
-        self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
-        self.fidelizado_numbers_text.pack(fill="both", expand=True)
+        self.fidelizado_numbers_frame.grid_columnconfigure(0, weight=1)
+        self.fidelizado_numbers_frame.grid_rowconfigure(1, weight=1) # La lista de números se expande
 
-        # Widgets de Grupos (Label y Textbox)
+        # Controles para el modo "Uno a uno" vs "Uno a muchos"
+        numeros_mode_container = ctk.CTkFrame(self.fidelizado_numbers_frame, fg_color="transparent")
+        numeros_mode_container.grid(row=0, column=0, sticky='ew', pady=(0, 15))
+        ctk.CTkLabel(numeros_mode_container, text="Modo de Conversación:", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT, anchor="w")
+
+        ctk.CTkRadioButton(numeros_mode_container, text="Uno a uno", variable=self.fidelizado_numeros_mode, value="Uno a uno", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(15, 10))
+        ctk.CTkRadioButton(numeros_mode_container, text="Uno a muchos", variable=self.fidelizado_numeros_mode, value="Uno a muchos", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=10)
+
+        # Frame para mostrar los números detectados
+        self.detected_numbers_display = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, state=tk.DISABLED, fg_color=self.colors['bg'])
+        self.detected_numbers_display.grid(row=1, column=0, sticky='nsew')
+
+        # Widgets de Grupos (Label y Textbox) - SIN CAMBIOS
         self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
         ctk.CTkLabel(self.fidelizado_groups_frame, text="Links de Grupos (https://...)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 10))
         self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
@@ -1767,12 +1782,9 @@ class Hermes:
     def _populate_fidelizado_inputs(self):
         """Limpia y rellena los campos de texto con los datos guardados en las variables."""
         # Limpiar contenido existente
-        self.fidelizado_numbers_text.delete("1.0", tk.END)
         self.fidelizado_groups_text.delete("1.0", tk.END)
 
         # Rellenar con datos guardados
-        if self.manual_inputs_numbers:
-            self.fidelizado_numbers_text.insert("1.0", "\n".join(self.manual_inputs_numbers))
         if self.manual_inputs_groups:
             self.fidelizado_groups_text.insert("1.0", "\n".join(self.manual_inputs_groups))
 
@@ -1791,30 +1803,70 @@ class Hermes:
     def start_fidelizado_sending(self):
         """Función específica para validar y preparar el envío desde la vista Fidelizado."""
         # 1. Guardar los datos de los TextBoxes en las variables de la clase
-        self.manual_inputs_numbers = [line.strip() for line in self.fidelizado_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
         self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
-        # LOS MENSAJES YA ESTÁN EN self.manual_messages_numbers, NO SE LEEN DE UN WIDGET
 
-        # 2. Validar los datos
-        if self.fidelizado_mode == "NUMEROS" and not self.manual_inputs_numbers:
-            messagebox.showerror("Error", "El 'Modo Números' requiere al menos un número.", parent=self.root)
-            return
+        # 2. Validar los datos según el modo
+        if self.fidelizado_mode == "NUMEROS":
+            # La validación y el inicio se manejan en un hilo para permitir la detección de números sin congelar la UI.
+            threading.Thread(target=self.start_fidelizado_numeros_thread, daemon=True).start()
+            return # Salir, ya que el resto del flujo se maneja en el hilo.
+
         if self.fidelizado_mode == "GRUPOS" and not self.manual_inputs_groups:
             messagebox.showerror("Error", "El 'Modo Grupos' requiere al menos un link de grupo.", parent=self.root)
             return
-        if self.fidelizado_mode == "MIXTO" and (not self.manual_inputs_numbers or not self.manual_inputs_groups):
-            messagebox.showerror("Error", "El 'Modo Mixto' requiere números y grupos.", parent=self.root)
+        if self.fidelizado_mode == "MIXTO" and (not self.manual_inputs_groups):
+            messagebox.showerror("Error", "El 'Modo Mixto' requiere grupos.", parent=self.root)
             return
         if not self.manual_messages_numbers:
             messagebox.showerror("Error", "Se requiere al menos un mensaje.", parent=self.root)
             return
 
-        # 3. Marcar el modo manual y llamar a la función de envío principal
+        # 3. Marcar el modo manual y llamar a la función de envío principal (SOLO para Grupos y Mixto)
         self.manual_mode = True
         self.group_mode = self.fidelizado_mode == "GRUPOS" # Flag legacy
         self.links = [] # Limpiar links del modo tradicional
 
         self.start_sending() # Llamar a la lógica de envío compartida
+
+    def start_fidelizado_numeros_thread(self):
+        """
+        Hilo de trabajo para preparar e iniciar el envío del modo NÚMEROS automático.
+        Detecta los números, calcula el total, pide confirmación y luego inicia.
+        """
+        if not self._detect_and_prepare_phone_lines():
+            self.root.after(0, lambda: messagebox.showerror("Error", "No se detectaron suficientes líneas de WhatsApp para iniciar (se requieren al menos 2).", parent=self.root))
+            return
+
+        # Calcular total_messages
+        num_lines = len(self.detected_phone_lines)
+        num_bucles = self.manual_loops_var.get()
+
+        if self.fidelizado_numeros_mode.get() == "Uno a uno":
+            total = (num_lines // 2) * 2 * num_bucles
+        else: # Uno a muchos
+            # Cada línea habla con todas las demás (N-1).
+            # Por cada par, hay una conversación de ida y vuelta (2 mensajes).
+            total = num_lines * (num_lines - 1) * 2 * num_bucles
+
+        self.total_messages = total
+        self.log(f"Cálculo para Modo '{self.fidelizado_numeros_mode.get()}': {self.total_messages} mensajes en total.", 'info')
+
+        self.root.after(0, self._ask_confirmation_and_start_numeros_mode)
+
+    def _ask_confirmation_and_start_numeros_mode(self):
+        """Pide confirmación al usuario y, si se acepta, inicia el envío del modo números."""
+        if not messagebox.askyesno("Confirmar Envío", f"Se detectaron {len(self.detected_phone_lines)} líneas.\n\nSe enviarán un total de {self.total_messages} mensajes en modo '{self.fidelizado_numeros_mode.get()}'.\n\n¿Deseas iniciar?", parent=self.root):
+            return
+
+        # Iniciar el envío
+        self.manual_mode = True
+        self.fidelizado_mode = "NUMEROS"
+        self.links = []
+
+        self._enter_task_mode()
+        self.update_stats()
+
+        threading.Thread(target=self.send_thread, daemon=True).start()
 
     def start_unirse_grupos(self):
         """Valida e inicia el hilo para unirse a grupos."""
@@ -2384,7 +2436,10 @@ class Hermes:
             if self.fidelizado_mode == "GRUPOS":
                 self.run_grupos_dual_whatsapp_thread()
             elif self.fidelizado_mode == "NUMEROS":
-                self.run_numeros_dual_whatsapp_thread()
+                if self.fidelizado_numeros_mode.get() == "Uno a uno":
+                    self.run_uno_a_uno_thread()
+                else: # Uno a muchos
+                    self.run_uno_a_muchos_thread()
             elif self.fidelizado_mode == "MIXTO":
                 self.run_mixto_dual_whatsapp_thread()
             else:
@@ -2846,84 +2901,116 @@ class Hermes:
             self.log(f"\n--- CICLO {ciclo + 1} completado ---", 'success')
         
         self.log(f"\nModo Mixto (Variante {variant}) finalizado", 'success')
-    def run_numeros_dual_whatsapp_thread(self):
+
+    def run_uno_a_uno_thread(self):
         """
-        Lógica de envío para MODO NÚMEROS.
-        Por cada número, envía con los WhatsApps seleccionados (Normal, Business o Ambos).
-        Los mensajes rotan: 1,2,3,4... y cuando se acaban vuelven al 1.
+        Lógica de envío para MODO NÚMEROS - UNO A UNO.
+        Las líneas detectadas se emparejan aleatoriamente y conversan entre sí.
         """
-        num_devices = len(self.devices)
-        num_numeros = len(self.manual_inputs_numbers)
-        num_bucles = self.manual_loops
-        
-        if len(self.manual_messages_numbers) < 1:
-            self.log("Error: Modo Números requiere al menos 1 mensaje cargado.", "error")
-            messagebox.showerror("Error", "Debes cargar al menos 1 archivo de mensajes.", parent=self.root)
+        self.log("Iniciando MODO NÚMEROS (Uno a uno)...", 'info')
+        if len(self.detected_phone_lines) < 2:
+            self.log("Se necesitan al menos 2 líneas de WhatsApp para este modo.", 'error')
+            messagebox.showerror("Error", "Se necesitan al menos 2 líneas de WhatsApp detectadas para el modo 'Uno a uno'.", parent=self.root)
             return
+
+        lines = self.detected_phone_lines.copy()
+        num_lines = len(lines)
+        num_bucles = self.manual_loops_var.get()
         
-        # Usar índice de inicio aleatorio
+        task_counter = 0
         mensaje_index = self.mensaje_start_index
         total_mensajes = len(self.manual_messages_numbers)
-        task_counter = 0
-        whatsapp_apps = self._get_whatsapp_apps_to_use()
-        
-        self.log(f"Modo Números: {num_bucles} ciclo(s), {num_numeros} número(s), {num_devices} dispositivo(s)", 'info')
-        self.log(f"WhatsApp: {self.whatsapp_mode.get()}", 'info')
-        self.log(f"Total de envíos: {self.total_messages}", 'info')
-        
+
         for ciclo in range(num_bucles):
             if self.should_stop: break
             self.log(f"\n--- CICLO {ciclo + 1}/{num_bucles} ---", 'info')
             
-            # Por cada número
-            for num_idx, numero in enumerate(self.manual_inputs_numbers):
+            random.shuffle(lines)
+
+            # Manejar número impar de líneas
+            excluded = None
+            if num_lines % 2 != 0:
+                excluded = lines.pop()
+                self.log(f"Número impar de líneas. {excluded['number']} quedará fuera de esta ronda.", 'warning')
+
+            # Crear parejas
+            pairs = []
+            for i in range(0, len(lines), 2):
+                pairs.append((lines[i], lines[i+1]))
+
+            self.log(f"Se formaron {len(pairs)} parejas para esta ronda.", 'info')
+
+            for i, (line_a, line_b) in enumerate(pairs):
                 if self.should_stop: break
-                self.log(f"\n=== NÚMERO {num_idx + 1}/{num_numeros}: +549{numero} ===", 'info')
+                self.log(f"\n=== Pareja {i+1}/{len(pairs)}: {line_a['number']} <-> {line_b['number']} ===", 'info')
+
+                # Conversación de ida y vuelta
+                # A -> B
+                task_counter += 1
+                mensaje_ida = self.manual_messages_numbers[mensaje_index % total_mensajes]; mensaje_index += 1
+                link_ida = f"https://wa.me/{line_b['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_ida, safe='')}"
+                self.run_single_task(line_a['device'], link_ida, None, task_counter, whatsapp_package=line_a['package'])
+                if self.should_stop: break
                 
-                # Por cada dispositivo
-                for device in self.devices:
+                # B -> A
+                task_counter += 1
+                mensaje_vuelta = self.manual_messages_numbers[mensaje_index % total_mensajes]; mensaje_index += 1
+                link_vuelta = f"https://wa.me/{line_a['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_vuelta, safe='')}"
+                self.run_single_task(line_b['device'], link_vuelta, None, task_counter, whatsapp_package=line_b['package'])
+
+            # Si había una línea excluida, se reincorpora para la siguiente ronda
+            if excluded:
+                lines.append(excluded)
+
+    def run_uno_a_muchos_thread(self):
+        """
+        Lógica de envío para MODO NÚMEROS - UNO A MUCHOS.
+        Cada línea detectada conversa con todas las demás.
+        """
+        self.log("Iniciando MODO NÚMEROS (Uno a muchos)...", 'info')
+        if len(self.detected_phone_lines) < 2:
+            self.log("Se necesitan al menos 2 líneas de WhatsApp para este modo.", 'error')
+            messagebox.showerror("Error", "Se necesitan al menos 2 líneas de WhatsApp detectadas para el modo 'Uno a muchos'.", parent=self.root)
+            return
+
+        lines = self.detected_phone_lines.copy()
+        num_lines = len(lines)
+        num_bucles = self.manual_loops_var.get()
+
+        task_counter = 0
+        mensaje_index = self.mensaje_start_index
+        total_mensajes = len(self.manual_messages_numbers)
+
+        for ciclo in range(num_bucles):
+            if self.should_stop: break
+            self.log(f"\n--- CICLO {ciclo + 1}/{num_bucles} ---", 'info')
+
+            # Cada línea toma el turno de ser el "emisor principal"
+            for i in range(num_lines):
+                if self.should_stop: break
+
+                emisor = lines[i]
+                receptores = lines[:i] + lines[i+1:]
+
+                self.log(f"\n=== Turno de {emisor['number']}: Hablando con {len(receptores)} línea(s) ===", 'info')
+
+                for receptor in receptores:
+                    if self.should_stop: break
+                    self.log(f"--- Conversación: {emisor['number']} <-> {receptor['number']} ---", 'info')
+
+                    # Conversación de ida y vuelta
+                    # Emisor -> Receptor
+                    task_counter += 1
+                    mensaje_ida = self.manual_messages_numbers[mensaje_index % total_mensajes]; mensaje_index += 1
+                    link_ida = f"https://wa.me/{receptor['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_ida, safe='')}"
+                    self.run_single_task(emisor['device'], link_ida, None, task_counter, whatsapp_package=emisor['package'])
                     if self.should_stop: break
                     
-                    # Por cada WhatsApp (Normal, Business, o Ambos)
-                    for wa_name, wa_package in whatsapp_apps:
-                        if self.should_stop: break
-                        
-                        task_counter += 1
-                        self.current_index = task_counter
-                        self.root.after(0, self.update_stats)
-                        
-                        # Obtener mensaje rotativo
-                        mensaje = self.manual_messages_numbers[mensaje_index % total_mensajes]
-                        mensaje_index += 1
-                        
-                        # Construir link
-                        target_link = f"https://wa.me/549{numero}"
-                        
-                        # Enviar usando la función auxiliar
-                        success = self._send_to_target_with_whatsapp(
-                            device, target_link, wa_name, wa_package, mensaje, task_counter
-                        )
-                        
-                        # Pausa entre WhatsApps si hay más de uno
-                        if success and len(whatsapp_apps) > 1 and wa_name == whatsapp_apps[0][0]:
-                            wait_between = self.wait_between_messages.get()
-                            if wait_between > 0:
-                                self.log(f"Esperando {wait_between}s antes del siguiente WhatsApp...", 'info')
-                                elapsed = 0
-                                while elapsed < wait_between and not self.should_stop:
-                                    while self.is_paused and not self.should_stop: time.sleep(0.1)
-                                    if self.should_stop: break
-                                    time.sleep(0.1)
-                                    elapsed += 0.1
-                        
-                        time.sleep(0.5)  # Pequeña pausa entre envíos
-                
-                if self.should_stop: break
-                self.log(f"\n=== NÚMERO {num_idx + 1} completado ===", 'success')
-            
-            if self.should_stop: break
-            self.log(f"\n--- CICLO {ciclo + 1} completado ---", 'success')
-        
+                    # Receptor -> Emisor
+                    task_counter += 1
+                    mensaje_vuelta = self.manual_messages_numbers[mensaje_index % total_mensajes]; mensaje_index += 1
+                    link_vuelta = f"https://wa.me/{emisor['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_vuelta, safe='')}"
+                    self.run_single_task(receptor['device'], link_vuelta, None, task_counter, whatsapp_package=receptor['package'])
     
     def run_grupos_dual_whatsapp_thread(self):
         """
@@ -3997,44 +4084,61 @@ class Hermes:
         if not self.devices:
             messagebox.showwarning("Sin dispositivos", "No hay dispositivos conectados. Detecta dispositivos primero.", parent=self.root)
             return
-        threading.Thread(target=self.detect_phone_numbers, daemon=True).start()
+        threading.Thread(target=self._detect_and_prepare_phone_lines, args=(True,), daemon=True).start()
 
-    def detect_phone_numbers(self):
+    def _detect_and_prepare_phone_lines(self, show_results_popup=False):
         """
-        Intenta extraer el número de teléfono de WhatsApp y WhatsApp Business
-        de cada dispositivo conectado usando 'adb backup'.
+        Detecta todos los números de WA y WA Business en los dispositivos conectados
+        y los almacena en self.detected_phone_lines.
+        Retorna True si se encontraron líneas, False en caso contrario.
         """
         self.log("Iniciando detección de números de teléfono...", 'info')
         self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.DISABLED, 'text': "Detectando..."})
 
-        results = {}
-        # Crear un directorio temporal para los archivos XML
+        self.detected_phone_lines = []
         temp_dir = tempfile.mkdtemp(prefix="hermes_ui_dump_")
-        self.log(f"Directorio temporal para UI dumps creado en: {temp_dir}", "info")
 
         try:
+            all_numbers = {}
             for device_serial in self.devices:
                 self.log(f"Procesando dispositivo: {device_serial}", 'info')
-                results[device_serial] = self._get_number_with_uiautomator2(device_serial, temp_dir)
+                numbers = self._get_number_with_uiautomator2(device_serial, temp_dir)
+                all_numbers[device_serial] = numbers
 
-            # Formatear y mostrar resultados
-            result_str = "Resultados de Detección de Números:\n\n"
-            for device, numbers in results.items():
-                result_str += f"📱 Dispositivo: {device}\n"
-                result_str += f"  - WhatsApp: {numbers['WhatsApp']}\n"
-                result_str += f"  - WhatsApp Business: {numbers['WhatsApp Business']}\n\n"
+                if numbers.get("WhatsApp") not in ["No encontrado", "Error"]:
+                    self.detected_phone_lines.append({"device": device_serial, "type": "WhatsApp", "number": numbers["WhatsApp"], "package": "com.whatsapp"})
+                if numbers.get("WhatsApp Business") not in ["No encontrado", "Error"]:
+                    self.detected_phone_lines.append({"device": device_serial, "type": "WhatsApp Business", "number": numbers["WhatsApp Business"], "package": "com.whatsapp.w4b"})
 
-            self.log("Detección de números finalizada.", 'success')
-            self.root.after(0, lambda: messagebox.showinfo("Detección Finalizada", result_str, parent=self.root))
+            # Actualizar la UI
+            display_text = ""
+            if self.detected_phone_lines:
+                display_text = "Líneas detectadas:\n\n"
+                for line in self.detected_phone_lines:
+                    display_text += f"📱 {line['device']}\n"
+                    display_text += f"  - {line['type']}: {line['number']}\n"
+            else:
+                display_text = "No se encontraron líneas de WhatsApp válidas."
+
+            self.root.after(0, self.detected_numbers_display.configure, {'state': tk.NORMAL})
+            self.root.after(0, self.detected_numbers_display.delete, "1.0", tk.END)
+            self.root.after(0, self.detected_numbers_display.insert, "1.0", display_text)
+            self.root.after(0, self.detected_numbers_display.configure, {'state': tk.DISABLED})
+
+            if show_results_popup:
+                self.log("Detección de números finalizada.", 'success')
+                self.root.after(0, lambda: messagebox.showinfo("Detección Finalizada", display_text, parent=self.root))
+
+            return bool(self.detected_phone_lines)
 
         except Exception as e:
             self.log(f"Error durante la detección de números: {e}", 'error')
-            self.root.after(0, lambda: messagebox.showerror("Error", f"Ocurrió un error inesperado:\n{e}", parent=self.root))
+            if show_results_popup:
+                self.root.after(0, lambda: messagebox.showerror("Error", f"Ocurrió un error inesperado:\n{e}", parent=self.root))
+            return False
         finally:
-            # Limpiar el directorio temporal
             try:
                 shutil.rmtree(temp_dir)
-                self.log(f"Directorio temporal eliminado.", "info")
             except Exception as e:
                 self.log(f"Error al eliminar el directorio temporal: {e}", "warning")
             self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.NORMAL, 'text': "Detectar Números"})
