@@ -4091,23 +4091,23 @@ class Hermes:
                             own_contact_element.click()
 
                             self.log("    Abriendo pantalla de información...", 'info')
-                                toolbar = d(resourceId=f"{pkg}:id/toolbar")
-                                if toolbar.wait(timeout=10):
-                                    toolbar.click()
+                            toolbar = d(resourceId=f"{pkg}:id/toolbar")
+                            if toolbar.wait(timeout=10):
+                                toolbar.click()
 
-                                    # Ahora buscar el número en la pantalla de info
-                                    self.log("    En la pantalla de información, buscando número...", 'info')
-                                    time.sleep(2)
+                                # Ahora buscar el número en la pantalla de info
+                                self.log("    En la pantalla de información, buscando número...", 'info')
+                                time.sleep(2)
 
-                                    # Estrategia mejorada: obtener todo el texto de la pantalla
-                                    all_text = " ".join([elem.text for elem in d(className="android.widget.TextView") if elem.text])
-                                    match = re.search(r'(\+[\d\s\-\(\)]+)', all_text)
-                                    if match:
-                                        number = re.sub(r'[\s\-\(\)]', '', match.group(1))
-                                        self.log(f"    Número encontrado en la pantalla de info: {number}", 'success')
-                                    else:
-                                        self.log("    No se encontró el número por texto. Intentando OCR...", 'warning')
-                                        number = self._get_number_with_ocr(d, temp_dir)
+                                # Estrategia mejorada: obtener todo el texto de la pantalla
+                                all_text = " ".join([elem.text for elem in d(className="android.widget.TextView") if elem.text])
+                                match = re.search(r'(\+[\d\s\-\(\)]+)', all_text)
+                                if match:
+                                    number = re.sub(r'[\s\-\(\)]', '', match.group(1))
+                                    self.log(f"    Número encontrado en la pantalla de info: {number}", 'success')
+                                else:
+                                    self.log("    No se encontró el número por texto. Intentando OCR...", 'warning')
+                                    number = self._get_number_with_ocr(d, temp_dir)
                         else:
                             self.log("    No se encontró el contacto '(Tú)' en la lista.", 'error')
 
