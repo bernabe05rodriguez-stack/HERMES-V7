@@ -247,6 +247,7 @@ class Hermes:
         # --- INICIO MODIFICACIÓN: Variables para el nuevo Modo Números Automático ---
         self.fidelizado_numeros_mode = tk.StringVar(value="Uno a uno")
         self.detected_phone_lines = [] # Almacenará {"device": str, "type": "WA/WB", "number": str}
+        self.manual_cycles_var = tk.IntVar(value=1) # NUEVO: Para los ciclos del modo "Uno a uno"
         # --- FIN MODIFICACIÓN ---
 
         self.manual_loops = 1
@@ -1617,17 +1618,23 @@ class Hermes:
         mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['button'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg_card'], button_color=self.colors['blue'], button_hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text'], height=35)
         mode_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Fila 1: Bucles y Delay
-        loops_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
-        ctk.CTkLabel(loops_container, text="Bucle:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        # Fila 1: Bucles, Ciclos y Delay
+        self.loops_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        self.loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
+        ctk.CTkLabel(self.loops_container, text="Bucle:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         self.manual_loops_var = tk.IntVar(value=max(1, self.manual_loops))
-        spinbox_loops = self._create_spinbox_widget(loops_container, self.manual_loops_var, min_val=1, max_val=100)
+        spinbox_loops = self._create_spinbox_widget(self.loops_container, self.manual_loops_var, min_val=1, max_val=100)
         spinbox_loops.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        delay_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
-        ctk.CTkLabel(delay_container, text="Tiempo (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        # NUEVO: Contenedor para Ciclos (inicialmente oculto)
+        self.cycles_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        ctk.CTkLabel(self.cycles_container, text="Ciclos:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        spinbox_cycles = self._create_spinbox_widget(self.cycles_container, self.manual_cycles_var, min_val=1, max_val=100)
+        spinbox_cycles.pack(side=tk.LEFT, expand=True, fill=tk.X)
+
+        self.delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        self.delay_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
+        ctk.CTkLabel(self.delay_container, text="Tiempo (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
 
         delay_spinboxes = ctk.CTkFrame(delay_container, fg_color="transparent")
         delay_spinboxes.pack(side=tk.LEFT, expand=True, fill=tk.X)
@@ -1713,57 +1720,70 @@ class Hermes:
 
         # --- Lógica de la Vista ---
         self.fidelizado_mode_var.trace_add('write', self._update_fidelizado_ui_mode)
+        self.fidelizado_numeros_mode.trace_add('write', self._update_fidelizado_ui_mode) # NUEVO: trace para los radio buttons
         self._update_fidelizado_ui_mode()
         self._populate_fidelizado_inputs()
 
     def _update_fidelizado_ui_mode(self, *args):
         """Muestra u oculta los widgets según el modo Fidelizado seleccionado."""
         mode_ui = self.fidelizado_mode_var.get()
+        numeros_submode = self.fidelizado_numeros_mode.get()
 
         # Mapeo de UI a modo interno
         mode_map_from_ui = {"Modo Números": "NUMEROS", "Modo Grupos": "GRUPOS", "Modo Mixto": "MIXTO"}
         self.fidelizado_mode = mode_map_from_ui.get(mode_ui)
 
         # Visibilidad de widgets
-        show_numbers = self.fidelizado_mode in ["NUMEROS", "MIXTO"]
-        show_groups = self.fidelizado_mode in ["GRUPOS", "MIXTO"]
         show_mixto_variant = self.fidelizado_mode == "MIXTO"
+        show_cycles = self.fidelizado_mode == "NUMEROS" and numeros_submode == "Uno a uno"
 
         # Ocultar todos los frames de input primero
         self.fidelizado_numbers_frame.grid_forget()
         self.fidelizado_groups_frame.grid_forget()
 
-        # Configurar el grid del contenedor de inputs según el modo
-        if self.fidelizado_mode == "MIXTO":
-            # Modo Mixto: 2 filas, 1 columna para mostrar ambos inputs uno debajo del otro
-            self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_columnconfigure(1, weight=0)  # No usar la segunda columna
-            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)    # Fila para números
-            self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1)    # Fila para grupos
+        # Reorganización de la columna de inputs
+        if self.fidelizado_mode == "NUMEROS":
+            # Ocultar el textbox de grupos y mostrar solo el de números.
+            self.fidelizado_groups_frame.grid_forget()
+            self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew")
 
+            # Hacer que la columna de la izquierda (inputs) ocupe todo el espacio
+            self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
+            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1) # Asegurar que la fila se expande
+
+        elif self.fidelizado_mode == "GRUPOS":
+            self.fidelizado_numbers_frame.grid_forget()
+            self.fidelizado_groups_frame.grid(row=0, column=0, sticky="nsew")
+            self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
+            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
+
+        elif self.fidelizado_mode == "MIXTO":
+            # Modo Mixto: 2 filas, 1 columna
+            self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
+            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
+            self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1)
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
             self.fidelizado_groups_frame.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
 
-        elif self.fidelizado_mode == "NUMEROS":
-            # Modo Números: 1 fila, 1 columna
-            self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_columnconfigure(1, weight=0)
-            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
-
-            self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew")
-
-        elif self.fidelizado_mode == "GRUPOS":
-            # Modo Grupos: 1 fila, 1 columna
-            self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_columnconfigure(1, weight=0)
-            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
-
-            self.fidelizado_groups_frame.grid(row=0, column=0, sticky="nsew")
-
+        # Control de visibilidad para widgets de configuración
         if show_mixto_variant:
             self.mixto_variant_container.grid(row=2, column=0, columnspan=2, sticky='w', pady=(0, 15))
         else:
             self.mixto_variant_container.grid_remove()
+
+        # NUEVO: Visibilidad del selector de Ciclos
+        if show_cycles:
+            # Reorganizar: Bucles y Ciclos en la misma fila, Delay debajo
+            self.loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
+            self.cycles_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
+            self.delay_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=0)
+        else:
+            self.cycles_container.grid_remove()
+            # Restaurar el layout original: Bucles a la izquierda, Delay a la derecha
+            self.loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
+            self.delay_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
+            # Asegurar que la fila 2 no ocupe espacio si está vacía
+            self.delay_container.master.grid_rowconfigure(2, weight=0)
 
         # Visibilidad del botón "Unirse a Grupos"
         if self.fidelizado_mode == "GRUPOS":
@@ -1840,13 +1860,18 @@ class Hermes:
         # Calcular total_messages
         num_lines = len(self.detected_phone_lines)
         num_bucles = self.manual_loops_var.get()
+        num_ciclos = self.manual_cycles_var.get()
 
         if self.fidelizado_numeros_mode.get() == "Uno a uno":
-            total = (num_lines // 2) * 2 * num_bucles
+            # Cada ciclo crea N/2 parejas, y cada pareja envía 2 mensajes.
+            # Esto se repite por el número de ciclos y luego por el número de bucles.
+            total = (num_lines // 2) * 2 * num_ciclos * num_bucles
         else: # Uno a muchos
-            # Cada línea habla con todas las demás (N-1).
-            # Por cada par, hay una conversación de ida y vuelta (2 mensajes).
-            total = num_lines * (num_lines - 1) * 2 * num_bucles
+            # Se generan N*(N-1)/2 parejas únicas.
+            # Cada pareja tiene una conversación de ida y vuelta (2 mensajes).
+            # Esto se repite por el número de bucles.
+            num_pairs = num_lines * (num_lines - 1) // 2
+            total = num_pairs * 2 * num_bucles
 
         self.total_messages = total
         self.log(f"Cálculo para Modo '{self.fidelizado_numeros_mode.get()}': {self.total_messages} mensajes en total.", 'info')
@@ -2906,6 +2931,7 @@ class Hermes:
         """
         Lógica de envío para MODO NÚMEROS - UNO A UNO.
         Las líneas detectadas se emparejan aleatoriamente y conversan entre sí.
+        Se repite según la configuración de Bucles y Ciclos.
         """
         self.log("Iniciando MODO NÚMEROS (Uno a uno)...", 'info')
         if len(self.detected_phone_lines) < 2:
@@ -2916,56 +2942,63 @@ class Hermes:
         lines = self.detected_phone_lines.copy()
         num_lines = len(lines)
         num_bucles = self.manual_loops_var.get()
+        num_ciclos = self.manual_cycles_var.get() # NUEVO
         
         task_counter = 0
         mensaje_index = self.mensaje_start_index
-        total_mensajes = len(self.manual_messages_numbers)
+        total_mensajes_lib = len(self.manual_messages_numbers)
 
-        for ciclo in range(num_bucles):
+        # Bucle externo para los Bucles
+        for bucle_num in range(num_bucles):
             if self.should_stop: break
-            self.log(f"\n--- CICLO {ciclo + 1}/{num_bucles} ---", 'info')
-            
-            random.shuffle(lines)
+            self.log(f"\n--- INICIANDO BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
 
-            # Manejar número impar de líneas
-            excluded = None
-            if num_lines % 2 != 0:
-                excluded = lines.pop()
-                self.log(f"Número impar de líneas. {excluded['number']} quedará fuera de esta ronda.", 'warning')
-
-            # Crear parejas
-            pairs = []
-            for i in range(0, len(lines), 2):
-                pairs.append((lines[i], lines[i+1]))
-
-            self.log(f"Se formaron {len(pairs)} parejas para esta ronda.", 'info')
-
-            for i, (line_a, line_b) in enumerate(pairs):
+            # Bucle interno para los Ciclos
+            for ciclo_num in range(num_ciclos):
                 if self.should_stop: break
-                self.log(f"\n=== Pareja {i+1}/{len(pairs)}: {line_a['number']} <-> {line_b['number']} ===", 'info')
+                self.log(f"\n--- Ciclo {ciclo_num + 1}/{num_ciclos} (dentro del Bucle {bucle_num + 1}) ---", 'info')
 
-                # Conversación de ida y vuelta
-                # A -> B
-                task_counter += 1
-                mensaje_ida = self.manual_messages_numbers[mensaje_index % total_mensajes]; mensaje_index += 1
-                link_ida = f"https://wa.me/{line_b['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_ida, safe='')}"
-                self.run_single_task(line_a['device'], link_ida, None, task_counter, whatsapp_package=line_a['package'])
-                if self.should_stop: break
-                
-                # B -> A
-                task_counter += 1
-                mensaje_vuelta = self.manual_messages_numbers[mensaje_index % total_mensajes]; mensaje_index += 1
-                link_vuelta = f"https://wa.me/{line_a['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_vuelta, safe='')}"
-                self.run_single_task(line_b['device'], link_vuelta, None, task_counter, whatsapp_package=line_b['package'])
+                random.shuffle(lines)
 
-            # Si había una línea excluida, se reincorpora para la siguiente ronda
-            if excluded:
-                lines.append(excluded)
+                # Manejar número impar de líneas
+                excluded = None
+                current_lines = lines.copy()
+                if num_lines % 2 != 0:
+                    excluded = current_lines.pop()
+                    self.log(f"Número impar de líneas. {excluded['number']} quedará fuera de este ciclo.", 'warning')
+
+                # Crear parejas
+                pairs = []
+                for i in range(0, len(current_lines), 2):
+                    pairs.append((current_lines[i], current_lines[i+1]))
+
+                self.log(f"Se formaron {len(pairs)} parejas para este ciclo.", 'info')
+
+                for i, (line_a, line_b) in enumerate(pairs):
+                    if self.should_stop: break
+                    self.log(f"\n=== Pareja {i+1}/{len(pairs)}: {line_a['number']} <-> {line_b['number']} ===", 'info')
+
+                    # Conversación de ida y vuelta
+                    # A -> B
+                    task_counter += 1
+                    mensaje_ida = self.manual_messages_numbers[mensaje_index % total_mensajes_lib]; mensaje_index += 1
+                    link_ida = f"https://wa.me/{line_b['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_ida, safe='')}"
+                    self.run_single_task(line_a['device'], link_ida, None, task_counter, whatsapp_package=line_a['package'])
+                    if self.should_stop: break
+
+                    # B -> A
+                    task_counter += 1
+                    mensaje_vuelta = self.manual_messages_numbers[mensaje_index % total_mensajes_lib]; mensaje_index += 1
+                    link_vuelta = f"https://wa.me/{line_a['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_vuelta, safe='')}"
+                    self.run_single_task(line_b['device'], link_vuelta, None, task_counter, whatsapp_package=line_b['package'])
+
+            if self.should_stop: break
+            self.log(f"\n--- FIN BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
 
     def run_uno_a_muchos_thread(self):
         """
         Lógica de envío para MODO NÚMEROS - UNO A MUCHOS.
-        Cada línea detectada conversa con todas las demás.
+        Cada línea detectada conversa con todas las demás, una sola vez por par.
         """
         self.log("Iniciando MODO NÚMEROS (Uno a muchos)...", 'info')
         if len(self.detected_phone_lines) < 2:
@@ -2979,38 +3012,37 @@ class Hermes:
 
         task_counter = 0
         mensaje_index = self.mensaje_start_index
-        total_mensajes = len(self.manual_messages_numbers)
+        total_mensajes_lib = len(self.manual_messages_numbers)
 
-        for ciclo in range(num_bucles):
+        for bucle_num in range(num_bucles):
             if self.should_stop: break
-            self.log(f"\n--- CICLO {ciclo + 1}/{num_bucles} ---", 'info')
+            self.log(f"\n--- BUCLE {bucle_num + 1}/{num_bucles} ---", 'info')
 
-            # Cada línea toma el turno de ser el "emisor principal"
+            # Crear todas las parejas únicas
+            pairs = []
             for i in range(num_lines):
+                for j in range(i + 1, num_lines):
+                    pairs.append((lines[i], lines[j]))
+
+            self.log(f"Se formaron {len(pairs)} parejas únicas para este bucle.", 'info')
+
+            for i, (line_a, line_b) in enumerate(pairs):
+                if self.should_stop: break
+                self.log(f"\n=== Conversación {i+1}/{len(pairs)}: {line_a['number']} <-> {line_b['number']} ===", 'info')
+
+                # Conversación de ida y vuelta
+                # A -> B
+                task_counter += 1
+                mensaje_ida = self.manual_messages_numbers[mensaje_index % total_mensajes_lib]; mensaje_index += 1
+                link_ida = f"https://wa.me/{line_b['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_ida, safe='')}"
+                self.run_single_task(line_a['device'], link_ida, None, task_counter, whatsapp_package=line_a['package'])
                 if self.should_stop: break
 
-                emisor = lines[i]
-                receptores = lines[:i] + lines[i+1:]
-
-                self.log(f"\n=== Turno de {emisor['number']}: Hablando con {len(receptores)} línea(s) ===", 'info')
-
-                for receptor in receptores:
-                    if self.should_stop: break
-                    self.log(f"--- Conversación: {emisor['number']} <-> {receptor['number']} ---", 'info')
-
-                    # Conversación de ida y vuelta
-                    # Emisor -> Receptor
-                    task_counter += 1
-                    mensaje_ida = self.manual_messages_numbers[mensaje_index % total_mensajes]; mensaje_index += 1
-                    link_ida = f"https://wa.me/{receptor['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_ida, safe='')}"
-                    self.run_single_task(emisor['device'], link_ida, None, task_counter, whatsapp_package=emisor['package'])
-                    if self.should_stop: break
-                    
-                    # Receptor -> Emisor
-                    task_counter += 1
-                    mensaje_vuelta = self.manual_messages_numbers[mensaje_index % total_mensajes]; mensaje_index += 1
-                    link_vuelta = f"https://wa.me/{emisor['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_vuelta, safe='')}"
-                    self.run_single_task(receptor['device'], link_vuelta, None, task_counter, whatsapp_package=receptor['package'])
+                # B -> A
+                task_counter += 1
+                mensaje_vuelta = self.manual_messages_numbers[mensaje_index % total_mensajes_lib]; mensaje_index += 1
+                link_vuelta = f"https://wa.me/{line_a['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_vuelta, safe='')}"
+                self.run_single_task(line_b['device'], link_vuelta, None, task_counter, whatsapp_package=line_b['package'])
     
     def run_grupos_dual_whatsapp_thread(self):
         """
