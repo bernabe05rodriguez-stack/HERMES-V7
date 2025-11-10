@@ -1513,29 +1513,27 @@ class Hermes:
         content = ctk.CTkFrame(fidelizado_container, fg_color=self.colors['bg_card'], corner_radius=30)
         content.pack(fill=tk.BOTH, expand=True, padx=0, pady=(10, 20))
 
-        # Layout principal de 2 columnas
+        # Layout principal reconfigurado para una columna expandible
         content.grid_columnconfigure(0, weight=1)
-        content.grid_columnconfigure(1, weight=1)
-        content.grid_rowconfigure(2, weight=1) # La fila de inputs se expande
+        content.grid_rowconfigure(1, weight=1) # Fila de contenido principal se expande
 
-        # --- Fila 0: Botón Volver ---
-        back_button_frame = ctk.CTkFrame(content, fg_color="transparent")
-        back_button_frame.grid(row=0, column=0, columnspan=2, sticky="w", padx=30, pady=(15, 5))
-        back_button = ctk.CTkButton(back_button_frame, text="Volver al modo Masivos",
+        # --- Fila 0: Header (Volver y Título) ---
+        header_frame = ctk.CTkFrame(content, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(15, 10))
+
+        back_button = ctk.CTkButton(header_frame, text="Volver al modo Masivos",
                                       command=self.show_traditional_view,
                                       fg_color="transparent",
                                       text_color=self.colors['text_light'],
                                       hover_color=self.colors['bg'])
         back_button.pack(side=tk.LEFT)
 
-        # --- Fila 1: Título ---
-        title_frame = ctk.CTkFrame(content, fg_color="transparent")
-        title_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=30, pady=(5, 15))
-        ctk.CTkLabel(title_frame, text="Modo Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(anchor='w')
+        ctk.CTkLabel(header_frame, text="Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT, padx=20)
 
-        # --- Fila 2: Inputs (Números y Grupos) y Controles ---
+
+        # --- Fila 1: Contenido Principal ---
         self.fidelizado_main_content_frame = ctk.CTkFrame(content, fg_color="transparent")
-        self.fidelizado_main_content_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=30, pady=(0, 20))
+        self.fidelizado_main_content_frame.grid(row=1, column=0, sticky="nsew", padx=30, pady=(0, 20))
         self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=55) # Columna de inputs
         self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=45) # Columna de controles
         self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=1)
@@ -1555,19 +1553,13 @@ class Hermes:
         # Widgets de Números (MODIFICADO para el nuevo modo automático)
         self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
         self.fidelizado_numbers_frame.grid_columnconfigure(0, weight=1)
-        # Controles para el modo "Uno a uno" vs "Uno a muchos"
-        numeros_mode_container = ctk.CTkFrame(self.fidelizado_numbers_frame, fg_color="transparent")
-        numeros_mode_container.grid(row=0, column=0, sticky='ew', pady=(0, 15))
-        ctk.CTkLabel(numeros_mode_container, text="Modo de Conversación:", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT, anchor="w")
 
-        ctk.CTkRadioButton(numeros_mode_container, text="Uno a uno", variable=self.fidelizado_numeros_mode, value="Uno a uno", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(15, 10))
-        ctk.CTkRadioButton(numeros_mode_container, text="Uno a muchos", variable=self.fidelizado_numeros_mode, value="Uno a muchos", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=10)
-
-        # Widgets de Grupos (Label y Textbox) - SIN CAMBIOS
+        # Widgets de Grupos (Label y Textbox)
         self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
-        ctk.CTkLabel(self.fidelizado_groups_frame, text="Links de Grupos (https://...)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor="w", pady=(0, 10))
-        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
-        self.fidelizado_groups_text.pack(fill="both", expand=True)
+        self.fidelizado_groups_frame.grid_columnconfigure(0, weight=1) # Hacer que el textbox se expanda horizontalmente
+        ctk.CTkLabel(self.fidelizado_groups_frame, text="Links de Grupos (https://...)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', pady=(0, 10))
+        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=150) # Altura más controlada
+        self.fidelizado_groups_text.grid(row=1, column=0, sticky="ew")
 
         # --- Columna Derecha: Controles de Envío ---
         self.fidelizado_controls_col = ctk.CTkFrame(self.fidelizado_main_content_frame, fg_color="transparent")
@@ -1609,16 +1601,22 @@ class Hermes:
         mode_container = ctk.CTkFrame(config_grid, fg_color="transparent")
         mode_container.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         ctk.CTkLabel(mode_container, text="Modo de envío:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        fidelizado_modes = ["Modo Números", "Modo Grupos", "Modo Mixto"]
+        fidelizado_modes = ["Modo Números", "Modo Grupos"]
         mode_map_to_ui = {"NUMEROS": "Modo Números", "GRUPOS": "Modo Grupos", "MIXTO": "Modo Mixto"}
         current_mode_ui = mode_map_to_ui.get(self.fidelizado_mode, "Modo Números")
         self.fidelizado_mode_var = tk.StringVar(value=current_mode_ui)
         mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['button'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg_card'], button_color=self.colors['blue'], button_hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text'], height=35)
         mode_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Fila 1: Bucles y Ciclos
+        # Fila 1: Controles para el modo "Uno a uno" vs "Uno a muchos"
+        self.numeros_mode_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        ctk.CTkLabel(self.numeros_mode_container, text="Modo de Conversación:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, anchor="w", padx=(0,10))
+        ctk.CTkRadioButton(self.numeros_mode_container, text="Uno a uno", variable=self.fidelizado_numeros_mode, value="Uno a uno", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(15, 10))
+        ctk.CTkRadioButton(self.numeros_mode_container, text="Uno a muchos", variable=self.fidelizado_numeros_mode, value="Uno a muchos", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=10)
+
+        # Fila 2: Bucles y Ciclos
         self.loops_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        self.loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
+        self.loops_container.grid(row=2, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
         ctk.CTkLabel(self.loops_container, text="Bucle:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         self.manual_loops_var = tk.IntVar(value=max(1, self.manual_loops))
         spinbox_loops = self._create_spinbox_widget(self.loops_container, self.manual_loops_var, min_val=1, max_val=100)
@@ -1630,22 +1628,22 @@ class Hermes:
         spinbox_cycles = self._create_spinbox_widget(self.cycles_container, self.manual_cycles_var, min_val=1, max_val=100)
         spinbox_cycles.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Fila 2: Velocidad y WhatsApp
+        # Fila 3: Velocidad y WhatsApp
         speed_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        speed_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        speed_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         ctk.CTkLabel(speed_container, text="Velocidad escritura:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         speed_menu = ctk.CTkSegmentedButton(speed_container, variable=self.write_speed, values=["Lento", "Normal", "Rápido"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['blue'], selected_hover_color=darken_color(self.colors['blue'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
         speed_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
         whatsapp_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        whatsapp_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        whatsapp_container.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         self.fidelizado_whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
         self.fidelizado_whatsapp_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # --- Fila 4: Retardo entre envíos ---
+        # --- Fila 5: Retardo entre envíos ---
         delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        delay_container.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        delay_container.grid(row=5, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         ctk.CTkLabel(delay_container, text="Retardo Envíos (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         spinbox_frame = ctk.CTkFrame(delay_container, fg_color="transparent")
         spinbox_frame.pack(side=tk.RIGHT)
@@ -1730,6 +1728,7 @@ class Hermes:
         mode_map_from_ui = {"Modo Números": "NUMEROS", "Modo Grupos": "GRUPOS", "Modo Mixto": "MIXTO"}
         self.fidelizado_mode = mode_map_from_ui.get(mode_ui)
 
+        show_numeros_mode = self.fidelizado_mode == "NUMEROS"
         show_mixto_variant = self.fidelizado_mode == "MIXTO"
         show_cycles = self.fidelizado_mode == "NUMEROS" and numeros_submode == "Uno a uno"
 
@@ -1743,7 +1742,16 @@ class Hermes:
 
             self.fidelizado_inputs_col.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 20))
             self.fidelizado_controls_col.grid(row=1, column=0, sticky="nsew", padx=0) # Controles abajo
-        else:
+        elif self.fidelizado_mode == "GRUPOS":
+            # Layout de 1 columna: Apilar controles arriba y inputs (links de grupo) abajo
+            self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=1)
+            self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=0) # Anular segunda columna
+            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=0) # Fila de controles (arriba) no se expande
+            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=0) # Fila de inputs (abajo) tampoco
+
+            self.fidelizado_controls_col.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 20)) # Controles arriba
+            self.fidelizado_inputs_col.grid(row=1, column=0, sticky="ew", padx=0) # Inputs (links) abajo
+        else: # MODO MIXTO
             # Layout de 2 columnas: Inputs a la izquierda, controles a la derecha
             self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=55)
             self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=45)
@@ -1767,17 +1775,22 @@ class Hermes:
 
 
         # --- 3. Visibilidad de Configuración Adicional ---
+        if show_numeros_mode:
+            self.numeros_mode_container.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
+        else:
+            self.numeros_mode_container.grid_remove()
+
         if show_mixto_variant:
-            self.mixto_variant_container.grid(row=4, column=0, columnspan=2, sticky='w', pady=(0, 15))
+            self.mixto_variant_container.grid(row=6, column=0, columnspan=2, sticky='w', pady=(0, 15))
         else:
             self.mixto_variant_container.grid_remove()
 
         if show_cycles:
-            self.loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
-            self.cycles_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
+            self.loops_container.grid(row=2, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
+            self.cycles_container.grid(row=2, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
         else:
             self.cycles_container.grid_remove()
-            self.loops_container.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=0)
+            self.loops_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=0)
 
 
         # --- 4. Visibilidad de Botones de Acción ---
@@ -3057,90 +3070,104 @@ class Hermes:
         Por cada grupo, envía con los WhatsApps seleccionados (Normal, Business o Ambos).
         Los mensajes rotan: 1,2,3,4... y cuando se acaban vuelven al 1.
         """
-        try:
-            self._enter_task_mode()
+        # --- FILTRADO DE DISPOSITIVOS ---
+        active_devices = self._get_filtered_devices()
+        if not active_devices:
+            self.log("No hay dispositivos que cumplan con el filtro seleccionado.", "error")
+            self.root.after(0, lambda: messagebox.showerror("Error", "No se encontraron dispositivos que cumplan con el filtro de WhatsApp seleccionado.", parent=self.root))
+            return
+        # --- FIN FILTRADO ---
 
-            # --- FILTRADO DE DISPOSITIVOS ---
-            active_devices = self._get_filtered_devices()
-            if not active_devices:
-                self.log("No hay dispositivos que cumplan con el filtro seleccionado.", "error")
-                self.root.after(0, lambda: messagebox.showerror("Error", "No se encontraron dispositivos que cumplan con el filtro de WhatsApp seleccionado.", parent=self.root))
-                return
-            # --- FIN FILTRADO ---
+        num_devices = len(active_devices)
+        num_grupos = len(self.manual_inputs_groups)
+        num_bucles = self.manual_loops_var.get()
 
-            num_devices = len(active_devices)
-            num_grupos = len(self.manual_inputs_groups)
-            num_bucles = self.manual_loops
+        if len(self.manual_messages_groups) < 1:
+            self.log("Error: Modo Grupos requiere al menos 1 mensaje cargado.", "error")
+            messagebox.showerror("Error", "Debes cargar al menos 1 archivo de mensajes.", parent=self.root)
+            return
 
-            if len(self.manual_messages_groups) < 1:
-                self.log("Error: Modo Grupos requiere al menos 1 mensaje cargado.", "error")
-                messagebox.showerror("Error", "Debes cargar al menos 1 archivo de mensajes.", parent=self.root)
-                return
+        # Usar índice de inicio aleatorio
+        mensaje_index = self.mensaje_start_index
+        total_mensajes_lib = len(self.manual_messages_groups)
+        task_counter = 0
+        whatsapp_apps = self._get_whatsapp_apps_to_use()
 
-            # Usar índice de inicio aleatorio
-            mensaje_index = self.mensaje_start_index
-            total_mensajes = len(self.manual_messages_groups)
-            task_counter = 0
-            whatsapp_apps = self._get_whatsapp_apps_to_use()
+        self.log(f"Modo Grupos: {num_bucles} bucle(s), {num_grupos} grupo(s), {num_devices} dispositivo(s)", 'info')
+        self.log(f"WhatsApp: {self.whatsapp_mode.get()}", 'info')
+        self.log(f"Total de envíos: {self.total_messages}", 'info')
 
-            self.log(f"Modo Grupos: {num_bucles} ciclo(s), {num_grupos} grupo(s), {num_devices} dispositivo(s)", 'info')
-            self.log(f"WhatsApp: {self.whatsapp_mode.get()}", 'info')
-            self.log(f"Total de envíos: {self.total_messages}", 'info')
+        for bucle_num in range(num_bucles):
+            if self.should_stop: break
+            self.log(f"\n--- INICIANDO BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
 
-            for ciclo in range(num_bucles):
+            # Por cada grupo
+            for idx_grupo, grupo_link in enumerate(self.manual_inputs_groups):
                 if self.should_stop: break
-                self.log(f"\n--- CICLO {ciclo + 1}/{num_bucles} ---", 'info')
+                grupo_display = grupo_link[:50] + "..." if len(grupo_link) > 50 else grupo_link
+                self.log(f"\n=== GRUPO {idx_grupo + 1}/{num_grupos}: {grupo_display} ===", 'info')
 
-                # Por cada grupo
-                for idx_grupo, grupo_link in enumerate(self.manual_inputs_groups):
+                # Por cada dispositivo ACTIVO
+                for device in active_devices:
                     if self.should_stop: break
-                    grupo_display = grupo_link[:50] + "..." if len(grupo_link) > 50 else grupo_link
-                    self.log(f"\n=== GRUPO {idx_grupo + 1}/{num_grupos}: {grupo_display} ===", 'info')
 
-                    # Por cada dispositivo
-                    for device in self.devices:
+                    # Por cada WhatsApp (Normal, Business, etc.)
+                    for wa_idx, (wa_name, wa_package) in enumerate(whatsapp_apps):
                         if self.should_stop: break
 
-                        # Por cada WhatsApp (Normal, Business, o Ambos)
-                        for wa_name, wa_package in whatsapp_apps:
-                            if self.should_stop: break
+                        task_counter += 1
 
-                            task_counter += 1
-                            self.current_index = task_counter
-                            self.root.after(0, self.update_stats)
+                        # Obtener mensaje rotativo
+                        mensaje = self.manual_messages_groups[mensaje_index % total_mensajes_lib]
+                        mensaje_index += 1
 
-                            # Obtener mensaje rotativo
-                            mensaje = self.manual_messages_groups[mensaje_index % total_mensajes]
-                            mensaje_index += 1
+                        # Usar run_single_task que ya tiene toda la lógica de envío + retardo post-tarea
+                        success = self.run_single_task(
+                            device, grupo_link, mensaje, task_counter, whatsapp_package=wa_package
+                        )
 
-                            # Enviar usando la función auxiliar
-                            success = self._send_to_target_with_whatsapp(
-                                device, grupo_link, wa_name, wa_package, mensaje, task_counter
-                            )
+                        # Lógica de cambio de cuenta para el modo "TODAS"
+                        if wa_name == "Normal" and self.whatsapp_mode.get() == "Todas":
+                            self.log(f"[{device}] Cerrando WhatsApp Normal después de enviar...", 'info')
+                            self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp'], timeout=5)
+                            time.sleep(1)
 
-                            # Pausa entre WhatsApps si hay más de uno
-                            if success and len(whatsapp_apps) > 1 and wa_name == whatsapp_apps[0][0]:
-                                wait_between = self.wait_between_messages.get()
-                                if wait_between > 0:
-                                    self.log(f"Esperando {wait_between}s antes del siguiente WhatsApp...", 'info')
-                                    elapsed = 0
-                                    while elapsed < wait_between and not self.should_stop:
-                                        while self.is_paused and not self.should_stop: time.sleep(0.1)
-                                        if self.should_stop: break
-                                        time.sleep(0.1)
-                                        elapsed += 0.1
+                            self.log(f"[{device}] Reabriendo WhatsApp Normal...", 'info')
+                            self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', 'com.whatsapp/.Main'], timeout=5)
+                            time.sleep(3)
 
-                            time.sleep(0.5)  # Pequeña pausa entre envíos
+                            self.log(f"[{device}] Cambiando de cuenta...", 'info')
+                            self._switch_account_for_device(device)
+                            time.sleep(1)
 
-                    if self.should_stop: break
-                    self.log(f"\n=== GRUPO {idx_grupo + 1} completado ===", 'success')
+                            self.log(f"[{device}] Cerrando WhatsApp Normal después de cambiar cuenta...", 'info')
+                            self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp'], timeout=5)
+                            time.sleep(1)
+
+                            self.log(f"[{device}] Reabriendo WhatsApp Normal con nueva cuenta...", 'info')
+                            self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', 'com.whatsapp/.Main'], timeout=5)
+                            time.sleep(2)
+
+
+                        # Pausa entre diferentes tipos de WhatsApp (ej. Business -> Normal)
+                        if success and len(whatsapp_apps) > 1 and wa_idx < len(whatsapp_apps) - 1:
+                            wait_between = self.wait_between_messages.get()
+                            if wait_between > 0:
+                                self.log(f"Esperando {wait_between}s antes del siguiente WhatsApp...", 'info')
+                                elapsed = 0
+                                while elapsed < wait_between and not self.should_stop:
+                                    while self.is_paused and not self.should_stop: time.sleep(0.1)
+                                    if self.should_stop: break
+                                    time.sleep(0.1)
+                                    elapsed += 0.1
 
                 if self.should_stop: break
-                self.log(f"\n--- CICLO {ciclo + 1} completado ---", 'success')
+                self.log(f"\n=== GRUPO {idx_grupo + 1} completado ===", 'success')
 
-            self.log(f"\nModo Grupos Dual finalizado", 'success')
-        finally:
-            self._finalize_sending()
+            if self.should_stop: break
+            self.log(f"\n--- FIN BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
+
+        self.log(f"\nModo Grupos finalizado", 'success')
 
     def run_unirse_grupos(self, grupos):
         """
