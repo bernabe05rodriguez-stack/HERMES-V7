@@ -1803,14 +1803,14 @@ class Hermes:
             self.actions_frame.grid_columnconfigure(1, weight=0) # Desactivar la segunda columna
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO FIDELIZADO")
 
-    # --- FIX: Lógica para mostrar/ocultar "Todas" ---
-    if self.fidelizado_mode == "NUMEROS":
-        self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas"])
-        # Si "Todas" estaba seleccionado, cambiar a "Ambas" para evitar un estado inválido
-        if self.whatsapp_mode.get() == "Todas":
-            self.whatsapp_mode.set("Ambas")
-    else:
-        self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas", "Todas"])
+        # --- FIX: Lógica para mostrar/ocultar "Todas" ---
+        if self.fidelizado_mode == "NUMEROS":
+            self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas"])
+            # Si "Todas" estaba seleccionado, cambiar a "Ambas" para evitar un estado inválido
+            if self.whatsapp_mode.get() == "Todas":
+                self.whatsapp_mode.set("Ambas")
+        else:
+            self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas", "Todas"])
 
     def _populate_fidelizado_inputs(self):
         """Limpia y rellena los campos de texto con los datos guardados en las variables."""
