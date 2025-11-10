@@ -1635,22 +1635,9 @@ class Hermes:
         spinbox_cycles = self._create_spinbox_widget(self.cycles_container, self.manual_cycles_var, min_val=1, max_val=100)
         spinbox_cycles.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # FIX: Contenedor para el nuevo retardo entre envíos
-        self.send_delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        self.send_delay_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0,15))
-        ctk.CTkLabel(self.send_delay_container, text="Retardo Envíos (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-
-        send_delay_spinboxes = ctk.CTkFrame(self.send_delay_container, fg_color="transparent")
-        send_delay_spinboxes.pack(side=tk.LEFT, expand=True, fill=tk.X)
-        spinbox_send_delay_min = self._create_spinbox_widget(send_delay_spinboxes, self.fidelizado_send_delay_min, min_val=1, max_val=300)
-        spinbox_send_delay_min.pack(side=tk.LEFT, expand=True)
-        ctk.CTkLabel(send_delay_spinboxes, text="-", font=self.fonts['button'], fg_color="transparent").pack(side=tk.LEFT, padx=4)
-        spinbox_send_delay_max = self._create_spinbox_widget(send_delay_spinboxes, self.fidelizado_send_delay_max, min_val=1, max_val=300)
-        spinbox_send_delay_max.pack(side=tk.LEFT, expand=True)
-
-        # Fila 3: Velocidad y WhatsApp (se movió una fila hacia abajo)
+        # Fila 2: Velocidad y WhatsApp
         speed_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        speed_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        speed_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         ctk.CTkLabel(speed_container, text="Velocidad escritura:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         speed_menu = ctk.CTkSegmentedButton(speed_container, variable=self.write_speed, values=["Lento", "Normal", "Rápido"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['blue'], selected_hover_color=darken_color(self.colors['blue'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
         speed_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
@@ -1662,10 +1649,10 @@ class Hermes:
         self.fidelizado_whatsapp_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
         # Card para Mensajes
-        messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 20))
-        ctk.CTkLabel(messages_card, text="✍️ Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
-        self.fidelizado_messages_container = ctk.CTkFrame(messages_card, fg_color="transparent")
+        self.messages_card = ctk.CTkFrame(controls_col, fg_color=self.colors['bg'], corner_radius=15)
+        self.messages_card.grid(row=3, column=0, sticky="ew", pady=(0, 20))
+        ctk.CTkLabel(self.messages_card, text="✍️ Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
+        self.fidelizado_messages_container = ctk.CTkFrame(self.messages_card, fg_color="transparent")
         self.fidelizado_messages_container.pack(fill="x", padx=20, pady=(0, 20))
         self.fidelizado_messages_container.grid_columnconfigure(1, weight=1)
 
@@ -1733,84 +1720,60 @@ class Hermes:
         mode_ui = self.fidelizado_mode_var.get()
         numeros_submode = self.fidelizado_numeros_mode.get()
 
-        # Mapeo de UI a modo interno
         mode_map_from_ui = {"Modo Números": "NUMEROS", "Modo Grupos": "GRUPOS", "Modo Mixto": "MIXTO"}
         self.fidelizado_mode = mode_map_from_ui.get(mode_ui)
 
-        # Visibilidad de widgets
         show_mixto_variant = self.fidelizado_mode == "MIXTO"
         show_cycles = self.fidelizado_mode == "NUMEROS" and numeros_submode == "Uno a uno"
 
-        # Ocultar todos los frames de input primero
-        self.fidelizado_numbers_frame.grid_forget()
-        self.fidelizado_groups_frame.grid_forget()
-
-        # Reorganización de la columna de inputs
+        # --- Visibilidad de Inputs y Tarjeta de Mensajes ---
         if self.fidelizado_mode == "NUMEROS":
-            # Ocultar el textbox de grupos y mostrar solo el de números.
-            self.fidelizado_groups_frame.grid_forget()
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew")
-
-            # Hacer que la columna de la izquierda (inputs) ocupe todo el espacio
-            self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1) # Asegurar que la fila se expande
-
+            self.fidelizado_groups_frame.grid_forget()
+            self.messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 20)) # FIX: Mostrar siempre la tarjeta de mensajes
         elif self.fidelizado_mode == "GRUPOS":
             self.fidelizado_numbers_frame.grid_forget()
             self.fidelizado_groups_frame.grid(row=0, column=0, sticky="nsew")
-            self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
-
+            self.messages_card.grid(row=5, column=0, sticky="ew", pady=(0, 20)) # Mostrar tarjeta
         elif self.fidelizado_mode == "MIXTO":
-            # Modo Mixto: 2 filas, 1 columna
-            self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1)
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
             self.fidelizado_groups_frame.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
+            self.messages_card.grid(row=5, column=0, sticky="ew", pady=(0, 20)) # Mostrar tarjeta
 
-        # Control de visibilidad para widgets de configuración
+        # --- Visibilidad de Configuración Adicional ---
         if show_mixto_variant:
-            self.mixto_variant_container.grid(row=2, column=0, columnspan=2, sticky='w', pady=(0, 15))
+            self.mixto_variant_container.grid(row=4, column=0, columnspan=2, sticky='w', pady=(0, 15))
         else:
             self.mixto_variant_container.grid_remove()
 
-        # NUEVO: Visibilidad del selector de Ciclos
         if show_cycles:
-            # Reorganizar: Bucles y Ciclos en la misma fila, Delay debajo
             self.loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
             self.cycles_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
-            self.delay_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=0)
         else:
             self.cycles_container.grid_remove()
-            # Restaurar el layout original: Bucles a la izquierda, Delay a la derecha
-            self.loops_container.grid(row=1, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
-            self.delay_container.grid(row=1, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
-            # Asegurar que la fila 2 no ocupe espacio si está vacía
-            self.delay_container.master.grid_rowconfigure(2, weight=0)
+            self.loops_container.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=0)
 
-        # Visibilidad del botón "Unirse a Grupos"
+        # --- Visibilidad de Botones de Acción ---
         if self.fidelizado_mode == "GRUPOS":
-            # Reconfigurar el grid para dos botones, asegurando que columnspan no sea 2
             self.fidelizado_btn_start.grid(row=0, column=0, columnspan=1, sticky='ew', padx=(0, 5))
             self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(5, 0))
-            self.actions_frame.grid_columnconfigure(1, weight=1) # Activar la segunda columna
+            self.actions_frame.grid_columnconfigure(1, weight=1)
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO A GRUPOS")
         else:
-            # Ocultar "Unirse" y hacer que "Iniciar" ocupe todo el espacio
             self.unirse_grupos_btn.grid_remove()
             self.fidelizado_btn_start.grid(row=0, column=0, columnspan=2, sticky='ew', padx=0)
-            self.actions_frame.grid_columnconfigure(1, weight=0) # Desactivar la segunda columna
+            self.actions_frame.grid_columnconfigure(1, weight=0)
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO FIDELIZADO")
 
-        # --- FIX: Lógica para mostrar/ocultar "Todas" ---
+        # --- Actualización del Menú de WhatsApp ---
         if self.fidelizado_mode == "NUMEROS":
             self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas"])
-            # Si "Todas" estaba seleccionado, cambiar a "Ambas" para evitar un estado inválido
             if self.whatsapp_mode.get() == "Todas":
                 self.whatsapp_mode.set("Ambas")
         else:
-            self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas", "Todas"])
+            # Asegurarse de que el widget exista antes de configurarlo
+            if hasattr(self, 'fidelizado_whatsapp_menu'):
+                 self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas", "Todas"])
 
     def _populate_fidelizado_inputs(self):
         """Limpia y rellena los campos de texto con los datos guardados en las variables."""
