@@ -4041,7 +4041,7 @@ class Hermes:
 
     def _get_number_with_uiautomator2(self, device_serial, temp_dir):
         """Usa uiautomator2 para encontrar los números de teléfono en un dispositivo."""
-        device_numbers = {}
+        device_numbers = {"WhatsApp": "No encontrado", "WhatsApp Business": "No encontrado"}
         try:
             d = u2.connect(device_serial)
             # Desbloquear si es necesario (mejor si el usuario lo hace)
@@ -4082,9 +4082,13 @@ class Hermes:
                                 if match:
                                     number = re.sub(r'[\s\-\(\)]', '', match.group(1)) # Limpiar todos los símbolos no numéricos
                                     self.log(f"    Número encontrado directamente en la lista de contactos: {number}", 'success')
-                                    # Saltar la navegación si encontramos el número aquí
+                                    # Asignar el número encontrado y saltar al siguiente paquete
+                                    if 'w4b' in pkg:
+                                        device_numbers['WhatsApp Business'] = number
+                                    else:
+                                        device_numbers['WhatsApp'] = number
                                     d.press("back") # Volver de la lista de contactos
-                                    continue # Ir al siguiente paquete de whatsapp
+                                    continue      # Ir al siguiente paquete de whatsapp
 
                             # Estrategia 2: Si no se encuentra, navegar
                             self.log("    Número no visible en la lista. Navegando a la info de contacto...", 'info')
