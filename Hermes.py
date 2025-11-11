@@ -4348,25 +4348,52 @@ class Hermes:
                                 self.log("    En la pantalla de información, buscando número...", 'info')
                                 time.sleep(2) # Esperar a que cargue la pantalla de info
 
-                                # Loop de scroll y búsqueda
+                                # Bucle de desplazamiento inteligente con detección de final de página
                                 number_found_in_text = False
-                                for i in range(5): # Intentar scroll hasta 5 veces
-                                    self.log(f"    Intento de búsqueda de texto #{i+1}...", 'info')
-                                    all_text = " ".join([elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()])
-                                    match = re.search(r'(\+[\d\s\-\(\)]+)', all_text)
+                                max_scrolls = 10  # Límite de seguridad para evitar bucles infinitos
+                                for i in range(max_scrolls):
+                                    self.log(f"    Intento de búsqueda y scroll #{i+1}...", 'info')
+
+                                    # Capturar textos ANTES de desplazarse
+                                    before_scroll_texts = {elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()}
+                                    current_view_text = " ".join(before_scroll_texts)
+
+                                    # Buscar el número en la vista actual
+                                    match = re.search(r'(\+[\d\s\-\(\)]+)', current_view_text)
                                     if match:
                                         number = re.sub(r'[\s\-\(\)]', '', match.group(1))
-                                        self.log(f"    Número encontrado en la pantalla de info: {number}", 'success')
+                                        self.log(f"    ¡Número encontrado!: {number}", 'success')
                                         number_found_in_text = True
                                         break
 
-                                    self.log("    Número no encontrado en la vista actual, haciendo scroll...", 'info')
-                                    d.swipe_ext("down", scale=0.7, duration=0.5)
-                                    time.sleep(1)
+                                    # Si no se encuentra, realizar el desplazamiento
+                                    self.log("    Número no encontrado, realizando 'fling'...", 'info')
+                                    scrollable_view = d(scrollable=True)
+                                    if scrollable_view.exists:
+                                        scrollable_view.fling.forward()
+                                    else:
+                                        # Fallback a swipe si no hay un elemento "scrollable"
+                                        width, height = d.info['displayWidth'], d.info['displayHeight']
+                                        d.swipe(width / 2, height * 0.8, width / 2, height * 0.2, 0.5)
+
+                                    time.sleep(1.5)
+
+                                    # Capturar textos DESPUÉS de desplazarse y comparar
+                                    after_scroll_texts = {elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()}
+                                    if before_scroll_texts == after_scroll_texts:
+                                        self.log("    El contenido no cambió. Se ha llegado al final de la página.", 'info')
+                                        # Realizar una última búsqueda por si acaso
+                                        final_text = " ".join(after_scroll_texts)
+                                        final_match = re.search(r'(\+[\d\s\-\(\)]+)', final_text)
+                                        if final_match:
+                                            number = re.sub(r'[\s\-\(\)]', '', final_match.group(1))
+                                            self.log(f"    Número encontrado en la última vista: {number}", 'success')
+                                            number_found_in_text = True
+                                        break
 
                                 if not number_found_in_text:
-                                    self.log("    No se encontró el número por texto tras varios scrolls. Intentando OCR como último recurso...", 'warning')
-                                    number = self._get_number_with_ocr(d, temp_dir)
+                                    self.log("    Búsqueda finalizada. No se encontró el número en la página.", 'warning')
+                                    number = "No encontrado"
                             else:
                                 self.log("    No se pudo encontrar un elemento para abrir la pantalla de info.", 'error')
                         else:
@@ -4388,36 +4415,6 @@ class Hermes:
             return {"WhatsApp": "Error", "WhatsApp Business": "Error"}
 
         return device_numbers
-
-    def _get_number_with_ocr(self, d, temp_dir):
-        """Usa OCR como fallback para encontrar el número de teléfono."""
-        try:
-            # 1. Tomar captura de pantalla
-            screenshot_path = os.path.join(temp_dir, "profile_screenshot.png")
-            d.screenshot(screenshot_path)
-
-            # 2. Usar pytesseract para leer el texto de la imagen
-            image = Image.open(screenshot_path)
-            text = pytesseract.image_to_string(image)
-
-            # 3. Buscar un número de teléfono con regex
-            # Expresión regular mejorada para incluir guiones y paréntesis
-            match = re.search(r'(\+[\d\s\-\(\)]+)', text)
-            if match:
-                number = re.sub(r'[\s\-\(\)]', '', match.group(1)) # Limpiar todos los símbolos no numéricos
-                self.log(f"    Número encontrado por OCR: {number}", 'success')
-                return number
-            else:
-                self.log("    OCR no pudo encontrar un número de teléfono.", 'warning')
-                return "No encontrado (OCR)"
-
-        except FileNotFoundError:
-            self.log("    ERROR: Tesseract OCR no está instalado o no está en el PATH del sistema.", 'error')
-            self.log("    La funcionalidad de OCR no está disponible.", 'error')
-            return "No encontrado (OCR no instalado)"
-        except Exception as e:
-            self.log(f"    Error durante el OCR: {e}", 'error')
-            return "No encontrado (Error OCR)"
 
     def close_all_apps(self, device):
         """Fuerza el cierre de WhatsApp y Google (MOD 25)."""
