@@ -4261,30 +4261,41 @@ class Hermes:
                     d.wait_activity(".Main", timeout=12)
                     self.log(f"    {pkg} iniciado.", 'info')
 
-                    # --- PASO A: Buscar en la pantalla principal de chats ---
+                    # --- PASO A: Buscar en la pantalla principal de chats (Método Robusto)---
                     self.log("    Paso A: Buscando número en la pantalla principal...", 'info')
-                    time.sleep(2) # Esperar a que carguen los chats
-                    main_screen_text = " ".join([elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()])
-                    match = re.search(r'(\+[\d\s\-\(\)]+)', main_screen_text)
-                    if match:
-                        number = re.sub(r'[\s\-\(\)]', '', match.group(1))
-                        self.log(f"    ¡Número encontrado en la pantalla principal!: {number}", 'success')
+                    try:
+                        time.sleep(2) # Esperar a que carguen los chats
 
-                        # Asignar y saltar al siguiente paquete
-                        if 'w4b' in pkg:
-                            device_numbers['WhatsApp Business'] = number
+                        # Obtener el volcado de la jerarquía de la UI como XML
+                        xml_dump = d.dump_hierarchy()
+                        root = ET.fromstring(xml_dump)
+
+                        # Extraer todo el texto del XML
+                        all_text_nodes = [node.get('text') for node in root.iter() if node.get('text')]
+                        main_screen_text = " ".join(filter(None, all_text_nodes))
+
+                        match = re.search(r'(\+[\d\s\-\(\)]+)', main_screen_text)
+                        if match:
+                            number = re.sub(r'[\s\-\(\)]', '', match.group(1))
+                            self.log(f"    ¡Número encontrado en la pantalla principal!: {number}", 'success')
+
+                            if 'w4b' in pkg:
+                                device_numbers['WhatsApp Business'] = number
+                            else:
+                                device_numbers['WhatsApp'] = number
+                            d.app_stop(pkg)
+                            continue # Pasa al siguiente paquete de WhatsApp
                         else:
-                            device_numbers['WhatsApp'] = number
-                        d.app_stop(pkg)
-                        continue
-                        # --- FIN PASO A ---
-                    else:
-                        self.log("    Número no encontrado en la pantalla principal. Continuando...", 'info')
-                        # --- PASO B: Navegar a "Nuevo Chat" -> Contacto Propio -> Info ---
-                        self.log("    Paso B: Navegando a 'Nuevo Chat'...", 'info')
-                        new_chat_button = d(description="Nuevo chat")
-                        if new_chat_button.wait(timeout=7):
-                            new_chat_button.click()
+                             self.log("    Número no encontrado en la pantalla principal. Continuando al Paso B...", 'info')
+
+                    except Exception as e:
+                        self.log(f"    Paso A falló con error: {e}. Se continuará con el Paso B.", 'warning')
+
+                    # --- PASO B: Navegar a "Nuevo Chat" -> Contacto Propio -> Info ---
+                    self.log("    Paso B: Navegando a 'Nuevo Chat'...", 'info')
+                    new_chat_button = d(description="Nuevo chat")
+                    if new_chat_button.wait(timeout=7):
+                        new_chat_button.click()
                         time.sleep(1) # Reducido para acelerar
 
                         self.log("    Buscando contacto propio (Tú)...", 'info')
