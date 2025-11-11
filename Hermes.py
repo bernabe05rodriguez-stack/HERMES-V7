@@ -2527,13 +2527,14 @@ class Hermes:
         Ejecuta una única tarea de envío (abrir link, enviar, esperar), gestionando la conexión de uiautomator2.
         """
         ui_device = None
-        if self.fidelizado_mode in ["NUMEROS", "GRUPOS", "MIXTO"]:
-            try:
-                ui_device = u2.connect(device)
-                ui_device.unlock()
-            except Exception as e:
-                self.log(f"No se pudo conectar uiautomator2 a {device}: {e}", "warning")
-                ui_device = None # Asegurarse de que es None para activar el fallback
+        # --- MODIFICACIÓN: Siempre intentar conectar uiautomator2 ---
+        try:
+            ui_device = u2.connect(device)
+            ui_device.unlock()
+        except Exception as e:
+            self.log(f"No se pudo conectar uiautomator2 a {device}: {e}", "warning")
+            # En este nuevo enfoque, un fallo aquí debería ser crítico.
+            return False
 
         # Bucle de pausa
         while self.is_paused and not self.should_stop:
@@ -3745,50 +3746,36 @@ class Hermes:
                     self.log("No se pudo extraer el mensaje del link para uiautomator2.", "error")
                     return False
 
-            # 3. Lógica de envío principal con uiautomator2 si está disponible
-            if ui_device:
-                self.log("Usando uiautomator2 para escribir y enviar.", 'info')
-                try:
-                    # Esperar a que aparezca el campo de texto y escribir
+            # 3. Lógica de envío refactorizada: usar siempre uiautomator2 para escribir y hacer clic en el botón de enviar.
+            if not ui_device:
+                self.log("Error crítico: la conexión de uiautomator2 no está disponible.", "error")
+                return False
+
+            self.log("Usando uiautomator2 para escribir y enviar.", 'info')
+            try:
+                # Esperar a que aparezca el campo de texto. Si no es un grupo, el texto ya está, así que solo buscamos el botón de enviar.
+                if is_group:
                     edit_text = ui_device(className="android.widget.EditText")
                     if not edit_text.wait(timeout=10):
                         self.log("No se encontró el campo de texto para escribir.", "error")
-                        raise Exception("Timeout esperando EditText")
-
+                        return False # Fallo, no se puede escribir.
                     edit_text.set_text(msg_to_send)
 
-                    # Esperar y hacer clic en el botón de enviar
-                    send_button = ui_device(description="Enviar")
-                    if not send_button.wait(timeout=5):
-                        self.log("No se encontró el botón 'Enviar'. Intentando fallback a Enter.", "warning")
-                        if not self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', '66'], timeout=10):
-                            raise Exception("Fallback a Enter también falló.")
-                    else:
-                        send_button.click()
+                # Esperar y hacer clic en el botón de enviar. Es el único método de envío.
+                send_button = ui_device(description="Enviar")
+                if not send_button.wait(timeout=7):
+                    self.log("No se encontró el botón 'Enviar'. El mensaje no se puede enviar.", "error")
+                    return False # Fallo, no se encontró el botón.
 
-                    self.log("Mensaje enviado con uiautomator2.", 'success')
-                    time.sleep(1)
-                    return True
+                send_button.click()
 
-                except Exception as e:
-                    self.log(f"Error con uiautomator2: {e}. Intentando fallback a ADB.", 'error')
-                    # No retornar False, dejar que continúe al bloque de fallback
+                self.log("Mensaje enviado con éxito.", 'success')
+                time.sleep(1.5) # Pequeña pausa post-envío
+                return True
 
-            # 4. Fallback a ADB si uiautomator2 no está disponible o falló
-            self.log("Usando fallback a ADB para enviar.", 'warning')
-            if is_group:
-                if not self._write_message_with_keyevents(device, msg_to_send): return False
-                time.sleep(max(1, self.wait_after_first_enter.get() // 2))
-                if self.should_stop: return False
-
-            # Enter para enviar (para ambos modos en fallback)
-            if not self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', '66'], timeout=10):
-                self.log("Fallo al presionar Enter con ADB.", "error")
+            except Exception as e:
+                self.log(f"Falló el envío con uiautomator2: {e}", 'error')
                 return False
-
-            self.log("Mensaje enviado (Fallback ADB).", 'success')
-            time.sleep(1)
-            return True
 
         except Exception as e:
             self.log(f"Error inesperado en send_msg: {e}", 'error')
