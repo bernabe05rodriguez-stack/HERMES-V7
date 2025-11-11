@@ -4200,16 +4200,23 @@ class Hermes:
             # Actualizar la UI
             display_text = ""
             if self.detected_phone_lines:
-                display_text = "Líneas detectadas:\n\n"
-                for line in self.detected_phone_lines:
-                    display_text += f"📱 {line['device']}\n"
-                    display_text += f"  - {line['type']}: {line['number']}\n"
+                display_text = "Líneas detectadas:\n"
+                # Ordenar para consistencia
+                sorted_lines = sorted(self.detected_phone_lines, key=lambda x: (x['device'], x['type']))
+                for line in sorted_lines:
+                    display_text += f"· {line['type']} ({line['device']}): {line['number']}\n"
             else:
                 display_text = "No se encontraron líneas de WhatsApp válidas."
 
+            # Actualizar la etiqueta en la vista de Fidelizado
+            if hasattr(self, 'fidelizado_device_list_label'):
+                self.root.after(0, self.fidelizado_device_list_label.configure, {'text': display_text})
+
             if show_results_popup:
                 self.log("Detección de números finalizada.", 'success')
-                self.root.after(0, lambda: messagebox.showinfo("Detección Finalizada", display_text, parent=self.root))
+                # Usar un formato ligeramente diferente para el popup para mejor legibilidad
+                popup_text = display_text.replace("·", "\n·").strip()
+                self.root.after(0, lambda: messagebox.showinfo("Detección Finalizada", popup_text, parent=self.root))
 
             return bool(self.detected_phone_lines)
 
@@ -4299,32 +4306,66 @@ class Hermes:
 
                             self.log("    Abriendo pantalla de información...", 'info')
 
-                            # Intentar hacer clic en el nombre del contacto o en la barra de herramientas
-                            contact_name_in_toolbar = d(resourceId=f"{pkg}:id/conversation_contact_name")
-                            toolbar = d(resourceId=f"{pkg}:id/toolbar")
-
+                            # Estrategia de clic modificada para ser más robusta y evitar crashes.
                             clicked_successfully = False
-                            if contact_name_in_toolbar.wait(timeout=5):
-                                self.log("    Selector 'conversation_contact_name' encontrado. Haciendo click...", 'info')
-                                contact_name_in_toolbar.click()
-                                clicked_successfully = True
-                            elif toolbar.wait(timeout=5):
-                                self.log("    Selector 'conversation_contact_name' no encontrado. Intentando click en 'toolbar'...", 'info')
-                                toolbar.click()
-                                clicked_successfully = True
+
+                            # 1. El método más fiable: buscar por el texto visible "(Tú)".
+                            self.log("    Intento 1: Buscando por texto '(Tú)'...", 'info')
+                            contact_text_element = d(textContains="(Tú)")
+                            if contact_text_element.wait(timeout=7):
+                                try:
+                                    contact_text_element.click()
+                                    clicked_successfully = True
+                                    self.log("    Éxito al hacer clic en elemento con texto '(Tú)'.", 'success')
+                                except Exception as e:
+                                    self.log(f"    Elemento de texto encontrado, pero el clic falló: {e}", 'warning')
+
+                            # 2. Si no funciona, intentar el selector original por resourceId.
+                            if not clicked_successfully:
+                                self.log("    Intento 2: Buscando por resourceId 'conversation_contact_name'...", 'info')
+                                contact_name_in_toolbar = d(resourceId=f"{pkg}:id/conversation_contact_name")
+                                if contact_name_in_toolbar.wait(timeout=5):
+                                    try:
+                                        contact_name_in_toolbar.click()
+                                        clicked_successfully = True
+                                        self.log("    Éxito al hacer clic en 'conversation_contact_name'.", 'success')
+                                    except Exception as e:
+                                        self.log(f"    Elemento 'conversation_contact_name' encontrado, pero el clic falló: {e}", 'warning')
+
+                            # 3. Como último recurso, hacer clic en toda la barra de herramientas.
+                            if not clicked_successfully:
+                                self.log("    Intento 3: Buscando por resourceId 'toolbar'...", 'info')
+                                toolbar = d(resourceId=f"{pkg}:id/toolbar")
+                                if toolbar.wait(timeout=5):
+                                    try:
+                                        toolbar.click()
+                                        clicked_successfully = True
+                                        self.log("    Éxito al hacer clic en 'toolbar'.", 'success')
+                                    except Exception as e:
+                                        self.log(f"    Elemento 'toolbar' encontrado, pero el clic falló: {e}", 'warning')
 
                             if clicked_successfully:
                                 self.log("    En la pantalla de información, buscando número...", 'info')
                                 time.sleep(2) # Esperar a que cargue la pantalla de info
 
-                                # Estrategia de búsqueda de texto en toda la pantalla
-                                all_text = " ".join([elem.text for elem in d(className="android.widget.TextView") if elem.text])
-                                match = re.search(r'(\+[\d\s\-\(\)]+)', all_text)
-                                if match:
-                                    number = re.sub(r'[\s\-\(\)]', '', match.group(1))
-                                    self.log(f"    Número encontrado en la pantalla de info: {number}", 'success')
-                                else:
-                                    self.log("    No se encontró el número por texto. Intentando OCR...", 'warning')
+                                # Loop de scroll y búsqueda
+                                number_found_in_text = False
+                                for i in range(5): # Intentar scroll hasta 5 veces
+                                    self.log(f"    Intento de búsqueda de texto #{i+1}...", 'info')
+                                    all_text = " ".join([elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()])
+                                    match = re.search(r'(\+[\d\s\-\(\)]+)', all_text)
+                                    if match:
+                                        number = re.sub(r'[\s\-\(\)]', '', match.group(1))
+                                        self.log(f"    Número encontrado en la pantalla de info: {number}", 'success')
+                                        number_found_in_text = True
+                                        break
+
+                                    self.log("    Número no encontrado en la vista actual, haciendo scroll...", 'info')
+                                    d.swipe_ext("down", scale=0.7, duration=0.5)
+                                    time.sleep(1)
+
+                                if not number_found_in_text:
+                                    self.log("    No se encontró el número por texto tras varios scrolls. Intentando OCR como último recurso...", 'warning')
                                     number = self._get_number_with_ocr(d, temp_dir)
                             else:
                                 self.log("    No se pudo encontrar un elemento para abrir la pantalla de info.", 'error')
