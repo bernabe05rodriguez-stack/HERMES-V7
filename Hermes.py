@@ -3081,7 +3081,7 @@ class Hermes:
 
         num_devices = len(active_devices)
         num_grupos = len(self.manual_inputs_groups)
-        num_bucles = self.manual_loops_var.get()
+        num_bucles = self.manual_loops_var.get() # <--- CORRECCIÓN: Leer el valor correcto de la UI
 
         if len(self.manual_messages_groups) < 1:
             self.log("Error: Modo Grupos requiere al menos 1 mensaje cargado.", "error")
@@ -3098,6 +3098,7 @@ class Hermes:
         self.log(f"WhatsApp: {self.whatsapp_mode.get()}", 'info')
         self.log(f"Total de envíos: {self.total_messages}", 'info')
 
+        # --- Bucle principal corregido ---
         for bucle_num in range(num_bucles):
             if self.should_stop: break
             self.log(f"\n--- INICIANDO BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
@@ -4260,11 +4261,30 @@ class Hermes:
                     d.wait_activity(".Main", timeout=12)
                     self.log(f"    {pkg} iniciado.", 'info')
 
-                    # 3. Navegar a "Nuevo Chat" -> Contacto Propio -> Info
-                    self.log("    Navegando a 'Nuevo Chat'...", 'info')
-                    new_chat_button = d(description="Nuevo chat")
-                    if new_chat_button.wait(timeout=7):
-                        new_chat_button.click()
+                    # --- PASO A: Buscar en la pantalla principal de chats ---
+                    self.log("    Paso A: Buscando número en la pantalla principal...", 'info')
+                    time.sleep(2) # Esperar a que carguen los chats
+                    main_screen_text = " ".join([elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()])
+                    match = re.search(r'(\+[\d\s\-\(\)]+)', main_screen_text)
+                    if match:
+                        number = re.sub(r'[\s\-\(\)]', '', match.group(1))
+                        self.log(f"    ¡Número encontrado en la pantalla principal!: {number}", 'success')
+
+                        # Asignar y saltar al siguiente paquete
+                        if 'w4b' in pkg:
+                            device_numbers['WhatsApp Business'] = number
+                        else:
+                            device_numbers['WhatsApp'] = number
+                        d.app_stop(pkg)
+                        continue
+                        # --- FIN PASO A ---
+                    else:
+                        self.log("    Número no encontrado en la pantalla principal. Continuando...", 'info')
+                        # --- PASO B: Navegar a "Nuevo Chat" -> Contacto Propio -> Info ---
+                        self.log("    Paso B: Navegando a 'Nuevo Chat'...", 'info')
+                        new_chat_button = d(description="Nuevo chat")
+                        if new_chat_button.wait(timeout=7):
+                            new_chat_button.click()
                         time.sleep(1) # Reducido para acelerar
 
                         self.log("    Buscando contacto propio (Tú)...", 'info')
