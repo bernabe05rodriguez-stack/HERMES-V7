@@ -291,8 +291,8 @@ class Hermes:
             'log_text': '#abb2bf', 'log_success': '#98c379', 'log_error': '#e06c75',
             'log_warning': '#d19a66', 'log_info': '#61afef',
             'text': '#202124', 'text_light': '#5f6368', 'text_header_buttons': '#ffffff', 'text_header': '#000000', 'log_title_color': '#ffffff',
-            'action_detect': '#2563EB', 'action_excel': '#2563EB',
-            'action_fidelizador': '#111827', 'action_start': '#16A34A',
+            'action_detect': '#2563EB', 'action_excel': '#9333EA',
+            'action_mode': '#6B7280', 'action_fidelizador': '#111827', 'action_start': '#16A34A',
             'action_pause': '#FB923C', 'action_cancel': '#DC2626'
         }
 
@@ -303,8 +303,8 @@ class Hermes:
             'log_text': '#ffffff', 'log_success': '#98c379', 'log_error': '#e06c75',
             'log_warning': '#d19a66', 'log_info': '#61afef',
             'text': '#ffffff', 'text_light': '#cccccc', 'text_header_buttons': '#ffffff', 'text_header': '#ffffff', 'log_title_color': '#ffffff',
-            'action_detect': '#5B9FFF', 'action_excel': '#5B9FFF',
-            'action_fidelizador': '#e4e6eb', 'action_start': '#22C55E',
+            'action_detect': '#5B9FFF', 'action_excel': '#A855F7',
+            'action_mode': '#9CA3AF', 'action_fidelizador': '#e4e6eb', 'action_start': '#22C55E',
             'action_pause': '#FFA45C', 'action_cancel': '#EF4444'
         }
         
@@ -791,7 +791,7 @@ class Hermes:
 
         step_buttons = [
             ("Detectar dispositivos", self.detect_devices, 'action_detect'),
-            ("Cargar y procesar Excel", self.load_and_process_excel, 'action_detect'),
+            ("Cargar y procesar Excel", self.load_and_process_excel, 'action_excel'),
         ]
 
         for index, (text, command, color_key) in enumerate(step_buttons, start=1):
@@ -831,9 +831,6 @@ class Hermes:
         mode_content.grid(row=0, column=1, sticky="ew")
         mode_content.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(mode_content, text="Modo de envío", font=self.fonts['progress_label'],
-                     text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
-
         self.mode_selector = ctk.CTkSegmentedButton(
             mode_content,
             variable=self.traditional_send_mode,
@@ -842,13 +839,13 @@ class Hermes:
             height=36,
             corner_radius=14,
             fg_color=self._section_bg_color(),
-            selected_color=self.colors['action_excel'],
-            selected_hover_color=self.hover_colors['action_excel'],
+            selected_color=self.colors['action_mode'],
+            selected_hover_color=self.hover_colors['action_mode'],
             unselected_color=self.colors['bg_card'],
             unselected_hover_color=self._section_bg_color(),
             text_color=self.colors['text']
         )
-        self.mode_selector.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        self.mode_selector.grid(row=0, column=0, sticky="ew")
         self.traditional_send_mode.trace_add('write', self.update_per_whatsapp_stat)
 
         start_step_index = mode_step_index + 1
