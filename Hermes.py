@@ -1098,9 +1098,11 @@ class Hermes:
             width=34,
             height=34,
             corner_radius=17,
-            fg_color=self.colors['action_detect'],
-            text_color=self.colors['text_header_buttons'],
-            font=self.fonts['progress_value']
+            fg_color="transparent",
+            text_color=self.colors['action_detect'],
+            font=self.fonts['progress_value'],
+            border_width=2,
+            border_color=self.colors['action_detect']
         )
 
     def log(self, msg, tag='info'):
