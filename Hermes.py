@@ -4294,6 +4294,11 @@ class Hermes:
         # Bind Enter para ejecutar
         cmd_entry.bind('<Return>', lambda e: execute_command())
 
+    def open_adb_injector_dual(self):
+        """Compatibilidad para el botón 'Inyector Dual'."""
+        self.log("Inyector Dual reutiliza la ventana del Inyector ADB estándar.", 'info')
+        self.open_adb_injector()
+
     def detect_phone_numbers_thread(self):
         """Inicia la detección de números de teléfono en un hilo separado."""
         if not self.devices:
