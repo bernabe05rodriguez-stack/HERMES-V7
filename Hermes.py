@@ -36,6 +36,14 @@ import re
 import xml.etree.ElementTree as ET
 
 
+# --- Clase auxiliar para evitar errores de Tkinter con campos numéricos vacíos ---
+class SafeIntVar(tk.IntVar):
+    def get(self):
+        try:
+            return super().get()
+        except (tk.TclError, ValueError):
+            return 0
+
 # --- Función para encontrar archivos en modo compilado ---
 def resource_path(relative_path):
     """ Obtiene la ruta absoluta al recurso, funciona para desarrollo y para PyInstaller """
@@ -205,10 +213,10 @@ class Hermes:
 
         # Variables de estado
         self.adb_path = tk.StringVar(value="")
-        self.delay_min = tk.IntVar(value=10)
-        self.delay_max = tk.IntVar(value=15)
-        self.wait_after_open = tk.IntVar(value=15)
-        self.wait_after_first_enter = tk.IntVar(value=10)
+        self.delay_min = SafeIntVar(value=10)
+        self.delay_max = SafeIntVar(value=15)
+        self.wait_after_open = SafeIntVar(value=15)
+        self.wait_after_first_enter = SafeIntVar(value=10)
 
         self.excel_file = ""
         self.links = []
@@ -247,21 +255,21 @@ class Hermes:
         # --- INICIO MODIFICACIÓN: Variables para el nuevo Modo Números Automático ---
         self.fidelizado_numeros_mode = tk.StringVar(value="Uno a uno")
         self.detected_phone_lines = [] # Almacenará {"device": str, "type": "WA/WB", "number": str}
-        self.manual_cycles_var = tk.IntVar(value=1) # NUEVO: Para los ciclos del modo "Uno a uno"
+        self.manual_cycles_var = SafeIntVar(value=1) # NUEVO: Para los ciclos del modo "Uno a uno"
         # --- FIN MODIFICACIÓN ---
 
         self.manual_loops = 1
 
-        self.fidelizado_delay_min = tk.IntVar(value=10)
-        self.fidelizado_delay_max = tk.IntVar(value=15)
+        self.fidelizado_delay_min = SafeIntVar(value=10)
+        self.fidelizado_delay_max = SafeIntVar(value=15)
         # --- FIX: Añadir variables separadas para el retardo entre envíos ---
-        self.fidelizado_send_delay_min = tk.IntVar(value=10)
-        self.fidelizado_send_delay_max = tk.IntVar(value=15)
+        self.fidelizado_send_delay_min = SafeIntVar(value=10)
+        self.fidelizado_send_delay_max = SafeIntVar(value=15)
         
         # Variables de tiempo para Modo Grupos Dual
-        self.wait_after_write = tk.IntVar(value=2)  # Tiempo después de escribir antes del primer Enter
-        self.wait_between_enters = tk.IntVar(value=3)  # Tiempo entre el primer y segundo Enter
-        self.wait_between_messages = tk.IntVar(value=2)  # Tiempo entre Business y Normal
+        self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
+        self.wait_between_enters = SafeIntVar(value=3)  # Tiempo entre el primer y segundo Enter
+        self.wait_between_messages = SafeIntVar(value=2)  # Tiempo entre Business y Normal
         self.write_speed = tk.StringVar(value="Normal")  # Velocidad de escritura: Lento, Normal, Rápido
         self.whatsapp_mode = tk.StringVar(value="Todas")  # Qué WhatsApp usar: Normal, Business, Ambos
         self.traditional_send_mode = tk.StringVar(value="Business")  # Modo de envío tradicional: Business, Normal, Ambos, TODOS
