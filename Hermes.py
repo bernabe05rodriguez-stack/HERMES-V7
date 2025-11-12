@@ -1098,6 +1098,7 @@ class Hermes:
             border_width=1,
             border_color=self._section_border_color()
         )
+        badge_frame.grid_propagate(False)
 
         badge_label = ctk.CTkLabel(
             badge_frame,
