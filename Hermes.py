@@ -1754,24 +1754,15 @@ class Hermes:
         show_cycles = self.fidelizado_mode == "NUMEROS" and numeros_submode == "Uno a uno"
 
         # --- 1. Reorganización del Layout Principal ---
-        if self.fidelizado_mode == "NUMEROS":
-            # Layout de 1 columna: Solo mostrar los controles en la parte superior.
+        if self.fidelizado_mode == "NUMEROS" or self.fidelizado_mode == "GRUPOS":
+            # Layout de 1 columna: Apilar controles arriba y la caja de texto correspondiente abajo.
             self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=1)
             self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=0) # Anular segunda columna
-            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=0) # Fila de controles no se expande
-            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=0) # Fila de abajo tampoco
+            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=0)    # Fila de controles no se expande
+            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=1)    # Fila de inputs se expande verticalmente
 
-            self.fidelizado_inputs_col.grid_forget() # Ocultar la columna de inputs que ya no se usa
-            self.fidelizado_controls_col.grid(row=0, column=0, sticky="ew", padx=0) # Mostrar solo los controles arriba
-        elif self.fidelizado_mode == "GRUPOS":
-            # Layout de 1 columna: Apilar controles arriba y inputs (links de grupo) abajo
-            self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=1)
-            self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=0) # Anular segunda columna
-            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=0) # Fila de controles (arriba) no se expande
-            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=0) # Fila de inputs (abajo) tampoco
-
-            self.fidelizado_controls_col.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 20)) # Controles arriba
-            self.fidelizado_inputs_col.grid(row=1, column=0, sticky="ew", padx=0) # Inputs (links) abajo
+            self.fidelizado_controls_col.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 20))
+            self.fidelizado_inputs_col.grid(row=1, column=0, sticky="nsew", padx=0)
         else: # MODO MIXTO
             # Layout de 2 columnas: Inputs a la izquierda, controles a la derecha
             self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=55)
@@ -1782,22 +1773,24 @@ class Hermes:
             self.fidelizado_controls_col.grid(row=0, column=1, sticky="nsew", padx=(20, 0))
 
         # --- 2. Visibilidad de Widgets de Input ---
-        # Lógica para determinar si estamos en modo manual de números
         is_manual_numbers_mode = len(self.manual_inputs_numbers) > 0
 
         if self.fidelizado_mode == "NUMEROS":
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew")
             self.fidelizado_groups_frame.grid_forget()
 
-            # Ocultar/mostrar controles según si hay números cargados
+            # Lógica de visibilidad simplificada y corregida
             if is_manual_numbers_mode:
-                self.numeros_mode_container.grid_remove()
+                if hasattr(self, 'numeros_mode_container'):
+                    self.numeros_mode_container.grid_remove()
             else:
-                self.numeros_mode_container.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
+                if hasattr(self, 'numeros_mode_container'):
+                    self.numeros_mode_container.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
 
         elif self.fidelizado_mode == "GRUPOS":
             self.fidelizado_numbers_frame.grid_forget()
             self.fidelizado_groups_frame.grid(row=0, column=0, sticky="nsew")
+
         elif self.fidelizado_mode == "MIXTO":
             self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
             self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1)
@@ -1806,11 +1799,6 @@ class Hermes:
 
 
         # --- 3. Visibilidad de Configuración Adicional ---
-        if show_numeros_mode:
-            self.numeros_mode_container.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
-        else:
-            self.numeros_mode_container.grid_remove()
-
         if show_mixto_variant:
             self.mixto_variant_container.grid(row=6, column=0, columnspan=2, sticky='w', pady=(0, 15))
         else:
