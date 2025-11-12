@@ -675,7 +675,7 @@ class Hermes:
         self.create_setting(settings_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 2)
 
         # Bloque 2: Acciones principales
-        actions_section = self._build_section(parent, 1, "Flujo tradicional",
+        actions_section = self._build_section(parent, 1, "Flujo Masivo",
                                               "Sigue los pasos en orden para iniciar la campaña.",
                                               icon="🚀")
 
