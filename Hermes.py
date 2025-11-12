@@ -291,7 +291,7 @@ class Hermes:
             'log_text': '#abb2bf', 'log_success': '#98c379', 'log_error': '#e06c75',
             'log_warning': '#d19a66', 'log_info': '#61afef',
             'text': '#202124', 'text_light': '#5f6368', 'text_header_buttons': '#ffffff', 'text_header': '#000000', 'log_title_color': '#ffffff',
-            'action_detect': '#2563EB', 'action_excel': '#C026D3',
+            'action_detect': '#2563EB', 'action_excel': '#FB923C',
             'action_mode': '#0EA5E9', 'action_fidelizador': '#111827', 'action_start': '#16A34A',
             'action_pause': '#FB923C', 'action_cancel': '#DC2626'
         }
@@ -303,7 +303,7 @@ class Hermes:
             'log_text': '#ffffff', 'log_success': '#98c379', 'log_error': '#e06c75',
             'log_warning': '#d19a66', 'log_info': '#61afef',
             'text': '#ffffff', 'text_light': '#cccccc', 'text_header_buttons': '#ffffff', 'text_header': '#ffffff', 'log_title_color': '#ffffff',
-            'action_detect': '#5B9FFF', 'action_excel': '#D946EF',
+            'action_detect': '#5B9FFF', 'action_excel': '#FFA45C',
             'action_mode': '#38BDF8', 'action_fidelizador': '#e4e6eb', 'action_start': '#22C55E',
             'action_pause': '#FFA45C', 'action_cancel': '#EF4444'
         }
