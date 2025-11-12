@@ -2028,21 +2028,41 @@ class Hermes:
         if self.is_running:
             return
 
-        if not messagebox.askyesno("Confirmar Envío", f"¿Estás seguro de que deseas iniciar el envío de {self.total_messages} mensajes?", parent=self.root):
-            return
+        mode = None
+        base_links = None
+        mode_configs = {
+            "Business": {"multiplier": 1, "description": "Rotación únicamente con WhatsApp Business"},
+            "Normal": {"multiplier": 1, "description": "Rotación únicamente con WhatsApp Normal"},
+            "Business/Normal": {"multiplier": 1, "description": "Rotación alternada entre cuentas Business y Normal"},
+            "B/N.1/N.2": {"multiplier": 1, "description": "Rotación entre Business y dos cuentas de WhatsApp Normal"},
+        }
 
-        
-        # Calcular total_messages para modo tradicional según Simple/Doble/Triple
         if not self.manual_mode:
             mode = self.traditional_send_mode.get()
             base_links = len(self.links)
-            if mode == "Simple":
-                self.total_messages = base_links
-            elif mode == "Doble":
-                self.total_messages = base_links * 2
-            elif mode == "Triple":
-                self.total_messages = base_links * 3
-            self.log(f"Modo Tradicional ({mode}): {self.total_messages} envíos totales", 'info')
+            mode_info = mode_configs.get(mode, {"multiplier": 1, "description": "Rotación estándar"})
+            multiplier = mode_info["multiplier"]
+            self.total_messages = base_links * multiplier
+
+        if not messagebox.askyesno("Confirmar Envío", f"¿Estás seguro de que deseas iniciar el envío de {self.total_messages} mensajes?", parent=self.root):
+            return
+
+
+        # Calcular total_messages para modo tradicional según la rotación seleccionada
+        if not self.manual_mode:
+            mode_info = mode_configs.get(mode, {"multiplier": 1, "description": "Rotación estándar"})
+            multiplier = mode_info["multiplier"]
+            description = mode_info["description"]
+            if base_links is None:
+                base_links = len(self.links)
+            self.total_messages = base_links * multiplier
+            if multiplier == 1:
+                self.log(f"Modo Tradicional ({mode}): {self.total_messages} envíos totales ({description})", 'info')
+            else:
+                self.log(
+                    f"Modo Tradicional ({mode}): {self.total_messages} envíos totales ({base_links} enlaces x {multiplier} envíos por enlace; {description})",
+                    'info'
+                )
         
         # Limpieza de flags
         if not self.manual_mode:
