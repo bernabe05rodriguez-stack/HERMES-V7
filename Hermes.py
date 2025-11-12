@@ -644,6 +644,8 @@ class Hermes:
         # Guardar datos de los textboxes para persistencia
         if hasattr(self, 'fidelizado_groups_text'): # Comprobar si los widgets existen
             self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
+        if hasattr(self, 'fidelizado_numbers_text'):
+            self.manual_inputs_numbers = [line.strip() for line in self.fidelizado_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
             # Los mensajes se gestionan al cargar el archivo, no se guardan desde un widget.
             # Asumir que los mensajes de grupo son los mismos
             self.manual_messages_groups = self.manual_messages_numbers
@@ -1529,12 +1531,12 @@ class Hermes:
         header_frame = ctk.CTkFrame(content, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(15, 10))
 
-        back_button = ctk.CTkButton(header_frame, text="Volver al modo Masivos",
+        self.back_to_traditional_btn = ctk.CTkButton(header_frame, text="Volver al modo Masivos",
                                       command=self.show_traditional_view,
                                       fg_color="transparent",
                                       text_color=self.colors['text_light'],
                                       hover_color=self.colors['bg'])
-        back_button.pack(side=tk.LEFT)
+        self.back_to_traditional_btn.pack(side=tk.LEFT)
 
         ctk.CTkLabel(header_frame, text="Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT, padx=20)
 
@@ -1558,9 +1560,13 @@ class Hermes:
         self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
         self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1) # Los textboxes se expanden
 
-        # Widgets de Números (MODIFICADO para el nuevo modo automático)
+        # Widgets de Números (MODIFICADO para incluir modo manual)
         self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
         self.fidelizado_numbers_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(self.fidelizado_numbers_frame, text="Números de Teléfono (uno por línea)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', pady=(0, 10))
+        self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=150)
+        self.fidelizado_numbers_text.grid(row=1, column=0, sticky="ew")
+        self.fidelizado_numbers_text.bind("<<Modified>>", self._on_fidelizado_numbers_changed)
 
         # Widgets de Grupos (Label y Textbox)
         self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
@@ -1728,6 +1734,13 @@ class Hermes:
         self._update_fidelizado_ui_mode()
         self._populate_fidelizado_inputs()
 
+    def _on_fidelizado_numbers_changed(self, event=None):
+        """Se activa cuando el contenido de la caja de texto de números cambia."""
+        self.manual_inputs_numbers = [line.strip() for line in self.fidelizado_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
+        self._update_fidelizado_ui_mode()
+        # Marcar el widget para que el evento no se dispare recursivamente
+        self.fidelizado_numbers_text.edit_modified(False)
+
     def _update_fidelizado_ui_mode(self, *args):
         """Muestra u oculta los widgets y reorganiza el layout según el modo Fidelizado seleccionado."""
         mode_ui = self.fidelizado_mode_var.get()
@@ -1769,9 +1782,19 @@ class Hermes:
             self.fidelizado_controls_col.grid(row=0, column=1, sticky="nsew", padx=(20, 0))
 
         # --- 2. Visibilidad de Widgets de Input ---
+        # Lógica para determinar si estamos en modo manual de números
+        is_manual_numbers_mode = len(self.manual_inputs_numbers) > 0
+
         if self.fidelizado_mode == "NUMEROS":
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew")
             self.fidelizado_groups_frame.grid_forget()
+
+            # Ocultar/mostrar controles según si hay números cargados
+            if is_manual_numbers_mode:
+                self.numeros_mode_container.grid_remove()
+            else:
+                self.numeros_mode_container.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
+
         elif self.fidelizado_mode == "GRUPOS":
             self.fidelizado_numbers_frame.grid_forget()
             self.fidelizado_groups_frame.grid(row=0, column=0, sticky="nsew")
@@ -1826,10 +1849,15 @@ class Hermes:
         """Limpia y rellena los campos de texto con los datos guardados en las variables."""
         # Limpiar contenido existente
         self.fidelizado_groups_text.delete("1.0", tk.END)
+        if hasattr(self, 'fidelizado_numbers_text'):
+            self.fidelizado_numbers_text.delete("1.0", tk.END)
 
         # Rellenar con datos guardados
         if self.manual_inputs_groups:
             self.fidelizado_groups_text.insert("1.0", "\n".join(self.manual_inputs_groups))
+        if self.manual_inputs_numbers:
+             if hasattr(self, 'fidelizado_numbers_text'):
+                self.fidelizado_numbers_text.insert("1.0", "\n".join(self.manual_inputs_numbers))
 
         # Si no hay mensajes de grupo pero sí de número (caso común), usarlos también para grupos
         if self.manual_messages_numbers and not self.manual_messages_groups:
@@ -1850,9 +1878,17 @@ class Hermes:
 
         # 2. Validar los datos según el modo
         if self.fidelizado_mode == "NUMEROS":
-            # La validación y el inicio se manejan en un hilo para permitir la detección de números sin congelar la UI.
-            threading.Thread(target=self.start_fidelizado_numeros_thread, daemon=True).start()
-            return # Salir, ya que el resto del flujo se maneja en el hilo.
+            # Si hay números en la caja de texto, se usa el modo manual.
+            if self.manual_inputs_numbers:
+                self.manual_mode = True
+                self.fidelizado_mode = "NUMEROS_MANUAL" # Un modo interno para distinguirlo
+                self.links = []
+                self.start_sending()
+                return
+            else:
+                # Si no, se usa el modo automático.
+                threading.Thread(target=self.start_fidelizado_numeros_thread, daemon=True).start()
+                return
 
         if self.fidelizado_mode == "GRUPOS" and not self.manual_inputs_groups:
             messagebox.showerror("Error", "El 'Modo Grupos' requiere al menos un link de grupo.", parent=self.root)
@@ -2504,6 +2540,8 @@ class Hermes:
             # --- Lógica de envío (depende del modo) ---
             if self.fidelizado_mode == "GRUPOS":
                 self.run_grupos_dual_whatsapp_thread()
+            elif self.fidelizado_mode == "NUMEROS_MANUAL":
+                self.run_numeros_manual_thread()
             elif self.fidelizado_mode == "NUMEROS":
                 if self.fidelizado_numeros_mode.get() == "Uno a uno":
                     self.run_uno_a_uno_thread()
@@ -2714,6 +2752,38 @@ class Hermes:
                 self._switch_whatsapp_account(dev)
                 time.sleep(1)
     
+    def run_numeros_manual_thread(self):
+        """Lógica de envío para MODO NÚMEROS - MANUAL."""
+        self.log("Iniciando MODO NÚMEROS (Manual)...", 'info')
+
+        active_devices = self._get_filtered_devices()
+        if not active_devices:
+            self.log("No hay dispositivos que cumplan con el filtro.", "error")
+            return
+
+        num_devices = len(active_devices)
+        num_bucles = self.manual_loops_var.get()
+        task_counter = 0
+        mensaje_index = self.mensaje_start_index
+        total_mensajes_lib = len(self.manual_messages_numbers)
+        whatsapp_apps = self._get_whatsapp_apps_to_use()
+
+        for bucle_num in range(num_bucles):
+            if self.should_stop: break
+            self.log(f"\n--- BUCLE {bucle_num + 1}/{num_bucles} ---", 'info')
+
+            for num_idx, numero in enumerate(self.manual_inputs_numbers):
+                if self.should_stop: break
+
+                device = active_devices[num_idx % num_devices]
+
+                for wa_idx, (wa_name, wa_package) in enumerate(whatsapp_apps):
+                    if self.should_stop: break
+                    task_counter += 1
+                    mensaje = self.manual_messages_numbers[mensaje_index % total_mensajes_lib]; mensaje_index += 1
+                    link = f"https://wa.me/549{numero}?text={urllib.parse.quote(mensaje, safe='')}"
+
+                    self.run_single_task(device, link, None, task_counter, whatsapp_package=wa_package)
     
     def _get_filtered_devices(self):
         """
@@ -3583,6 +3653,8 @@ class Hermes:
             self.unirse_grupos_btn.configure(state=tk.NORMAL)
             self.fidelizado_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
             self.fidelizado_btn_stop.configure(state=tk.DISABLED)
+            if hasattr(self, 'back_to_traditional_btn'):
+                self.back_to_traditional_btn.configure(state=tk.NORMAL)
 
     def _enter_task_mode(self):
         """Configura la UI para un estado de 'tarea en ejecución'."""
@@ -3614,6 +3686,8 @@ class Hermes:
             self.unirse_grupos_btn.configure(state=tk.DISABLED)
             self.fidelizado_btn_pause.configure(state=tk.NORMAL)
             self.fidelizado_btn_stop.configure(state=tk.NORMAL)
+            if hasattr(self, 'back_to_traditional_btn'):
+                self.back_to_traditional_btn.configure(state=tk.DISABLED)
 
     def _update_device_labels(self):
         """Actualiza todas las etiquetas de la UI que muestran la lista de dispositivos."""
