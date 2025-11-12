@@ -2348,13 +2348,14 @@ class Hermes:
             if not self.manual_messages_groups:
                 messagebox.showerror("Error", "Modo Grupos requiere mensajes cargados.", parent=self.root); return
             
-            # Calcular total_messages para Modo Grupos según WhatsApp seleccionado
+            # --- CÁLCULO CORREGIDO ---
             num_dev = len(self.devices)
             num_grupos = len(self.manual_inputs_groups)
+            num_bucles = self.manual_loops_var.get()
             whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
-            self.total_messages = self.manual_loops * num_grupos * num_dev * whatsapp_multiplier
+            self.total_messages = num_bucles * num_grupos * num_dev * whatsapp_multiplier
             wa_mode_str = self.whatsapp_mode.get()
-            self.log(f"Modo Grupos ({wa_mode_str}): {self.total_messages} envíos totales ({self.manual_loops} ciclos x {num_grupos} grupos x {num_dev} disp. x {whatsapp_multiplier} app(s))", 'info')
+            self.log(f"Modo Grupos ({wa_mode_str}): {self.total_messages} envíos totales ({num_bucles} bucles x {num_grupos} grupos x {num_dev} disp. x {whatsapp_multiplier} app(s))", 'info')
         
         elif self.fidelizado_mode == "MIXTO":
             if not self.manual_inputs_groups or not self.manual_inputs_numbers:
@@ -2362,17 +2363,17 @@ class Hermes:
             if not self.manual_messages_numbers:
                 messagebox.showerror("Error", "Modo Mixto requiere mensajes cargados.", parent=self.root); return
             
-            # Calcular total_messages para Modo Mixto según WhatsApp seleccionado
+            # --- CÁLCULO CORREGIDO ---
             num_dev = len(self.devices)
             num_grupos = len(self.manual_inputs_groups)
             num_numeros = len(self.manual_inputs_numbers)
+            num_bucles = self.manual_loops_var.get()
             whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
-            # Por cada ciclo: cada grupo y cada número recibe mensajes de todos los dispositivos
-            tasks_per_ciclo = (num_grupos + num_numeros) * num_dev * whatsapp_multiplier
             
-            self.total_messages = self.manual_loops * tasks_per_ciclo
+            tasks_per_bucle = (num_grupos + num_numeros) * num_dev * whatsapp_multiplier
+            self.total_messages = num_bucles * tasks_per_bucle
             wa_mode_str = self.whatsapp_mode.get()
-            self.log(f"Modo Mixto ({wa_mode_str}): {self.total_messages} envíos totales ({self.manual_loops} ciclos x ({num_grupos} grupos + {num_numeros} nums) x {num_dev} disp. x {whatsapp_multiplier} app(s))", 'info')
+            self.log(f"Modo Mixto ({wa_mode_str}): {self.total_messages} envíos totales ({num_bucles} bucles x ({num_grupos} grupos + {num_numeros} nums) x {num_dev} disp. x {whatsapp_multiplier} app(s))", 'info')
         
         # (total_messages para otros modos ya está calculado)
         # --- Fin Validación ---
