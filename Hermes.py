@@ -1089,18 +1089,26 @@ class Hermes:
         return card
 
     def _create_step_badge(self, parent, number):
-        return ctk.CTkLabel(
+        badge_frame = ctk.CTkFrame(
             parent,
-            text=str(number),
             width=34,
             height=34,
             corner_radius=17,
             fg_color="transparent",
-            text_color=self.colors['action_detect'],
-            font=self.fonts['progress_value'],
-            border_width=2,
-            border_color=self.colors['action_detect']
+            border_width=1,
+            border_color=self._section_border_color()
         )
+
+        badge_label = ctk.CTkLabel(
+            badge_frame,
+            text=str(number),
+            font=self.fonts['progress_value'],
+            text_color=self.colors['text'],
+            fg_color="transparent"
+        )
+        badge_label.place(relx=0.5, rely=0.5, anchor="c")
+
+        return badge_frame
 
     def log(self, msg, tag='info'):
         """Añade un mensaje al registro de actividad con formato."""
