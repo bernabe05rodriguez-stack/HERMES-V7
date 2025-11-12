@@ -291,11 +291,11 @@ class Hermes:
             'log_text': '#abb2bf', 'log_success': '#98c379', 'log_error': '#e06c75',
             'log_warning': '#d19a66', 'log_info': '#61afef',
             'text': '#202124', 'text_light': '#5f6368', 'text_header_buttons': '#ffffff', 'text_header': '#000000', 'log_title_color': '#ffffff',
-            'action_detect': '#2563EB', 'action_excel': '#F97316',
+            'action_detect': '#2563EB', 'action_excel': '#2563EB',
             'action_fidelizador': '#111827', 'action_start': '#16A34A',
             'action_pause': '#FB923C', 'action_cancel': '#DC2626'
         }
-        
+
         self.colors_dark = {
             'blue': '#5B9FFF', 'green': '#1ED760', 'orange': '#FFA45C',
             'bg': '#000000', 'bg_card': '#1a1a1a', 'bg_header': '#1a1a1a',
@@ -303,7 +303,7 @@ class Hermes:
             'log_text': '#ffffff', 'log_success': '#98c379', 'log_error': '#e06c75',
             'log_warning': '#d19a66', 'log_info': '#61afef',
             'text': '#ffffff', 'text_light': '#cccccc', 'text_header_buttons': '#ffffff', 'text_header': '#ffffff', 'log_title_color': '#ffffff',
-            'action_detect': '#5B9FFF', 'action_excel': '#FFA45C',
+            'action_detect': '#5B9FFF', 'action_excel': '#5B9FFF',
             'action_fidelizador': '#e4e6eb', 'action_start': '#22C55E',
             'action_pause': '#FFA45C', 'action_cancel': '#EF4444'
         }
@@ -315,7 +315,7 @@ class Hermes:
         # Fuentes
         self.fonts = {
             'header': ('Big Russian', 76, 'bold'),
-            'card_title': ('Inter', 20, 'bold'),
+            'card_title': ('Inter', 18, 'bold'),
             'button': ('Inter', 13, 'bold'),
             'button_small': ('Inter', 12, 'bold'),
             'stat_value': ('Inter', 40, 'bold'),
@@ -323,8 +323,8 @@ class Hermes:
             'setting_label': ('Inter', 12),
             'log_title': ('Inter', 16, 'bold'),
             'log_text': ('Consolas', 12),
-            'progress_label': ('Inter', 12, 'bold'),
-            'progress_value': ('Inter', 20, 'bold'),
+            'progress_label': ('Inter', 11),
+            'progress_value': ('Inter', 16, 'bold'),
             'time_label': ('Inter', 10),
             'dialog_title': ('Inter', 16, 'bold'),
             'dialog_text': ('Inter', 12)
@@ -660,231 +660,251 @@ class Hermes:
         self.fidelizado_view_frame.pack(fill=tk.BOTH, expand=True)
 
     def setup_traditional_view(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(1, weight=1)
+
         # Bloque 1: Configuración de Tiempo
-        cc = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
-        cc.pack(fill=tk.X, pady=(0, 30), padx=10)
+        time_section = self._build_section(parent, 0, "Configuración de tiempos",
+                                           "Define los intervalos para un envío estable.",
+                                           icon="🕒")
 
-        ctf = ctk.CTkFrame(cc, fg_color="transparent")
-        ctf.pack(fill=tk.X, pady=(25, 15), padx=25)
-        ctk.CTkLabel(ctf, text="⚙", font=('Inter', 20), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 10))
-        ctk.CTkLabel(ctf, text="Configuración de Tiempo", font=self.fonts['card_title'], fg_color="transparent", text_color=self.colors['text']).pack(side=tk.LEFT)
+        settings_frame = ctk.CTkFrame(time_section, fg_color="transparent")
+        settings_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
+        self.create_setting(settings_frame, "Delay (seg):", self.delay_min, self.delay_max, 0)
+        self.create_setting(settings_frame, "Espera Abrir (seg):", self.wait_after_open, None, 1)
+        self.create_setting(settings_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 2)
 
-        ctk.CTkFrame(cc, fg_color=self.colors['text_light'], height=1).pack(fill=tk.X, pady=(0, 20), padx=25)
+        # Bloque 2: Acciones principales
+        actions_section = self._build_section(parent, 1, "Flujo tradicional",
+                                              "Sigue los pasos en orden para iniciar la campaña.",
+                                              icon="🚀")
 
-        s = ctk.CTkFrame(cc, fg_color="transparent")
-        s.pack(fill=tk.X, pady=(0, 25), padx=25)
-        self.create_setting(s, "Delay (seg):", self.delay_min, self.delay_max, 0)
-        self.create_setting(s, "Espera Abrir (seg):", self.wait_after_open, None, 1)
-        self.create_setting(s, "Espera Enter (seg):", self.wait_after_first_enter, None, 2)
+        tools_header = ctk.CTkFrame(actions_section, fg_color="transparent")
+        tools_header.grid(row=1, column=0, sticky="ew", padx=20)
+        tools_header.grid_columnconfigure(0, weight=1)
 
-        # Bloque 2: Acciones
-        ac = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
-        ac.pack(fill=tk.X, pady=(0, 30), padx=10)
+        ctk.CTkLabel(tools_header, text="Herramientas complementarias", font=self.fonts['setting_label'],
+                     text_color=self.colors['text_light']).grid(row=0, column=0, sticky="w")
 
-        atf = ctk.CTkFrame(ac, fg_color="transparent")
-        atf.pack(fill=tk.X, pady=(25, 15), padx=25)
-        ctk.CTkLabel(atf, text="Acciones", font=self.fonts['card_title'], fg_color="transparent", text_color=self.colors['text']).pack(side=tk.LEFT)
-
-        # Botón desplegable para mostrar/ocultar funciones adicionales
         self.actions_expanded = False
-        self.toggle_actions_btn = ctk.CTkButton(atf, text="▼", command=self.toggle_additional_actions,
-                                               fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                               hover_color=self.colors["bg"],
-                                               font=('Inter', 16, 'bold'),
-                                               cursor='hand2', width=40, height=40, corner_radius=10,
-                                               border_width=1, border_color=self.colors["text_light"])
-        self.toggle_actions_btn.pack(side=tk.LEFT, padx=(12, 0))
-        
-        # Frame contenedor para los botones adicionales (inicialmente oculto) - organizado en grid
-        self.additional_actions_frame = ctk.CTkFrame(atf, fg_color="transparent")
-        
-        # Configurar grid para organizar botones en filas
-        self.additional_actions_frame.grid_columnconfigure(0, weight=0)
-        self.additional_actions_frame.grid_columnconfigure(1, weight=0)
-        self.additional_actions_frame.grid_columnconfigure(2, weight=0)
-        self.additional_actions_frame.grid_columnconfigure(3, weight=0) # New column for layout
-        
-        # Primera fila de botones
-        # Botón Fidelizado
-        self.fidelizado_unlock_btn = ctk.CTkButton(self.additional_actions_frame, text="Fidelizado", command=self.handle_fidelizado_access,
-                                                   fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                                   hover_color=self.colors["bg"],
-                                                   font=('Inter', 13),
-                                                   cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                                   border_width=1, border_color=self.colors["text_light"])
-        self.fidelizado_unlock_btn.grid(row=0, column=0, padx=(12, 8), pady=4)
-        
-        # Botón Inyector ADB
-        self.adb_injector_btn = ctk.CTkButton(self.additional_actions_frame, text="Inyector ADB", command=self.open_adb_injector,
-                                              fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                              hover_color=self.colors["bg"],
-                                              font=('Inter', 13),
-                                              cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                              border_width=1, border_color=self.colors["text_light"])
-        self.adb_injector_btn.grid(row=0, column=1, padx=8, pady=4)
+        self.toggle_actions_btn = ctk.CTkButton(
+            tools_header,
+            text="Herramientas rápidas ▾",
+            command=self.toggle_additional_actions,
+            fg_color=self._section_bg_color(),
+            hover_color=lighten_color(self._section_bg_color(), 0.12),
+            text_color=self.colors['text'],
+            font=self.fonts['button_small'],
+            cursor='hand2',
+            corner_radius=12,
+            height=32,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        self.toggle_actions_btn.grid(row=0, column=1, sticky="e")
 
-        # Botón Ver Pantalla
-        self.ver_pantalla_btn = ctk.CTkButton(self.additional_actions_frame, text="Ver Pantalla", command=self._iniciar_ver_pantalla,
-                                              fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                              hover_color=self.colors["bg"],
-                                              font=('Inter', 13),
-                                              cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                              border_width=1, border_color=self.colors["text_light"])
-        self.ver_pantalla_btn.grid(row=0, column=2, padx=8, pady=4)
-        
-        # Botón Detectar Números
-        self.detect_numbers_btn = ctk.CTkButton(self.additional_actions_frame, text="Detectar Números", command=self.detect_phone_numbers_thread,
-                                              fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                              hover_color=self.colors["bg"],
-                                              font=('Inter', 13),
-                                              cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                              border_width=1, border_color=self.colors["text_light"])
-        self.detect_numbers_btn.grid(row=1, column=0, padx=(12, 8), pady=4)
+        self.additional_actions_frame = ctk.CTkFrame(actions_section, fg_color="transparent")
+        self.additional_actions_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(10, 4))
+        for col in range(4):
+            self.additional_actions_frame.grid_columnconfigure(col, weight=0)
 
-        # Botón Cambiar Cuenta WhatsApp
-        self.switch_account_btn = ctk.CTkButton(self.additional_actions_frame, text="Cambiar Cuenta", command=self.switch_whatsapp_account,
-                                               fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                               hover_color=self.colors["bg"],
-                                               font=('Inter', 13),
-                                               cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                               border_width=1, border_color=self.colors["text_light"])
-        # self.switch_account_btn.grid(row=0, column=2, padx=8, pady=4)
-        
-        # Segunda fila de botones
-        # Botón Cambiador
-        self.cambiador_btn = ctk.CTkButton(self.additional_actions_frame, text="Cambiador", command=self.run_cambiador,
-                                          fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                          hover_color=self.colors["bg"],
-                                          font=('Inter', 13),
-                                          cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                          border_width=1, border_color=self.colors["text_light"])
-        # self.cambiador_btn.grid(row=1, column=0, padx=(12, 8), pady=4)
-        
-        # Botón Modo Oscuro
-        self.dark_mode_btn = ctk.CTkButton(self.additional_actions_frame, text="Modo Oscuro", command=self.toggle_dark_mode,
-                                          fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                          hover_color=self.colors["bg"],
-                                          font=('Inter', 13),
-                                          cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                          border_width=1, border_color=self.colors["text_light"])
-        self.dark_mode_btn.grid(row=0, column=3, padx=8, pady=4)
+        tool_btn_kwargs = dict(
+            fg_color=self._section_bg_color(),
+            text_color=self.colors['text'],
+            hover_color=lighten_color(self._section_bg_color(), 0.08),
+            font=self.fonts['button_small'],
+            cursor='hand2',
+            width=150,
+            height=36,
+            corner_radius=16,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
 
-        # Botones de Perfil
-        self.perfil_1_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 1", command=lambda: self._ejecutar_perfil('perfil_1'),
-                                           fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                           hover_color=self.colors["bg"], font=('Inter', 13),
-                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                           border_width=1, border_color=self.colors["text_light"])
-        # self.perfil_1_btn.grid(row=1, column=0, padx=(12, 8), pady=4)
+        self.fidelizado_unlock_btn = ctk.CTkButton(
+            self.additional_actions_frame,
+            text="Modo Fidelizado",
+            command=self.handle_fidelizado_access,
+            **tool_btn_kwargs
+        )
+        self.fidelizado_unlock_btn.grid(row=0, column=0, padx=(0, 8), pady=6, sticky="w")
 
-        self.perfil_2_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 2", command=lambda: self._ejecutar_perfil('perfil_2'),
-                                           fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                           hover_color=self.colors["bg"], font=('Inter', 13),
-                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                           border_width=1, border_color=self.colors["text_light"])
-        # self.perfil_2_btn.grid(row=1, column=1, padx=8, pady=4)
+        self.adb_injector_btn = ctk.CTkButton(
+            self.additional_actions_frame,
+            text="Inyector ADB",
+            command=self.open_adb_injector,
+            **tool_btn_kwargs
+        )
+        self.adb_injector_btn.grid(row=0, column=1, padx=8, pady=6, sticky="w")
 
-        self.perfil_3_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 3", command=lambda: self._ejecutar_perfil('perfil_3'),
-                                           fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                           hover_color=self.colors["bg"], font=('Inter', 13),
-                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                           border_width=1, border_color=self.colors["text_light"])
-        # self.perfil_3_btn.grid(row=1, column=2, padx=8, pady=4)
+        self.adb_injector_dual_btn = ctk.CTkButton(
+            self.additional_actions_frame,
+            text="Inyector Dual",
+            command=self.open_adb_injector_dual,
+            **tool_btn_kwargs
+        )
+        self.adb_injector_dual_btn.grid(row=0, column=2, padx=8, pady=6, sticky="w")
 
-        self.perfil_4_btn = ctk.CTkButton(self.additional_actions_frame, text="Perfil 4", command=lambda: self._ejecutar_perfil('perfil_4'),
-                                           fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                           hover_color=self.colors["bg"], font=('Inter', 13),
-                                           cursor='hand2', width=130, height=38, corner_radius=10, state=tk.NORMAL,
-                                           border_width=1, border_color=self.colors["text_light"])
-        # self.perfil_4_btn.grid(row=1, column=3, padx=8, pady=4)
+        self.dark_mode_btn = ctk.CTkButton(
+            self.additional_actions_frame,
+            text="Modo Oscuro",
+            command=self.toggle_dark_mode,
+            **tool_btn_kwargs
+        )
+        self.dark_mode_btn.grid(row=0, column=3, padx=(8, 0), pady=6, sticky="w")
 
-        ctk.CTkFrame(ac, fg_color=self.colors['text_light'], height=1).pack(fill=tk.X, pady=(0, 25), padx=25)
+        self.perfil_1_btn = ctk.CTkButton(
+            self.additional_actions_frame,
+            text="Perfil 1",
+            command=lambda: self._ejecutar_perfil('perfil_1'),
+            **tool_btn_kwargs
+        )
+        self.perfil_2_btn = ctk.CTkButton(
+            self.additional_actions_frame,
+            text="Perfil 2",
+            command=lambda: self._ejecutar_perfil('perfil_2'),
+            **tool_btn_kwargs
+        )
+        self.perfil_3_btn = ctk.CTkButton(
+            self.additional_actions_frame,
+            text="Perfil 3",
+            command=lambda: self._ejecutar_perfil('perfil_3'),
+            **tool_btn_kwargs
+        )
+        self.perfil_4_btn = ctk.CTkButton(
+            self.additional_actions_frame,
+            text="Perfil 4",
+            command=lambda: self._ejecutar_perfil('perfil_4'),
+            **tool_btn_kwargs
+        )
 
-        acts = ctk.CTkFrame(ac, fg_color="transparent")
-        acts.pack(fill=tk.X, pady=(0, 25), padx=25)
+        self.perfil_1_btn.grid(row=1, column=0, padx=(0, 8), pady=6, sticky="w")
+        self.perfil_2_btn.grid(row=1, column=1, padx=8, pady=6, sticky="w")
+        self.perfil_3_btn.grid(row=1, column=2, padx=8, pady=6, sticky="w")
+        self.perfil_4_btn.grid(row=1, column=3, padx=(8, 0), pady=6, sticky="w")
 
-        btn_frames_data = [
-            (1, "🔍  Detectar Dispositivos", self.detect_devices, 'action_detect'),
-            (2, "📄  Cargar y Procesar Excel", self.load_and_process_excel, 'action_excel'),
+        self.additional_actions_frame.grid_remove()
+
+        steps_wrapper = ctk.CTkFrame(actions_section, fg_color="transparent")
+        steps_wrapper.grid(row=3, column=0, sticky="ew", padx=20, pady=(12, 10))
+        steps_wrapper.grid_columnconfigure(0, weight=1)
+
+        step_buttons = [
+            ("Detectar dispositivos", self.detect_devices, 'action_detect'),
+            ("Cargar y procesar Excel", self.load_and_process_excel, 'action_detect'),
         ]
 
-        for num, text, cmd, color_key in btn_frames_data:
-            bfc = ctk.CTkFrame(acts, fg_color="transparent")
-            bfc.pack(fill=tk.X, pady=(0, 15))
-            bfc.grid_columnconfigure(0, weight=0)
-            bfc.grid_columnconfigure(1, weight=1)
-            bfc.grid_rowconfigure(0, weight=1)
+        for index, (text, command, color_key) in enumerate(step_buttons, start=1):
+            row_frame = ctk.CTkFrame(steps_wrapper, fg_color="transparent")
+            row_frame.grid(row=index - 1, column=0, sticky="ew", pady=6)
+            row_frame.grid_columnconfigure(1, weight=1)
 
-            num_lbl = ctk.CTkLabel(bfc, text=str(num), font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'], width=40)
-            num_lbl.grid(row=0, column=0, padx=(0, 15))
+            badge = self._create_step_badge(row_frame, index)
+            badge.grid(row=0, column=0, padx=(0, 12))
 
-            btn = ctk.CTkButton(bfc, text=text, command=cmd,
-                                fg_color=self.colors[color_key],
-                                hover_color=self.hover_colors[color_key],
-                                text_color=self.colors['text_header_buttons'], font=self.fonts['button'],
-                                corner_radius=10, height=50)
-            btn.grid(row=0, column=1, sticky='nsew')
+            btn = ctk.CTkButton(
+                row_frame,
+                text=text,
+                command=command,
+                fg_color=self.colors[color_key],
+                hover_color=self.hover_colors[color_key],
+                text_color=self.colors['text_header_buttons'],
+                font=self.fonts['button'],
+                corner_radius=20,
+                height=44
+            )
+            btn.grid(row=0, column=1, sticky='ew')
 
-            if num == 1: self.btn_detect = btn
-            elif num == 2: self.btn_load = btn
+            if index == 1:
+                self.btn_detect = btn
+            elif index == 2:
+                self.btn_load = btn
 
-        # Selector de Modo de Envío (Simple/Doble/Triple) - SOLO para modo tradicional
-        mode_frame = ctk.CTkFrame(acts, fg_color="transparent")
-        mode_frame.pack(fill=tk.X, pady=(0, 15))
-        mode_frame.grid_columnconfigure(0, weight=0)
-        mode_frame.grid_columnconfigure(1, weight=1)
-        
-        num_lbl_mode = ctk.CTkLabel(mode_frame, text="3", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'], width=40)
-        num_lbl_mode.grid(row=0, column=0, padx=(0, 15))
-        
-        mode_selector_frame = ctk.CTkFrame(mode_frame, fg_color=self.colors['bg_card'], corner_radius=10, height=50)
-        mode_selector_frame.grid(row=0, column=1, sticky='nsew')
-        mode_selector_frame.grid_columnconfigure(0, weight=1)
-        mode_selector_frame.grid_rowconfigure(0, weight=1)
-        
-        mode_label = ctk.CTkLabel(mode_selector_frame, text="Modo de Envío:", font=self.fonts['button'], text_color=self.colors['text'])
-        mode_label.grid(row=0, column=0, padx=(20, 10), sticky='w')
+        mode_step_index = len(step_buttons) + 1
+        mode_row = ctk.CTkFrame(steps_wrapper, fg_color="transparent")
+        mode_row.grid(row=mode_step_index - 1, column=0, sticky="ew", pady=6)
+        mode_row.grid_columnconfigure(1, weight=1)
 
-        self.mode_selector = ctk.CTkSegmentedButton(mode_selector_frame, variable=self.traditional_send_mode,
-                                                     values=["Business", "Normal", "Business/Normal", "B/N.1/N.2"],
-                                                     font=('Inter', 10, 'bold'),
-                                                     height=35,
-                                                     corner_radius=8,
-                                                     fg_color=self.colors['bg'],
-                                                     selected_color=self.colors['action_excel'],
-                                                     selected_hover_color=self.hover_colors['action_excel'],
-                                                     unselected_color=self.colors['bg_card'],
-                                                     unselected_hover_color=self.colors['bg'],
-                                                     text_color=self.colors['text'])
-        self.mode_selector.grid(row=0, column=1, padx=(10, 20))
-        mode_selector_frame.grid_columnconfigure(1, weight=1)
+        self._create_step_badge(mode_row, mode_step_index).grid(row=0, column=0, padx=(0, 12))
+
+        mode_content = ctk.CTkFrame(mode_row, fg_color="transparent")
+        mode_content.grid(row=0, column=1, sticky="ew")
+        mode_content.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(mode_content, text="Modo de envío", font=self.fonts['progress_label'],
+                     text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
+
+        self.mode_selector = ctk.CTkSegmentedButton(
+            mode_content,
+            variable=self.traditional_send_mode,
+            values=["Business", "Normal", "Business/Normal", "B/N.1/N.2"],
+            font=('Inter', 11, 'bold'),
+            height=36,
+            corner_radius=14,
+            fg_color=self._section_bg_color(),
+            selected_color=self.colors['action_excel'],
+            selected_hover_color=self.hover_colors['action_excel'],
+            unselected_color=self.colors['bg_card'],
+            unselected_hover_color=self._section_bg_color(),
+            text_color=self.colors['text']
+        )
+        self.mode_selector.grid(row=1, column=0, sticky="ew", pady=(6, 0))
         self.traditional_send_mode.trace_add('write', self.update_per_whatsapp_stat)
-        
-        # Botón 3: Iniciar Envío
-        btn_frame_3 = ctk.CTkFrame(acts, fg_color="transparent")
-        btn_frame_3.pack(fill=tk.X, pady=(0, 15))
-        btn_frame_3.grid_columnconfigure(0, weight=0)
-        btn_frame_3.grid_columnconfigure(1, weight=1)
-        
-        num_lbl_3 = ctk.CTkLabel(btn_frame_3, text="4", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'], width=40)
-        num_lbl_3.grid(row=0, column=0, padx=(0, 15))
-        
-        self.btn_start = ctk.CTkButton(btn_frame_3, text="▶  INICIAR ENVÍO", command=self.start_sending,
-                            fg_color=self.colors['action_start'],
-                            hover_color=self.hover_colors['action_start'],
-                            text_color=self.colors['text_header_buttons'], font=self.fonts['button'],
-                            corner_radius=10, height=50)
-        self.btn_start.grid(row=0, column=1, sticky='nsew')
 
+        start_step_index = mode_step_index + 1
+        start_row = ctk.CTkFrame(steps_wrapper, fg_color="transparent")
+        start_row.grid(row=start_step_index - 1, column=0, sticky="ew", pady=(12, 0))
+        start_row.grid_columnconfigure(1, weight=1)
 
-        # Botones de control (Pausar/Cancelar)
-        ctrls = ctk.CTkFrame(acts, fg_color="transparent")
-        ctrls.pack(fill=tk.X, pady=(10, 0))
-        self.btn_pause = ctk.CTkButton(ctrls, text="⏸  PAUSAR", command=self.pause_sending, fg_color=self.colors['action_pause'], hover_color=self.hover_colors['action_pause'], text_color=self.colors['text_header_buttons'], text_color_disabled='#ffffff', font=self.fonts['button_small'], corner_radius=20, height=40, state=tk.DISABLED)
-        self.btn_pause.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
-        self.btn_stop = ctk.CTkButton(ctrls, text="⏹  CANCELAR", command=self.stop_sending, fg_color=self.colors['action_cancel'], hover_color=self.hover_colors['action_cancel'], text_color=self.colors['text_header_buttons'], text_color_disabled='#ffffff', font=self.fonts['button_small'], corner_radius=20, height=40, state=tk.DISABLED)
-        self.btn_stop.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(10, 0))
+        self._create_step_badge(start_row, start_step_index).grid(row=0, column=0, padx=(0, 12))
 
+        self.btn_start = ctk.CTkButton(
+            start_row,
+            text="Iniciar envío",
+            command=self.start_sending,
+            fg_color=self.colors['action_start'],
+            hover_color=self.hover_colors['action_start'],
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['button'],
+            corner_radius=24,
+            height=48
+        )
+        self.btn_start.grid(row=0, column=1, sticky='ew')
+
+        controls = ctk.CTkFrame(actions_section, fg_color="transparent")
+        controls.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 10))
+        controls.grid_columnconfigure(0, weight=1)
+        controls.grid_columnconfigure(1, weight=1)
+
+        self.btn_pause = ctk.CTkButton(
+            controls,
+            text="Pausar",
+            command=self.pause_sending,
+            fg_color=self.colors['action_pause'],
+            hover_color=self.hover_colors['action_pause'],
+            text_color=self.colors['text_header_buttons'],
+            text_color_disabled='#ffffff',
+            font=self.fonts['button_small'],
+            corner_radius=18,
+            height=40,
+            state=tk.DISABLED
+        )
+        self.btn_pause.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+
+        self.btn_stop = ctk.CTkButton(
+            controls,
+            text="Cancelar",
+            command=self.stop_sending,
+            fg_color=self.colors['action_cancel'],
+            hover_color=self.hover_colors['action_cancel'],
+            text_color=self.colors['text_header_buttons'],
+            text_color_disabled='#ffffff',
+            font=self.fonts['button_small'],
+            corner_radius=18,
+            height=40,
+            state=tk.DISABLED
+        )
+        self.btn_stop.grid(row=0, column=1, sticky="ew", padx=(8, 0))
     def setup_right(self, parent):
         # Bloque 1: Estado y Progreso
         sc = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
@@ -1031,6 +1051,57 @@ class Hermes:
             ctk.CTkLabel(ctrls, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.LEFT, padx=(0, 8))
             spinbox2 = self._create_spinbox_widget(ctrls, var2, min_val=1, max_val=300)
             spinbox2.pack(side=tk.LEFT)
+
+    def _section_bg_color(self):
+        return "#f5f5f7" if not self.dark_mode else "#111827"
+
+    def _section_border_color(self):
+        return "#dde1ea" if not self.dark_mode else "#1f2937"
+
+    def _build_section(self, parent, row, title, subtitle=None, icon=None):
+        container = ctk.CTkFrame(parent, fg_color="transparent")
+        container.grid(row=row, column=0, sticky="ew", padx=24, pady=(0, 24))
+        container.grid_columnconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(
+            container,
+            fg_color=self._section_bg_color(),
+            corner_radius=18,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        card.grid(row=0, column=0, sticky="ew")
+        card.grid_columnconfigure(0, weight=1)
+
+        header = ctk.CTkFrame(card, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 8))
+        header.grid_columnconfigure(1, weight=1)
+
+        if icon:
+            icon_label = ctk.CTkLabel(header, text=icon, font=('Inter', 18), text_color=self.colors['text'])
+            rowspan = 2 if subtitle else 1
+            icon_label.grid(row=0, column=0, rowspan=rowspan, padx=(0, 12), sticky="n")
+
+        title_label = ctk.CTkLabel(header, text=title, font=self.fonts['card_title'], text_color=self.colors['text'])
+        title_label.grid(row=0, column=1, sticky="w")
+
+        if subtitle:
+            subtitle_label = ctk.CTkLabel(header, text=subtitle, font=self.fonts['setting_label'], text_color=self.colors['text_light'])
+            subtitle_label.grid(row=1, column=1, sticky="w", pady=(6, 0))
+
+        return card
+
+    def _create_step_badge(self, parent, number):
+        return ctk.CTkLabel(
+            parent,
+            text=str(number),
+            width=34,
+            height=34,
+            corner_radius=17,
+            fg_color=self.colors['action_detect'],
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['progress_value']
+        )
 
     def log(self, msg, tag='info'):
         """Añade un mensaje al registro de actividad con formato."""
@@ -1222,15 +1293,13 @@ class Hermes:
     def toggle_additional_actions(self):
         """Muestra u oculta los botones adicionales."""
         self.actions_expanded = not self.actions_expanded
-        
+
         if self.actions_expanded:
-            # Mostrar los botones en la misma línea
-            self.additional_actions_frame.pack(side=tk.LEFT, padx=(0, 0))
-            self.toggle_actions_btn.configure(text="▲")
+            self.additional_actions_frame.grid()
+            self.toggle_actions_btn.configure(text="Herramientas rápidas ▴")
         else:
-            # Ocultar los botones
-            self.additional_actions_frame.pack_forget()
-            self.toggle_actions_btn.configure(text="▼")
+            self.additional_actions_frame.grid_remove()
+            self.toggle_actions_btn.configure(text="Herramientas rápidas ▾")
 
     def update_per_whatsapp_stat(self, *args):
         """Calcula y actualiza la estadística de mensajes por cuenta de WhatsApp."""
@@ -4224,6 +4293,11 @@ class Hermes:
         
         # Bind Enter para ejecutar
         cmd_entry.bind('<Return>', lambda e: execute_command())
+
+    def open_adb_injector_dual(self):
+        """Compatibilidad para el botón 'Inyector Dual'."""
+        self.log("Inyector Dual reutiliza la ventana del Inyector ADB estándar.", 'info')
+        self.open_adb_injector()
 
     def detect_phone_numbers_thread(self):
         """Inicia la detección de números de teléfono en un hilo separado."""
