@@ -285,27 +285,27 @@ class Hermes:
 
         # Paleta de colores
         self.colors_light = {
-            'blue': '#4285F4', 'green': '#1DB954', 'orange': '#FB923C',
-            'bg': '#e8e8e8', 'bg_card': '#ffffff', 'bg_header': '#ffffff',
-            'bg_log': '#282c34',
-            'log_text': '#abb2bf', 'log_success': '#98c379', 'log_error': '#e06c75',
-            'log_warning': '#d19a66', 'log_info': '#61afef',
-            'text': '#202124', 'text_light': '#5f6368', 'text_header_buttons': '#ffffff', 'text_header': '#000000', 'log_title_color': '#ffffff',
-            'action_detect': '#2563EB', 'action_excel': '#FB923C',
-            'action_mode': '#0EA5E9', 'action_fidelizador': '#111827', 'action_start': '#16A34A',
-            'action_pause': '#FB923C', 'action_cancel': '#DC2626'
+            'blue': '#1B3A4B', 'green': '#4CAF7D', 'orange': '#A3B9C9',
+            'bg': '#EEF2F5', 'bg_card': '#FFFFFF', 'bg_header': '#F5F7F9',
+            'bg_log': '#2B333E',
+            'log_text': '#CDD4DD', 'log_success': '#8CC49B', 'log_error': '#F28B82',
+            'log_warning': '#F2C179', 'log_info': '#86B5D9',
+            'text': '#1E2933', 'text_light': '#596B7A', 'text_header_buttons': '#FFFFFF', 'text_header': '#0F1722', 'log_title_color': '#FFFFFF',
+            'action_detect': '#1B3A4B', 'action_excel': '#A3B9C9',
+            'action_mode': '#5E8196', 'action_fidelizador': '#0F1F2A', 'action_start': '#4CAF7D',
+            'action_pause': '#A3B9C9', 'action_cancel': '#F28B82'
         }
 
         self.colors_dark = {
-            'blue': '#5B9FFF', 'green': '#1ED760', 'orange': '#FFA45C',
-            'bg': '#000000', 'bg_card': '#1a1a1a', 'bg_header': '#1a1a1a',
-            'bg_log': '#1a1a1a',
-            'log_text': '#ffffff', 'log_success': '#98c379', 'log_error': '#e06c75',
-            'log_warning': '#d19a66', 'log_info': '#61afef',
-            'text': '#ffffff', 'text_light': '#cccccc', 'text_header_buttons': '#ffffff', 'text_header': '#ffffff', 'log_title_color': '#ffffff',
-            'action_detect': '#5B9FFF', 'action_excel': '#FFA45C',
-            'action_mode': '#38BDF8', 'action_fidelizador': '#e4e6eb', 'action_start': '#22C55E',
-            'action_pause': '#FFA45C', 'action_cancel': '#EF4444'
+            'blue': '#27485A', 'green': '#5FC597', 'orange': '#7C92A1',
+            'bg': '#0F1722', 'bg_card': '#18232F', 'bg_header': '#18232F',
+            'bg_log': '#18232F',
+            'log_text': '#DBE2EA', 'log_success': '#9DD8AE', 'log_error': '#FF9F9F',
+            'log_warning': '#F3CA8C', 'log_info': '#93C5E7',
+            'text': '#F5F7F9', 'text_light': '#B2C0CB', 'text_header_buttons': '#0F1722', 'text_header': '#F5F7F9', 'log_title_color': '#F5F7F9',
+            'action_detect': '#27485A', 'action_excel': '#7C92A1',
+            'action_mode': '#6D92A5', 'action_fidelizador': '#233240', 'action_start': '#5FC597',
+            'action_pause': '#7C92A1', 'action_cancel': '#FF9F9F'
         }
         
         self.colors = self.colors_light.copy()
