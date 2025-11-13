@@ -1532,12 +1532,29 @@ class Hermes:
             # Caso 1: El archivo ya tiene una columna 'URL'
             if 'URL' in self.columns or 'url' in self.columns:
                 uc = 'URL' if 'URL' in self.columns else 'url'
-                self.links = [r[uc] for r in self.raw_data if r.get(uc) and r[uc].startswith("http")]
-                if self.links:
+                loaded_links = [str(r.get(uc, '')).strip() for r in self.raw_data if r.get(uc)]
+                whatsapp_links = [lk for lk in loaded_links if lk.lower().startswith("http")]
+                sms_links = [lk for lk in loaded_links if lk.lower().startswith("sms:")]
+
+                if whatsapp_links or sms_links:
+                    # Priorizar los enlaces según el modo activo o el contenido del archivo
+                    if sms_links and (self.sms_mode_active or not whatsapp_links):
+                        self.links = sms_links
+                        link_label = "links SMS"
+                        # Asegurar que el modo SMS quede activo cuando se cargan enlaces procesados de SMS
+                        self.sms_mode_active = True
+                    else:
+                        self.links = whatsapp_links
+                        link_label = "URLs"
+
                     self.total_messages = len(self.links)
                     self.update_stats()
-                    self.log(f"✓ {len(self.links)} URLs cargados directamente", 'success')
-                    messagebox.showinfo("Cargado", f"Se cargaron {len(self.links)} URLs directamente desde la columna '{uc}'.\nNo se requiere procesamiento.")
+                    self.log(f"✓ {len(self.links)} {link_label} cargados directamente", 'success')
+                    messagebox.showinfo(
+                        "Cargado",
+                        f"Se cargaron {len(self.links)} {link_label} directamente desde la columna '{uc}'.\nNo se requiere procesamiento.",
+                        parent=self.root
+                    )
                     return
 
             # Caso 2: El archivo necesita procesamiento
