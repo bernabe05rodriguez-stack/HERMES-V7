@@ -218,6 +218,11 @@ class Hermes:
         self.wait_after_open = SafeIntVar(value=15)
         self.wait_after_first_enter = SafeIntVar(value=10)
 
+        # Variables para el nuevo modo SMS
+        self.sms_mode_active = False
+        self.sms_delay_min = SafeIntVar(value=10)
+        self.sms_delay_max = SafeIntVar(value=15)
+
         self.excel_file = ""
         self.links = []
         self.devices = []
@@ -515,6 +520,10 @@ class Hermes:
         self.fidelizado_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
         self.setup_fidelizado_view(self.fidelizado_view_frame) # <-- LLAMAR AL MÉTODO DE CONSTRUCCIÓN
 
+        # --- Vista SMS ---
+        self.sms_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+        self.setup_sms_view(self.sms_view_frame)
+
         # Mostrar la vista tradicional por defecto
         self.show_traditional_view()
 
@@ -529,14 +538,34 @@ class Hermes:
             # Asumir que los mensajes de grupo son los mismos
             self.manual_messages_groups = self.manual_messages_numbers
 
+        self.sms_mode_active = False
         self.fidelizado_view_frame.pack_forget()
+        self.sms_view_frame.pack_forget()
         self.traditional_view_frame.pack(fill=tk.BOTH, expand=True)
+        self.update_per_whatsapp_stat()
 
     def show_fidelizado_view(self):
         """Muestra la vista de Fidelizado, repoblando los datos, y oculta las demás."""
         self._populate_fidelizado_inputs() # Repoblar datos al mostrar la vista
+        self.sms_mode_active = False
         self.traditional_view_frame.pack_forget()
+        self.sms_view_frame.pack_forget()
         self.fidelizado_view_frame.pack(fill=tk.BOTH, expand=True)
+
+    def show_sms_view(self):
+        """Activa la vista de envío por SMS."""
+        self.sms_mode_active = True
+        self.manual_mode = False
+        self.fidelizado_mode = None
+        if self.links and not all(link.lower().startswith("sms:") for link in self.links):
+            self.links = []
+            self.total_messages = 0
+            self.update_stats()
+            self.log("Modo SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
+        self.traditional_view_frame.pack_forget()
+        self.fidelizado_view_frame.pack_forget()
+        self.sms_view_frame.pack(fill=tk.BOTH, expand=True)
+        self.update_per_whatsapp_stat()
 
     def setup_traditional_view(self, parent):
         parent.grid_columnconfigure(0, weight=1)
@@ -584,7 +613,7 @@ class Hermes:
 
         self.additional_actions_frame = ctk.CTkFrame(actions_section, fg_color="transparent")
         self.additional_actions_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(10, 4))
-        for col in range(4):
+        for col in range(5):
             self.additional_actions_frame.grid_columnconfigure(col, weight=0)
 
         tool_btn_kwargs = dict(
@@ -608,13 +637,21 @@ class Hermes:
         )
         self.fidelizado_unlock_btn.grid(row=0, column=0, padx=(0, 8), pady=6, sticky="w")
 
+        self.sms_mode_btn = ctk.CTkButton(
+            self.additional_actions_frame,
+            text="Modo SMS",
+            command=self.handle_sms_mode_access,
+            **tool_btn_kwargs
+        )
+        self.sms_mode_btn.grid(row=0, column=1, padx=8, pady=6, sticky="w")
+
         self.adb_injector_btn = ctk.CTkButton(
             self.additional_actions_frame,
             text="Inyector ADB",
             command=self.open_adb_injector,
             **tool_btn_kwargs
         )
-        self.adb_injector_btn.grid(row=0, column=1, padx=8, pady=6, sticky="w")
+        self.adb_injector_btn.grid(row=0, column=2, padx=8, pady=6, sticky="w")
 
         self.adb_injector_dual_btn = ctk.CTkButton(
             self.additional_actions_frame,
@@ -622,7 +659,7 @@ class Hermes:
             command=self.open_adb_injector_dual,
             **tool_btn_kwargs
         )
-        self.adb_injector_dual_btn.grid(row=0, column=2, padx=8, pady=6, sticky="w")
+        self.adb_injector_dual_btn.grid(row=0, column=3, padx=8, pady=6, sticky="w")
 
         self.dark_mode_btn = ctk.CTkButton(
             self.additional_actions_frame,
@@ -630,7 +667,7 @@ class Hermes:
             command=self.toggle_dark_mode,
             **tool_btn_kwargs
         )
-        self.dark_mode_btn.grid(row=0, column=3, padx=(8, 0), pady=6, sticky="w")
+        self.dark_mode_btn.grid(row=0, column=4, padx=(8, 0), pady=6, sticky="w")
 
         self.additional_actions_frame.grid_remove()
 
@@ -751,6 +788,139 @@ class Hermes:
             state=tk.DISABLED
         )
         self.btn_stop.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+
+    def setup_sms_view(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(0, weight=1)
+
+        container = ctk.CTkFrame(parent, fg_color="transparent")
+        container.pack(fill=tk.BOTH, expand=True)
+
+        content = ctk.CTkFrame(container, fg_color=self.colors['bg_card'], corner_radius=30)
+        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        content.grid_columnconfigure(0, weight=1)
+
+        header_frame = ctk.CTkFrame(content, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 10))
+        header_frame.grid_columnconfigure(0, weight=1)
+
+        title = ctk.CTkLabel(header_frame, text="Modo SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
+        title.grid(row=0, column=0, sticky="w")
+
+        self.sms_back_btn = ctk.CTkButton(
+            header_frame,
+            text="Volver al modo Masivos",
+            command=self.show_traditional_view,
+            fg_color=self.colors['action_mode'],
+            hover_color=self.hover_colors['action_mode'],
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['button'],
+            corner_radius=20,
+            height=40
+        )
+        self.sms_back_btn.grid(row=0, column=1, sticky="e")
+
+        time_section = self._build_section(content, 1, "Configuración de tiempos (SMS)",
+                                           "Define los intervalos y esperas para los mensajes de texto.", icon="🕒")
+
+        sms_settings = ctk.CTkFrame(time_section, fg_color="transparent")
+        sms_settings.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
+        self.create_setting(sms_settings, "Delay (seg):", self.sms_delay_min, self.sms_delay_max, 0)
+        self.create_setting(sms_settings, "Espera Abrir (seg):", self.wait_after_open, None, 1)
+        self.create_setting(sms_settings, "Espera Enter (seg):", self.wait_after_first_enter, None, 2)
+
+        actions_section = self._build_section(content, 2, "Flujo SMS",
+                                              "Sigue los pasos para preparar y lanzar la campaña.", icon="📨")
+
+        sms_steps_wrapper = ctk.CTkFrame(actions_section, fg_color="transparent")
+        sms_steps_wrapper.grid(row=1, column=0, sticky="ew", padx=20, pady=(12, 10))
+        sms_steps_wrapper.grid_columnconfigure(0, weight=1)
+
+        sms_step_buttons = [
+            ("Detectar dispositivos", self.detect_devices, 'action_detect'),
+            ("Cargar y procesar Excel", self.load_and_process_excel_sms, 'action_excel'),
+        ]
+
+        for index, (text, command, color_key) in enumerate(sms_step_buttons, start=1):
+            row_frame = ctk.CTkFrame(sms_steps_wrapper, fg_color="transparent")
+            row_frame.grid(row=index - 1, column=0, sticky="ew", pady=6)
+            row_frame.grid_columnconfigure(1, weight=1)
+
+            badge = self._create_step_badge(row_frame, index)
+            badge.grid(row=0, column=0, padx=(0, 12))
+
+            btn = ctk.CTkButton(
+                row_frame,
+                text=text,
+                command=command,
+                fg_color=self.colors[color_key],
+                hover_color=self.hover_colors[color_key],
+                text_color=self.colors['text_header_buttons'],
+                font=self.fonts['button'],
+                corner_radius=20,
+                height=44
+            )
+            btn.grid(row=0, column=1, sticky='ew')
+
+            if index == 1:
+                self.sms_btn_detect = btn
+            elif index == 2:
+                self.sms_btn_load = btn
+
+        start_row = ctk.CTkFrame(sms_steps_wrapper, fg_color="transparent")
+        start_row.grid(row=len(sms_step_buttons), column=0, sticky="ew", pady=(16, 0))
+        start_row.grid_columnconfigure(1, weight=1)
+
+        self._create_step_badge(start_row, len(sms_step_buttons) + 1).grid(row=0, column=0, padx=(0, 12))
+
+        self.sms_btn_start = ctk.CTkButton(
+            start_row,
+            text="Iniciar envío SMS",
+            command=self.start_sending,
+            fg_color=self.colors['action_start'],
+            hover_color=self.hover_colors['action_start'],
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['button'],
+            corner_radius=24,
+            height=48
+        )
+        self.sms_btn_start.grid(row=0, column=1, sticky='ew')
+
+        sms_controls = ctk.CTkFrame(actions_section, fg_color="transparent")
+        sms_controls.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 10))
+        sms_controls.grid_columnconfigure(0, weight=1)
+        sms_controls.grid_columnconfigure(1, weight=1)
+
+        self.sms_btn_pause = ctk.CTkButton(
+            sms_controls,
+            text="Pausar",
+            command=self.pause_sending,
+            fg_color=self.colors['action_pause'],
+            hover_color=self.hover_colors['action_pause'],
+            text_color=self.colors['text_header_buttons'],
+            text_color_disabled='#ffffff',
+            font=self.fonts['button_small'],
+            corner_radius=18,
+            height=40,
+            state=tk.DISABLED
+        )
+        self.sms_btn_pause.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+
+        self.sms_btn_stop = ctk.CTkButton(
+            sms_controls,
+            text="Cancelar",
+            command=self.stop_sending,
+            fg_color=self.colors['action_cancel'],
+            hover_color=self.hover_colors['action_cancel'],
+            text_color=self.colors['text_header_buttons'],
+            text_color_disabled='#ffffff',
+            font=self.fonts['button_small'],
+            corner_radius=18,
+            height=40,
+            state=tk.DISABLED
+        )
+        self.sms_btn_stop.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+
     def setup_right(self, parent):
         # Bloque 1: Estado y Progreso
         sc = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
@@ -1161,6 +1331,15 @@ class Hermes:
     def update_per_whatsapp_stat(self, *args):
         """Calcula y actualiza la estadística de mensajes por cuenta de WhatsApp."""
         num_devices = len(self.devices)
+
+        if self.sms_mode_active:
+            if not self.links or num_devices == 0:
+                self.stat_per_whatsapp.configure(text="Mensajes por dispositivo (SMS): --")
+            else:
+                per_device = len(self.links) / num_devices
+                self.stat_per_whatsapp.configure(text=f"Mensajes por dispositivo (SMS): ~{round(per_device)}")
+            return
+
         if not self.links or self.manual_mode or num_devices == 0:
             self.stat_per_whatsapp.configure(text="Mensajes por WhatsApp: --")
             return
@@ -1311,9 +1490,9 @@ class Hermes:
         """Abre el diálogo para cargar Excel/CSV e inicia el procesamiento."""
         self.log("Seleccionando...", 'info')
         self.manual_mode = False  # Modo tradicional (Excel/CSV)
-        self.group_mode = False 
+        self.group_mode = False
         self.fidelizado_mode = None  # No usar modo fidelizado
-        
+
         fp = filedialog.askopenfilename(
             title="Seleccionar archivo Excel/CSV",
             filetypes=[("Excel/CSV", "*.xlsx *.xls *.csv"), ("Todos", "*.*")]
@@ -1376,6 +1555,12 @@ class Hermes:
         except Exception as e:
             self.log(f"Error al leer archivo: {e}", 'error'); messagebox.showerror("Error", f"Error al leer el archivo:\n{e}")
 
+    def load_and_process_excel_sms(self):
+        """Acceso auxiliar para el modo SMS."""
+        self.sms_mode_active = True
+        self.manual_mode = False
+        self.load_and_process_excel()
+
     # --- Lógica de Fidelizado (Carga Manual) ---
 
 
@@ -1434,6 +1619,10 @@ class Hermes:
         # Si la lógica de contraseña sigue siendo necesaria, se puede añadir aquí.
         # Por ahora, simplemente muestra la vista.
         self.show_fidelizado_view()
+
+    def handle_sms_mode_access(self):
+        """Manejador del acceso directo al modo SMS."""
+        self.show_sms_view()
 
     def setup_fidelizado_view(self, parent):
         """Construye la interfaz de la vista Fidelizado."""
@@ -2220,14 +2409,22 @@ class Hermes:
                                 except: val = str(val)
                             msg = msg.replace(pl, val)
 
-                    ph_clean = phone.strip()
+                    ph_digits = re.sub(r'\D', '', phone)
+                    if not ph_digits:
+                        continue
+
                     enc_msg = urllib.parse.quote(msg, safe='')
-                    processed_rows.append(f"https://wa.me/549{ph_clean}?text={enc_msg}")
+                    if self.sms_mode_active:
+                        link = f"sms:{ph_digits}?body={enc_msg}"
+                    else:
+                        link = f"https://wa.me/549{ph_digits}?text={enc_msg}"
+                    processed_rows.append(link)
 
         self.links = processed_rows
         self.total_messages = len(self.links)
         self.update_stats()
         self.log(f"{len(self.links)} URLs generados", 'success')
+        self.update_per_whatsapp_stat()
 
         if not self.manual_mode:
             self.save_processed_excel() # Ofrecer guardar solo si no es modo Fidelizado
@@ -2324,7 +2521,11 @@ class Hermes:
             self.total_messages = num_bucles * tasks_per_bucle
             wa_mode_str = self.whatsapp_mode.get()
             self.log(f"Modo Mixto ({wa_mode_str}): {self.total_messages} envíos totales ({num_bucles} bucles x ({num_grupos} grupos + {num_numeros} nums) x {num_dev} disp. x {whatsapp_multiplier} app(s))", 'info')
-        
+
+        elif self.sms_mode_active:
+            self.total_messages = len(self.links)
+            self.log(f"Modo SMS: {self.total_messages} envíos totales", 'info')
+
         # (total_messages para otros modos ya está calculado)
         # --- Fin Validación ---
 
@@ -2336,7 +2537,7 @@ class Hermes:
 
         
         # Calcular total_messages para modo tradicional según Simple/Doble/Triple
-        if not self.manual_mode:
+        if not self.manual_mode and not self.sms_mode_active:
             mode = self.traditional_send_mode.get()
             base_links = len(self.links)
             if mode == "Simple":
@@ -2368,12 +2569,16 @@ class Hermes:
                 self.btn_pause.configure(text="⏸  PAUSAR")
                 if hasattr(self, 'fidelizado_btn_pause'):
                     self.fidelizado_btn_pause.configure(text="⏸  PAUSAR")
+                if hasattr(self, 'sms_btn_pause'):
+                    self.sms_btn_pause.configure(text="⏸  PAUSAR")
                 self.log("Reanudado", 'success')
             else:
                 self.is_paused = True
                 self.btn_pause.configure(text="▶  REANUDAR")
                 if hasattr(self, 'fidelizado_btn_pause'):
                     self.fidelizado_btn_pause.configure(text="▶  REANUDAR")
+                if hasattr(self, 'sms_btn_pause'):
+                    self.sms_btn_pause.configure(text="▶  REANUDAR")
                 self.log("Pausado", 'warning')
 
     def stop_sending(self):
@@ -2463,6 +2668,8 @@ class Hermes:
                     self.run_uno_a_muchos_thread()
             elif self.fidelizado_mode == "MIXTO":
                 self.run_mixto_dual_whatsapp_thread()
+            elif self.sms_mode_active:
+                self.run_sms_thread()
             else:
                 self.run_default_thread()
             # --- Fin Lógica de envío ---
@@ -2526,6 +2733,8 @@ class Hermes:
             if self.manual_mode:
                 # FIX: Usar las nuevas variables de retardo de envío
                 delay = random.uniform(self.fidelizado_send_delay_min.get(), self.fidelizado_send_delay_max.get())
+            elif self.sms_mode_active:
+                delay = random.uniform(self.sms_delay_min.get(), self.sms_delay_max.get())
             else:
                 delay = random.uniform(self.delay_min.get(), self.delay_max.get())
             self.log(f"Esperando {delay:.1f}s... (Post-tarea {task_index})", 'info')
@@ -2665,7 +2874,26 @@ class Hermes:
                 self.log(f"Restaurando a Cuenta 1 en {dev}...", 'info')
                 self._switch_whatsapp_account(dev)
                 time.sleep(1)
-    
+
+    def run_sms_thread(self):
+        """Lógica de envío para el modo SMS."""
+        if not self.links:
+            self.log("Error: No hay enlaces SMS para enviar.", 'error')
+            return
+
+        self.log("Ejecutando Modo SMS...", 'info')
+        idx = 0
+
+        for i, link in enumerate(self.links):
+            if self.should_stop:
+                self.log("Cancelado en Modo SMS", 'warning')
+                break
+
+            device = self.devices[idx]
+            idx = (idx + 1) % len(self.devices)
+
+            self.run_single_task(device, link, None, i + 1, whatsapp_package=None)
+
     def run_numeros_manual_thread(self):
         """Lógica de envío para MODO NÚMEROS - MANUAL."""
         self.log("Iniciando MODO NÚMEROS (Manual)...", 'info')
@@ -3570,6 +3798,16 @@ class Hermes:
             if hasattr(self, 'back_to_traditional_btn'):
                 self.back_to_traditional_btn.configure(state=tk.NORMAL)
 
+        # -- Vista SMS --
+        if hasattr(self, 'sms_btn_start'):
+            self.sms_btn_start.configure(state=tk.NORMAL)
+            if hasattr(self, 'sms_btn_load'):
+                self.sms_btn_load.configure(state=tk.NORMAL)
+            self.sms_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
+            self.sms_btn_stop.configure(state=tk.DISABLED)
+            if hasattr(self, 'sms_back_btn'):
+                self.sms_back_btn.configure(state=tk.NORMAL)
+
     def _enter_task_mode(self):
         """Configura la UI para un estado de 'tarea en ejecución'."""
         self.is_running = True
@@ -3602,6 +3840,15 @@ class Hermes:
             self.fidelizado_btn_stop.configure(state=tk.NORMAL)
             if hasattr(self, 'back_to_traditional_btn'):
                 self.back_to_traditional_btn.configure(state=tk.DISABLED)
+
+        if self.sms_mode_active and hasattr(self, 'sms_btn_start'):
+            self.sms_btn_start.configure(state=tk.DISABLED)
+            if hasattr(self, 'sms_btn_load'):
+                self.sms_btn_load.configure(state=tk.DISABLED)
+            self.sms_btn_pause.configure(state=tk.NORMAL)
+            self.sms_btn_stop.configure(state=tk.NORMAL)
+            if hasattr(self, 'sms_back_btn'):
+                self.sms_back_btn.configure(state=tk.DISABLED)
 
     def _update_device_labels(self):
         """Actualiza todas las etiquetas de la UI que muestran la lista de dispositivos."""
@@ -3716,33 +3963,41 @@ class Hermes:
     def send_msg(self, device, link, i, total, message_to_send=None, whatsapp_package="com.whatsapp.w4b", ui_device=None):
         """Ejecuta los comandos para enviar un único mensaje, usando uiautomator2 si está disponible."""
         try:
+            is_sms = link.lower().startswith("sms:")
             num_display = "?"
             is_group = bool(message_to_send)
             if is_group:
                 num_display = f"Grupo ({link[:40]}...)"
+            elif is_sms:
+                num_display = link.split("sms:", 1)[1].split('?')[0]
             elif 'wa.me/' in link:
                 num_display = link.split('wa.me/')[1].split('?')[0]
 
             self.log(f"({i}/{total}) → {num_display} [en {device}]", 'info')
 
-            # 1. Abrir el enlace de WhatsApp (siempre con ADB para fiabilidad)
+            # 1. Abrir el enlace correspondiente (WhatsApp o SMS)
             self.log(f"Abriendo link en {device} con ADB...", 'info')
-            open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{link}"', '-p', whatsapp_package]
+            open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{link}"']
+            if whatsapp_package and not is_sms:
+                open_args.extend(['-p', whatsapp_package])
             if not self._run_adb_command(open_args, timeout=20):
                 self.log(f"Fallo al abrir link para {num_display}. Saltando...", "warning")
                 return False
-            
+
             time.sleep(self.wait_after_open.get())
-            if self.should_stop: return False
+            if self.should_stop:
+                return False
 
             # 2. Determinar el mensaje a enviar
             msg_to_send = message_to_send
             if not msg_to_send and not is_group:
                 try:
-                    msg_to_send = urllib.parse.unquote(link.split('text=')[1])
-                except IndexError:
-                    self.log("No se pudo extraer el mensaje del link para uiautomator2.", "error")
-                    return False
+                    if is_sms and '?body=' in link:
+                        msg_to_send = urllib.parse.unquote(link.split('?body=')[1])
+                    elif 'text=' in link:
+                        msg_to_send = urllib.parse.unquote(link.split('text=')[1])
+                except Exception:
+                    msg_to_send = None
 
             # 3. Lógica de envío refactorizada: usar siempre uiautomator2 para escribir y hacer clic en el botón de enviar.
             if not ui_device:
@@ -3751,19 +4006,39 @@ class Hermes:
 
             self.log("Usando uiautomator2 para escribir y enviar.", 'info')
             try:
-                # Esperar a que aparezca el campo de texto. Si no es un grupo, el texto ya está, así que solo buscamos el botón de enviar.
-                if is_group:
+                needs_text_input = is_group or is_sms
+                if needs_text_input:
                     edit_text = ui_device(className="android.widget.EditText")
                     if not edit_text.wait(timeout=10):
                         self.log("No se encontró el campo de texto para escribir.", "error")
-                        return False # Fallo, no se puede escribir.
-                    edit_text.set_text(msg_to_send)
+                        return False
+                    if msg_to_send is not None:
+                        edit_text.set_text(msg_to_send)
 
-                # Esperar y hacer clic en el botón de enviar. Es el único método de envío.
-                send_button = ui_device(description="Enviar")
-                if not send_button.wait(timeout=7):
+                # Esperar y hacer clic en el botón de enviar.
+                send_selectors = [
+                    dict(description="Enviar"),
+                    dict(descriptionMatches="(?i).*enviar.*"),
+                    dict(text="Enviar"),
+                    dict(textMatches="(?i).*enviar.*")
+                ]
+                if is_sms:
+                    send_selectors.extend([
+                        dict(resourceIdMatches="(?i).*send.*"),
+                        dict(descriptionMatches="(?i).*sms.*enviar.*"),
+                        dict(textMatches="(?i).*sms.*enviar.*")
+                    ])
+
+                send_button = None
+                for selector in send_selectors:
+                    candidate = ui_device(**selector)
+                    if candidate.wait(timeout=2):
+                        send_button = candidate
+                        break
+
+                if not send_button:
                     self.log("No se encontró el botón 'Enviar'. El mensaje no se puede enviar.", "error")
-                    return False # Fallo, no se encontró el botón.
+                    return False
 
                 send_button.click()
 
@@ -4439,7 +4714,14 @@ class Hermes:
     def close_all_apps(self, device):
         """Fuerza el cierre de WhatsApp y Google (MOD 25)."""
         self.log(f"Cerrando apps en {device}", 'info')
-        targets = ["com.whatsapp.w4b", "com.whatsapp", "com.google.android.googlequicksearchbox"]
+        targets = [
+            "com.whatsapp.w4b",
+            "com.whatsapp",
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.apps.messaging",
+            "com.samsung.android.messaging",
+            "com.android.mms"
+        ]
         for package in targets:
             close_args = ['-s', device, 'shell', 'am', 'force-stop', package]
             self._run_adb_command(close_args, timeout=5) # Usar la función helper, ignorar resultado
