@@ -1967,7 +1967,15 @@ class Hermes:
                                                   fg_color=self.colors['action_detect'],
                                                   hover_color=self.hover_colors['action_detect'],
                                                   height=40)
-        self.fidelizado_detect_btn.pack(fill='x', pady=(0, 15))
+        self.fidelizado_detect_btn.pack(fill='x', pady=(0, 10))
+
+        self.detect_numbers_btn = ctk.CTkButton(device_container, text="📞 Detectar Números",
+                                               command=self.detect_phone_numbers_thread,
+                                               font=self.fonts['button'],
+                                               fg_color=self.colors['action_detect'],
+                                               hover_color=self.hover_colors['action_detect'],
+                                               height=40)
+        self.detect_numbers_btn.pack(fill='x', pady=(0, 15))
 
         self.fidelizado_device_list_label = ctk.CTkLabel(device_container, text="No hay dispositivos detectados.",
                                                         font=self.fonts['setting_label'],
