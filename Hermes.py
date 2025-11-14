@@ -5264,17 +5264,56 @@ class Hermes:
                         root = ET.fromstring(xml_dump)
                         nodes = list(root.iter())
 
-                        primary_number = None
-                        for node in nodes:
-                            text_value = node.get('text')
+                        def _extract_number(text_value: str):
                             if not text_value:
-                                continue
+                                return None
+                            match_local = re.search(r'(\+[\d\s\-\(\)]+)', text_value)
+                            if match_local:
+                                return re.sub(r'[\s\-\(\)]', '', match_local.group(1))
+                            return None
+
+                        def _normalize_tu(text_value: str):
+                            normalized = text_value.strip().lower()
+                            return normalized.replace('ú', 'u')
+
+                        def _find_number_with_tu(element, parent=None):
+                            text_value = element.get('text') or ''
                             normalized_text = text_value.strip()
-                            if normalized_text.lower().endswith('(tú)'):
-                                match_contact = re.search(r'(\+[\d\s\-\(\)]+)', normalized_text)
-                                if match_contact:
-                                    primary_number = re.sub(r'[\s\-\(\)]', '', match_contact.group(1))
-                                    break
+                            normalized_for_tu = _normalize_tu(normalized_text)
+
+                            if normalized_for_tu and '(tu)' in normalized_for_tu:
+                                # 1) Intentar en el mismo elemento
+                                number_local = _extract_number(normalized_text)
+                                if number_local:
+                                    return number_local
+
+                                # 2) Intentar en los hijos
+                                for child in list(element):
+                                    number_child = _extract_number(child.get('text') or '')
+                                    if number_child:
+                                        return number_child
+
+                                # 3) Intentar en el padre y sus hijos (hermanos)
+                                if parent is not None:
+                                    number_parent = _extract_number(parent.get('text') or '')
+                                    if number_parent:
+                                        return number_parent
+
+                                    for sibling in list(parent):
+                                        if sibling is element:
+                                            continue
+                                        number_sibling = _extract_number(sibling.get('text') or '')
+                                        if number_sibling:
+                                            return number_sibling
+
+                            for child in list(element):
+                                result = _find_number_with_tu(child, element)
+                                if result:
+                                    return result
+
+                            return None
+
+                        primary_number = _find_number_with_tu(root)
 
                         if primary_number:
                             number = primary_number
@@ -5287,11 +5326,11 @@ class Hermes:
                             d.app_stop(pkg)
                             continue # Pasa al siguiente paquete de WhatsApp
 
-                        # Fallback: analizar todo el texto visible como antes
+                        # Fallback: analizar todo el texto visible pero solo si se referencia a "Tú"
                         all_text_nodes = [node.get('text') for node in nodes if node.get('text')]
                         main_screen_text = " ".join(filter(None, all_text_nodes))
 
-                        match = re.search(r'(\+[\d\s\-\(\)]+)', main_screen_text)
+                        match = re.search(r'(\+[\d\s\-\(\)]+)(?=[^\+]*\(t[uú]\))', main_screen_text, flags=re.IGNORECASE)
                         if match:
                             number = re.sub(r'[\s\-\(\)]', '', match.group(1))
                             self.log(f"    ¡Número encontrado en la pantalla principal!: {number}", 'success')
