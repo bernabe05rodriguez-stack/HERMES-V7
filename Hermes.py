@@ -1166,7 +1166,7 @@ class Hermes:
             spinbox2.pack(side=tk.LEFT)
 
     def _section_bg_color(self):
-        return "#f5f5f7" if not self.dark_mode else "#111827"
+        return "#f5f5f7" if not self.dark_mode else "#000000"
 
     def _section_border_color(self):
         return "#dde1ea" if not self.dark_mode else "#1f2937"
