@@ -335,6 +335,7 @@ class Hermes:
         self.numbers_editor_entries = {}
         self.numbers_editor_closed_event = threading.Event()
         self.numbers_editor_closed_event.set()
+        self.numbers_editor_start_requested = False
         self.dark_mode = False  # Estado del modo oscuro
 
         # Paleta de colores
@@ -2293,10 +2294,14 @@ class Hermes:
     def start_fidelizado_numeros_thread(self):
         """
         Hilo de trabajo para preparar e iniciar el envío del modo NÚMEROS automático.
-        Detecta los números, calcula el total, pide confirmación y luego inicia.
+        Detecta los números, calcula el total y espera la confirmación desde el editor.
         """
         if not self._detect_and_prepare_phone_lines():
             self.root.after(0, lambda: messagebox.showerror("Error", "No se detectaron suficientes líneas de WhatsApp para iniciar (se requieren al menos 2).", parent=self.root))
+            return
+
+        if not self.numbers_editor_start_requested:
+            self.log("Inicio de envío cancelado tras revisar los números detectados.", 'info')
             return
 
         # --- FILTRADO DE LÍNEAS POR TIPO DE WHATSAPP ---
@@ -2313,10 +2318,14 @@ class Hermes:
             self.log(f"Modo 'Ambas'. Usando {len(self.detected_phone_lines)} líneas detectadas.", 'info')
 
         if len(self.detected_phone_lines) < 2 and self.fidelizado_numeros_mode.get() != "Uno a muchos":
-             msg = f"Después de filtrar por '{whatsapp_mode}', solo quedan {len(self.detected_phone_lines)} líneas. Se requieren al menos 2 para este modo."
-             self.log(msg, 'error')
-             self.root.after(0, lambda: messagebox.showerror("Error", msg, parent=self.root))
-             return
+            msg = (
+                f"Después de filtrar por '{whatsapp_mode}', solo quedan {len(self.detected_phone_lines)} "
+                "líneas. Se requieren al menos 2 para este modo."
+            )
+            self.log(msg, 'error')
+            self.numbers_editor_start_requested = False
+            self.root.after(0, lambda: messagebox.showerror("Error", msg, parent=self.root))
+            return
         # --- FIN FILTRADO ---
 
         # Calcular total_messages
@@ -2338,13 +2347,11 @@ class Hermes:
         self.total_messages = total
         self.log(f"Cálculo para Modo '{self.fidelizado_numeros_mode.get()}': {self.total_messages} mensajes en total.", 'info')
 
-        self.root.after(0, self._ask_confirmation_and_start_numeros_mode)
+        self.root.after(0, self._start_numeros_mode_after_review)
 
-    def _ask_confirmation_and_start_numeros_mode(self):
-        """Pide confirmación al usuario y, si se acepta, inicia el envío del modo números."""
-        if not messagebox.askyesno("Confirmar Envío", f"Se detectaron {len(self.detected_phone_lines)} líneas.\n\nSe enviarán un total de {self.total_messages} mensajes en modo '{self.fidelizado_numeros_mode.get()}'.\n\n¿Deseas iniciar?", parent=self.root):
-            return
-
+    def _start_numeros_mode_after_review(self):
+        """Inicia el envío del modo números después de revisar y confirmar desde el editor."""
+        self.numbers_editor_start_requested = False
         self.reset_fidelizado_activity_records()
         self.show_activity_log()
 
@@ -4863,6 +4870,7 @@ class Hermes:
         Retorna True si se encontraron líneas, False en caso contrario.
         """
         self.log("Iniciando detección de números de teléfono...", 'info')
+        self.numbers_editor_start_requested = False
         detect_btn = getattr(self, 'detect_numbers_btn', None)
         if detect_btn and detect_btn.winfo_exists():
             self.root.after(0, detect_btn.configure, {'state': tk.DISABLED, 'text': "Detectando..."})
@@ -4948,8 +4956,12 @@ class Hermes:
         else:
             self.log("No se encontraron líneas de WhatsApp válidas.", 'warning')
 
-    def _close_numbers_editor(self):
+    def _close_numbers_editor(self, start_requested=False):
         """Cierra la ventana del editor de números (si existe)."""
+        if start_requested:
+            self.numbers_editor_start_requested = True
+        else:
+            self.numbers_editor_start_requested = False
         if self.numbers_editor_window is not None:
             try:
                 self.numbers_editor_window.destroy()
@@ -4960,10 +4972,10 @@ class Hermes:
         if hasattr(self, 'numbers_editor_closed_event'):
             self.numbers_editor_closed_event.set()
 
-    def _save_numbers_editor(self):
+    def _save_numbers_editor(self, start_after_save=False):
         """Guarda los cambios realizados manualmente en la tabla de números detectados."""
         if not self.numbers_editor_entries:
-            self._close_numbers_editor()
+            self._close_numbers_editor(start_requested=start_after_save)
             return
 
         updated_snapshot = {}
@@ -4990,8 +5002,9 @@ class Hermes:
         self.last_detection_snapshot = updated_snapshot
         self._update_detected_numbers_summary(updated_snapshot)
         self.log("Números ajustados manualmente desde el editor.", 'info')
-        self._close_numbers_editor()
-        messagebox.showinfo("Números actualizados", "Los cambios se guardaron correctamente.", parent=self.root)
+        self._close_numbers_editor(start_requested=start_after_save)
+        if not start_after_save:
+            messagebox.showinfo("Números actualizados", "Los cambios se guardaron correctamente.", parent=self.root)
 
     def _show_detected_numbers_editor(self, detection_results):
         """Muestra una tabla editable con los números detectados por dispositivo."""
@@ -5114,8 +5127,8 @@ class Hermes:
 
         save_btn = ctk.CTkButton(
             buttons_frame,
-            text="Guardar y continuar",
-            command=self._save_numbers_editor,
+            text="Iniciar",
+            command=lambda: self._save_numbers_editor(start_after_save=True),
             font=self.fonts['button'],
             fg_color=self.colors['action_start'],
             hover_color=self.hover_colors['action_start'],
