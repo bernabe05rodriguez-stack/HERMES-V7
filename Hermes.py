@@ -333,6 +333,8 @@ class Hermes:
         self.last_detection_snapshot = {}
         self.numbers_editor_window = None
         self.numbers_editor_entries = {}
+        self.numbers_editor_closed_event = threading.Event()
+        self.numbers_editor_closed_event.set()
         self.dark_mode = False  # Estado del modo oscuro
 
         # Paleta de colores
@@ -392,6 +394,18 @@ class Hermes:
         x = (sw // 2) - (width // 2)
         y = (sh // 2) - (height // 2)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
+
+    def _center_toplevel(self, window, width, height):
+        """Centrar una ventana toplevel en la pantalla."""
+        try:
+            window.update_idletasks()
+            sw = window.winfo_screenwidth()
+            sh = window.winfo_screenheight()
+            x = (sw // 2) - (width // 2)
+            y = (sh // 2) - (height // 2)
+            window.geometry(f"{width}x{height}+{x}+{y}")
+        except tk.TclError:
+            pass
 
     def setup_ui(self):
         # Configurar fondo de la ventana principal
@@ -4177,10 +4191,11 @@ class Hermes:
         """Actualiza todas las etiquetas de la UI que muestran la lista de dispositivos."""
         if hasattr(self, 'fidelizado_device_list_label'):
             if self.devices:
-                device_text = "Dispositivos Encontrados:\n" + "\n".join(self.devices)
+                count = len(self.devices)
+                device_text = f"Teléfonos conectados a la PC: {count}"
                 self.fidelizado_device_list_label.configure(text=device_text)
             else:
-                self.fidelizado_device_list_label.configure(text="No hay dispositivos detectados.")
+                self.fidelizado_device_list_label.configure(text="No hay dispositivos conectados.")
 
     # --- ################################################################## ---
     # --- send_msg (MODIFICADO para loguear device)
@@ -4881,7 +4896,14 @@ class Hermes:
                 self.root.after(0, lambda: messagebox.showinfo("Detección Finalizada", popup_text, parent=self.root))
 
             if snapshot_copy:
+                if hasattr(self, 'numbers_editor_closed_event'):
+                    self.numbers_editor_closed_event.clear()
                 self.root.after(0, lambda data=snapshot_copy: self._show_detected_numbers_editor(data))
+                if hasattr(self, 'numbers_editor_closed_event'):
+                    self.numbers_editor_closed_event.wait()
+            else:
+                if hasattr(self, 'numbers_editor_closed_event'):
+                    self.numbers_editor_closed_event.set()
 
             return bool(self.detected_phone_lines)
 
@@ -4891,6 +4913,8 @@ class Hermes:
                 self.root.after(0, lambda: messagebox.showerror("Error", f"Ocurrió un error inesperado:\n{e}", parent=self.root))
             return False
         finally:
+            if hasattr(self, 'numbers_editor_closed_event') and not self.numbers_editor_closed_event.is_set():
+                self.numbers_editor_closed_event.set()
             try:
                 shutil.rmtree(temp_dir)
             except Exception as e:
@@ -4918,15 +4942,11 @@ class Hermes:
         """Actualiza la etiqueta principal con el resumen de números detectados."""
         lines = self._format_detected_numbers_summary_lines(snapshot)
         if lines:
-            display_text = "Líneas detectadas:\n" + "\n".join(f"· {line}" for line in lines)
+            self.log("Resumen de líneas detectadas:", 'info')
+            for line in lines:
+                self.log(f"· {line}", 'info')
         else:
-            display_text = "No se encontraron líneas de WhatsApp válidas."
-
-        if hasattr(self, 'fidelizado_device_list_label'):
-            def update_label():
-                if self.fidelizado_device_list_label.winfo_exists():
-                    self.fidelizado_device_list_label.configure(text=display_text)
-            self.root.after(0, update_label)
+            self.log("No se encontraron líneas de WhatsApp válidas.", 'warning')
 
     def _close_numbers_editor(self):
         """Cierra la ventana del editor de números (si existe)."""
@@ -4937,6 +4957,8 @@ class Hermes:
                 pass
         self.numbers_editor_window = None
         self.numbers_editor_entries = {}
+        if hasattr(self, 'numbers_editor_closed_event'):
+            self.numbers_editor_closed_event.set()
 
     def _save_numbers_editor(self):
         """Guarda los cambios realizados manualmente en la tabla de números detectados."""
@@ -4974,36 +4996,71 @@ class Hermes:
     def _show_detected_numbers_editor(self, detection_results):
         """Muestra una tabla editable con los números detectados por dispositivo."""
         if not detection_results:
+            if hasattr(self, 'numbers_editor_closed_event'):
+                self.numbers_editor_closed_event.set()
             return
 
         self._close_numbers_editor()
 
         editor = ctk.CTkToplevel(self.root)
         editor.title("Editar números detectados")
-        editor.geometry("720x420")
         editor.resizable(False, False)
+        editor.transient(self.root)
         editor.grab_set()
         editor.focus_force()
+        editor.configure(fg_color=self.colors['bg'])
+
+        width, height = 760, 470
+        self._center_toplevel(editor, width, height)
+
+        outer = ctk.CTkFrame(editor, fg_color="transparent")
+        outer.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        card = ctk.CTkFrame(outer, fg_color=self.colors['bg_card'], corner_radius=22)
+        card.pack(fill=tk.BOTH, expand=True)
+
+        header = ctk.CTkFrame(card, fg_color="transparent")
+        header.pack(fill=tk.X, padx=25, pady=(25, 10))
+        ctk.CTkLabel(
+            header,
+            text="Verifica las líneas detectadas",
+            font=self.fonts['card_title'],
+            text_color=self.colors['text']
+        ).pack(anchor='w')
 
         instructions = ctk.CTkLabel(
-            editor,
-            text="Revisa y ajusta los números detectados. Haz clic en el código del dispositivo para abrir la calculadora y verificarlo.",
+            card,
+            text=("Revisa y ajusta los números detectados antes de continuar. "
+                  "Puedes abrir la calculadora del dispositivo para identificarlo."),
             font=self.fonts['setting_label'],
-            text_color=self.colors['text']
+            text_color=self.colors['text_light'],
+            wraplength=width - 120,
+            justify='left'
         )
-        instructions.pack(fill=tk.X, padx=20, pady=(20, 10))
+        instructions.pack(fill=tk.X, padx=25, pady=(0, 15))
 
-        table = ctk.CTkScrollableFrame(editor, fg_color="transparent", height=260)
-        table.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+        table_container = ctk.CTkFrame(card, fg_color="transparent")
+        table_container.pack(fill=tk.BOTH, expand=True, padx=25, pady=(0, 20))
+
+        table = ctk.CTkScrollableFrame(
+            table_container,
+            fg_color=self.colors['bg'],
+            corner_radius=14,
+            height=260
+        )
+        table.pack(fill=tk.BOTH, expand=True)
         table.grid_columnconfigure(0, weight=1)
         table.grid_columnconfigure(1, weight=1)
         table.grid_columnconfigure(2, weight=1)
 
         headers = ["Dispositivo", "WhatsApp", "WhatsApp Business"]
         for col, header_text in enumerate(headers):
-            ctk.CTkLabel(table, text=header_text, font=('Inter', 13, 'bold'), text_color=self.colors['text']).grid(
-                row=0, column=col, sticky='ew', padx=10, pady=5
-            )
+            ctk.CTkLabel(
+                table,
+                text=header_text,
+                font=('Inter', 13, 'bold'),
+                text_color=self.colors['text']
+            ).grid(row=0, column=col, sticky='ew', padx=12, pady=(12, 6))
 
         self.numbers_editor_entries = {}
         for row_index, device in enumerate(sorted(detection_results.keys()), start=1):
@@ -5016,9 +5073,10 @@ class Hermes:
                 font=self.fonts['button_small'],
                 fg_color=self.colors['action_detect'],
                 hover_color=self.hover_colors['action_detect'],
-                height=32
+                corner_radius=10,
+                height=34
             )
-            device_button.grid(row=row_index, column=0, sticky='ew', padx=10, pady=6)
+            device_button.grid(row=row_index, column=0, sticky='ew', padx=12, pady=6)
 
             entries = {}
             for col_index, whatsapp_type in enumerate(("WhatsApp", "WhatsApp Business"), start=1):
@@ -5027,39 +5085,43 @@ class Hermes:
                 entry = ctk.CTkEntry(
                     table,
                     placeholder_text=placeholder,
-                    font=self.fonts['setting_label']
+                    font=self.fonts['setting_label'],
+                    corner_radius=10,
+                    height=34,
+                    border_width=1,
+                    border_color="#d1d5db"
                 )
                 if current_value not in ("No encontrado", "Error", None, ""):
                     entry.insert(0, current_value)
-                entry.grid(row=row_index, column=col_index, sticky='ew', padx=10, pady=6)
+                entry.grid(row=row_index, column=col_index, sticky='ew', padx=12, pady=6)
                 entries[whatsapp_type] = entry
 
             self.numbers_editor_entries[device] = entries
 
-        buttons_frame = ctk.CTkFrame(editor, fg_color="transparent")
-        buttons_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-
-        save_btn = ctk.CTkButton(
-            buttons_frame,
-            text="Guardar y cerrar",
-            command=self._save_numbers_editor,
-            font=self.fonts['button'],
-            fg_color=self.colors['action_start'],
-            hover_color=self.hover_colors['action_start'],
-            height=38
-        )
-        save_btn.pack(side=tk.RIGHT, padx=(10, 0))
+        buttons_frame = ctk.CTkFrame(card, fg_color="transparent")
+        buttons_frame.pack(fill=tk.X, padx=25, pady=(0, 25))
 
         cancel_btn = ctk.CTkButton(
             buttons_frame,
-            text="Cerrar",
+            text="Cancelar",
             command=self._close_numbers_editor,
             font=self.fonts['button'],
             fg_color=self.colors['action_cancel'],
             hover_color=self.hover_colors['action_cancel'],
-            height=38
+            height=40
         )
-        cancel_btn.pack(side=tk.RIGHT, padx=(0, 10))
+        cancel_btn.pack(side=tk.LEFT)
+
+        save_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Guardar y continuar",
+            command=self._save_numbers_editor,
+            font=self.fonts['button'],
+            fg_color=self.colors['action_start'],
+            hover_color=self.hover_colors['action_start'],
+            height=40
+        )
+        save_btn.pack(side=tk.RIGHT)
 
         self.numbers_editor_window = editor
         editor.protocol("WM_DELETE_WINDOW", self._close_numbers_editor)
