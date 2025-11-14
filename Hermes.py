@@ -35,7 +35,6 @@ import pytesseract
 from PIL import Image
 import re
 import xml.etree.ElementTree as ET
-from collections import defaultdict
 
 
 # --- Clase auxiliar para evitar errores de Tkinter con campos numéricos vacíos ---
@@ -320,7 +319,10 @@ class Hermes:
         self.fidelizado_audio_frequency = SafeIntVar(value=5)
         self.fidelizado_audio_duration_min = SafeIntVar(value=8)
         self.fidelizado_audio_duration_max = SafeIntVar(value=15)
-        self.audio_counters = defaultdict(int)
+        self.audio_message_counter = 0
+        self.audio_pending_for_next_sender = False
+        self.audio_pending_trigger_combo = None
+        self.audio_known_combinations = set()
         
         # Variables de tiempo para Modo Grupos Dual
         self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
@@ -2945,7 +2947,10 @@ class Hermes:
         self.update_stats() # Actualizar UI con el total
 
         # Reiniciar el contador de audios antes de comenzar un nuevo envío
-        self.audio_counters.clear()
+        self.audio_message_counter = 0
+        self.audio_pending_for_next_sender = False
+        self.audio_pending_trigger_combo = None
+        self.audio_known_combinations.clear()
 
         # Iniciar hilo
         threading.Thread(target=self.send_thread, daemon=True).start()
@@ -4411,6 +4416,9 @@ class Hermes:
         if ui_device is None or not self.fidelizado_audio_enabled.get() or self.should_stop:
             return
 
+        if whatsapp_package is None and self.sms_mode_active:
+            return
+
         try:
             frequency = int(self.fidelizado_audio_frequency.get())
         except (tk.TclError, ValueError, TypeError):
@@ -4418,18 +4426,49 @@ class Hermes:
 
         frequency = max(1, frequency)
 
-        if whatsapp_package is None and self.sms_mode_active:
-            return
+        combo = (device or "default", whatsapp_package or "default")
+        self.audio_known_combinations.add(combo)
 
-        key = (device or "default", whatsapp_package or "default")
-        current_count = self.audio_counters[key] + 1
-        self.audio_counters[key] = current_count
+        attempted_audio = False
+        audio_success = False
 
-        if current_count < frequency:
-            return
+        if self.audio_pending_for_next_sender:
+            skip_for_same_combo = (
+                combo == self.audio_pending_trigger_combo and
+                len(self.audio_known_combinations) > 1
+            )
+            if skip_for_same_combo:
+                return
+
+            attempted_audio = True
+            audio_success = self._send_audio_note(ui_device, device, whatsapp_package)
+
+            if audio_success:
+                self.audio_pending_for_next_sender = False
+                self.audio_pending_trigger_combo = None
+                self.audio_message_counter = 0
+            else:
+                # Intentar nuevamente pronto con la siguiente combinación disponible
+                self.audio_pending_trigger_combo = combo
+                self.audio_message_counter = max(0, frequency - 1)
 
         if self.should_stop:
             return
+
+        self.audio_message_counter += 1
+
+        if self.audio_message_counter >= frequency:
+            self.audio_pending_for_next_sender = True
+            self.audio_pending_trigger_combo = combo
+
+        # Si se intentó enviar audio y falló, mantener el estado pendiente
+        if attempted_audio and not audio_success:
+            self.audio_pending_for_next_sender = True
+
+    def _send_audio_note(self, ui_device, device_id, whatsapp_package):
+        """Realiza la interacción necesaria para grabar y enviar una nota de voz."""
+        if self.should_stop:
+            return False
 
         try:
             edit_text = ui_device(className="android.widget.EditText")
@@ -4440,7 +4479,6 @@ class Hermes:
                 except Exception:
                     pass
 
-                remaining_text = None
                 try:
                     remaining_text = edit_text.get_text()
                 except Exception:
@@ -4453,61 +4491,64 @@ class Hermes:
                     except Exception:
                         pass
 
-                    if device is not None:
-                        try:
-                            device.shell("input keyevent KEYCODE_MOVE_END")
-                        except Exception:
-                            pass
-
-                        try:
-                            for _ in range(80):
-                                device.shell("input keyevent KEYCODE_DEL")
-                        except Exception:
-                            pass
-
-                        time.sleep(0.2)
-
+                    # El botón de audio sólo aparece si no hay texto pendiente
                     try:
                         edit_text.set_text("")
+                        time.sleep(0.2)
                     except Exception:
                         pass
         except Exception:
             pass
 
         mic_selectors = [
+            dict(resourceId="com.whatsapp:id/send"),
+            dict(resourceId="com.whatsapp.w4b:id/send"),
+            dict(resourceIdMatches="(?i).*voice.*"),
+            dict(resourceIdMatches="(?i).*send.*"),
             dict(descriptionMatches="(?i).*nota de voz.*"),
             dict(descriptionMatches="(?i).*microf.*"),
             dict(descriptionMatches="(?i).*audio.*"),
-            dict(resourceIdMatches="(?i).*voice.*"),
-            dict(resourceIdMatches="(?i).*send.*")
         ]
 
         mic_button = None
         for selector in mic_selectors:
             try:
                 candidate = ui_device(**selector)
-                if candidate.wait(timeout=3):
-                    mic_button = candidate
-                    break
+                if not candidate.wait(timeout=3):
+                    continue
+
+                info = candidate.info or {}
+                class_name = (info.get('className') or '').lower()
+                if 'edittext' in class_name:
+                    continue
+
+                bounds = info.get('bounds') or {}
+                if not bounds or bounds.get('left') == bounds.get('right'):
+                    continue
+
+                mic_button = candidate
+                break
             except Exception:
                 continue
 
         if not mic_button:
-            self.audio_counters[key] = max(0, frequency - 1)
             self.log("No se encontró el botón para enviar audio.", 'warning')
-            return
+            return False
 
         try:
-            info = mic_button.info
-            bounds = info.get('bounds', {}) if isinstance(info, dict) else {}
-            if not bounds:
-                raise ValueError("sin coordenadas")
-            x = int((bounds['left'] + bounds['right']) / 2)
-            y = int((bounds['top'] + bounds['bottom']) / 2)
-        except Exception as e:
-            self.audio_counters[key] = max(0, frequency - 1)
-            self.log(f"No se pudieron obtener las coordenadas del botón de audio: {e}", 'warning')
-            return
+            center = mic_button.center()
+            x, y = int(center[0]), int(center[1])
+        except Exception:
+            try:
+                info = mic_button.info or {}
+                bounds = info.get('bounds') or {}
+                if not bounds:
+                    raise ValueError('sin coordenadas')
+                x = int((bounds['left'] + bounds['right']) / 2)
+                y = int((bounds['top'] + bounds['bottom']) / 2)
+            except Exception as e:
+                self.log(f"No se pudieron obtener las coordenadas del botón de audio: {e}", 'warning')
+                return False
 
         duration_min = self.fidelizado_audio_duration_min.get()
         duration_max = self.fidelizado_audio_duration_max.get()
@@ -4515,7 +4556,7 @@ class Hermes:
             duration_min, duration_max = duration_max, duration_min
         duration_min = max(1, duration_min)
         duration_max = max(duration_min, duration_max)
-        hold_time = float(duration_min) if duration_max == duration_min else random.uniform(duration_min, duration_max)
+        hold_time = float(duration_min) if duration_min == duration_max else random.uniform(duration_min, duration_max)
         hold_time = max(1.0, hold_time)
 
         self.log(f"Grabando audio durante {hold_time:.1f}s...", 'info')
@@ -4523,14 +4564,12 @@ class Hermes:
         hold_succeeded = False
         errors = []
 
-        # Primero intentar mantener presionado directamente sobre el botón encontrado
         try:
             mic_button.long_click(duration=hold_time)
             hold_succeeded = True
         except Exception as e:
             errors.append(str(e))
 
-        # Luego intentar con long_click del dispositivo completo
         if not hold_succeeded:
             try:
                 ui_device.long_click(x, y, duration=hold_time)
@@ -4538,16 +4577,16 @@ class Hermes:
             except Exception as e:
                 errors.append(str(e))
 
-        # Intentar con comando ADB manteniendo pulsado el mismo punto
-        if not hold_succeeded and device is not None:
+        if not hold_succeeded and device_id:
             try:
                 duration_ms = max(1000, int(hold_time * 1000))
-                device.shell(f"input touchscreen swipe {x} {y} {x} {y} {duration_ms}")
+                swipe_args = ['-s', device_id, 'shell', 'input', 'touchscreen', 'swipe',
+                              str(x), str(y), str(x), str(y), str(duration_ms)]
+                self._run_adb_command(swipe_args, timeout=max(5, int(hold_time) + 2))
                 hold_succeeded = True
             except Exception as e:
                 errors.append(str(e))
 
-        # Último recurso: usar la API touch manual
         if not hold_succeeded:
             touch = getattr(ui_device, 'touch', None)
             if touch:
@@ -4556,19 +4595,19 @@ class Hermes:
                     self._controlled_sleep(hold_time)
                     touch.up(x, y)
                     hold_succeeded = True
-                except Exception as e2:
-                    errors.append(str(e2))
+                except Exception as e:
+                    errors.append(str(e))
 
         if not hold_succeeded or self.should_stop:
-            self.audio_counters[key] = max(0, frequency - 1)
             if errors:
                 self.log(f"No se pudo mantener el botón de audio: {' | '.join(errors)}", 'warning')
-            return
+            return False
 
-        self.audio_counters[key] = 0
         self._controlled_sleep(1.0)
         if not self.should_stop:
             self.log("Audio enviado con éxito.", 'success')
+
+        return True
 
     def send_msg(
         self,
