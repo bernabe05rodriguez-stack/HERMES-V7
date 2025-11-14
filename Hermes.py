@@ -2749,48 +2749,68 @@ class Hermes:
         message_to_send,
         task_index,
         whatsapp_package="com.whatsapp.w4b",
+    ):
+        """Ejecuta una única tarea estándar."""
+        success = self._execute_send_task(
+            device,
+            link,
+            message_to_send,
+            task_index,
+            whatsapp_package=whatsapp_package,
+            update_counters=True,
+            apply_post_delay=True,
+        )
+
+        return success
+
+    def _execute_send_task(
+        self,
+        device,
+        link,
+        message_to_send,
+        task_index,
+        whatsapp_package="com.whatsapp.w4b",
         update_counters=True,
         apply_post_delay=True,
     ):
-        """
-        Ejecuta una única tarea de envío (abrir link, enviar, esperar), gestionando la conexión de uiautomator2.
-        """
+        """Ejecuta la lógica común de envío con controles opcionales de contador y espera."""
         ui_device = None
-        # --- MODIFICACIÓN: Siempre intentar conectar uiautomator2 ---
         try:
             ui_device = u2.connect(device)
             ui_device.unlock()
         except Exception as e:
             self.log(f"No se pudo conectar uiautomator2 a {device}: {e}", "warning")
-            # En este nuevo enfoque, un fallo aquí debería ser crítico.
-            return False
 
-        # Bucle de pausa
         while self.is_paused and not self.should_stop:
             time.sleep(0.1)
-        if self.should_stop: return False
+        if self.should_stop:
+            return False
 
         self.current_index = task_index
         self.root.after(0, self.update_stats)
 
         self.close_all_apps(device)
-        if self.should_stop: return False
+        if self.should_stop:
+            return False
 
-        # Enviar mensaje, pasando el objeto ui_device
-        success = self.send_msg(device, link, task_index, self.total_messages, message_to_send, whatsapp_package, ui_device)
-        
-        # --- Importante: Actualizar contadores DESPUÉS de send_msg ---
+        success = self.send_msg(
+            device,
+            link,
+            task_index,
+            self.total_messages,
+            message_to_send,
+            whatsapp_package,
+            ui_device,
+        )
+
         if update_counters:
             if success:
                 self.sent_count += 1
             else:
                 self.failed_count += 1
-
-            # Actualizar UI (contadores y barra de progreso)
             self.root.after(0, self.update_stats)
-        # --- Fin actualización contadores ---
 
-        if apply_post_delay:
+        if apply_post_delay and not self.should_stop:
             self._apply_post_task_delay(task_index)
 
         return success
@@ -2968,7 +2988,7 @@ class Hermes:
             idx = (idx + 1) % len(self.devices)
 
             self.log(f"Intento inicial en {primary_device}", 'info')
-            success = self.run_single_task(
+            success = self._execute_send_task(
                 primary_device,
                 link,
                 None,
@@ -2986,7 +3006,7 @@ class Hermes:
                     retry_device = primary_device
 
                 self.log(f"Reintentando envío en {retry_device} tras fallo inicial.", 'warning')
-                success = self.run_single_task(
+                success = self._execute_send_task(
                     retry_device,
                     link,
                     None,
