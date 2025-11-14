@@ -628,35 +628,11 @@ class Hermes:
             "Sigue los pasos en orden para iniciar la campaña."
         )
 
-        tools_header = ctk.CTkFrame(actions_section, fg_color="transparent")
-        tools_header.grid(row=1, column=0, sticky="ew", padx=20)
-        tools_header.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(tools_header, text="Herramientas complementarias", font=self.fonts['setting_label'],
-                     text_color=self.colors['text_light']).grid(row=0, column=0, sticky="w")
-
-        self.actions_expanded = False
-        self.toggle_actions_btn = ctk.CTkButton(
-            tools_header,
-            text="Herramientas rápidas ▾",
-            command=self.toggle_additional_actions,
-            fg_color=self._section_bg_color(),
-            hover_color=lighten_color(self._section_bg_color(), 0.12),
-            text_color=self.colors['text'],
-            font=self.fonts['button_small'],
-            cursor='hand2',
-            corner_radius=12,
-            height=32,
-            border_width=1,
-            border_color=self._section_border_color()
-        )
-        self.toggle_actions_btn.grid(row=0, column=1, sticky="e")
-        self.toggle_actions_btn.grid_remove()
-
-        self.additional_actions_frame = ctk.CTkFrame(actions_section, fg_color="transparent")
-        self.additional_actions_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(10, 4))
-        for col in range(5):
-            self.additional_actions_frame.grid_columnconfigure(col, weight=0)
+        actions_body = ctk.CTkFrame(actions_section, fg_color="transparent")
+        actions_body.grid(row=1, column=0, sticky="nsew", padx=20, pady=(12, 12))
+        actions_body.grid_columnconfigure(0, weight=1)
+        actions_body.grid_columnconfigure(1, weight=0)
+        actions_body.grid_rowconfigure(0, weight=1)
 
         tool_btn_kwargs = dict(
             fg_color=self._section_bg_color(),
@@ -664,59 +640,76 @@ class Hermes:
             hover_color=lighten_color(self._section_bg_color(), 0.08),
             font=self.fonts['button_small'],
             cursor='hand2',
-            width=150,
+            width=170,
             height=36,
             corner_radius=16,
             border_width=1,
             border_color=self._section_border_color()
         )
 
+        steps_wrapper = ctk.CTkFrame(actions_body, fg_color="transparent")
+        steps_wrapper.grid(row=0, column=0, sticky="nsew")
+        steps_wrapper.grid_columnconfigure(0, weight=1)
+
+        quick_actions = ctk.CTkFrame(actions_body, fg_color="transparent")
+        quick_actions.grid(row=0, column=1, sticky="ne", padx=(16, 0))
+        quick_actions.grid_columnconfigure(0, weight=1)
+
+        primary_modes_row = ctk.CTkFrame(quick_actions, fg_color="transparent")
+        primary_modes_row.grid(row=0, column=0, sticky="e")
+        primary_modes_row.grid_columnconfigure(0, weight=0)
+        primary_modes_row.grid_columnconfigure(1, weight=0)
+
+        self.dark_mode_btn = ctk.CTkButton(
+            primary_modes_row,
+            text="🌙" if self.dark_mode else "🌞",
+            command=self.toggle_dark_mode,
+            fg_color="transparent",
+            hover_color=lighten_color(self._section_bg_color(), 0.12),
+            text_color=self.colors['text'],
+            font=('Inter', 36),
+            width=10,
+            height=10,
+            corner_radius=0,
+            border_width=0,
+            cursor='hand2'
+        )
+        self.dark_mode_btn.grid(row=0, column=0, sticky="e")
+
         self.fidelizado_unlock_btn = ctk.CTkButton(
-            self.additional_actions_frame,
-            text="Modo Fidelizado",
+            primary_modes_row,
+            text="Fidelizado",
             command=self.handle_fidelizado_access,
             **tool_btn_kwargs
         )
-        self.fidelizado_unlock_btn.grid(row=0, column=0, padx=(0, 8), pady=6, sticky="w")
+        self.fidelizado_unlock_btn.grid(row=0, column=1, padx=(12, 0), sticky="e")
 
         self.sms_mode_btn = ctk.CTkButton(
-            self.additional_actions_frame,
+            quick_actions,
             text="Modo SMS",
             command=self.handle_sms_mode_access,
             **tool_btn_kwargs
         )
-        self.sms_mode_btn.grid(row=0, column=1, padx=8, pady=6, sticky="w")
+        self.sms_mode_btn.grid(row=1, column=0, pady=(14, 6), sticky="e")
         self.sms_mode_btn.grid_remove()
 
         self.adb_injector_btn = ctk.CTkButton(
-            self.additional_actions_frame,
+            quick_actions,
             text="Inyector ADB",
             command=self.open_adb_injector,
             **tool_btn_kwargs
         )
-        self.adb_injector_btn.grid(row=0, column=2, padx=8, pady=6, sticky="w")
+        self.adb_injector_btn.grid(row=2, column=0, pady=6, sticky="e")
         self.adb_injector_btn.grid_remove()
 
         self.adb_injector_dual_btn = ctk.CTkButton(
-            self.additional_actions_frame,
+            quick_actions,
             text="Inyector Dual",
             command=self.open_adb_injector_dual,
             **tool_btn_kwargs
         )
-        self.adb_injector_dual_btn.grid(row=0, column=3, padx=8, pady=6, sticky="w")
+        self.adb_injector_dual_btn.grid(row=3, column=0, pady=6, sticky="e")
         self.adb_injector_dual_btn.grid_remove()
-
-        self.dark_mode_btn = ctk.CTkButton(
-            self.additional_actions_frame,
-            text="Modo Oscuro",
-            command=self.toggle_dark_mode,
-            **tool_btn_kwargs
-        )
-        self.dark_mode_btn.grid(row=0, column=4, padx=(8, 0), pady=6, sticky="w")
-
-        steps_wrapper = ctk.CTkFrame(actions_section, fg_color="transparent")
-        steps_wrapper.grid(row=3, column=0, sticky="ew", padx=20, pady=(12, 10))
-        steps_wrapper.grid_columnconfigure(0, weight=1)
 
         step_buttons = [
             ("Detectar dispositivos", self.detect_devices, 'action_detect'),
@@ -1418,25 +1411,11 @@ class Hermes:
         # Recrear la interfaz
         self.setup_ui()
         
-        # Actualizar texto del botón
+        # Actualizar icono del botón
         if hasattr(self, 'dark_mode_btn') and self.dark_mode_btn:
-            if self.dark_mode:
-                self.dark_mode_btn.configure(text="Modo Claro")
-            else:
-                self.dark_mode_btn.configure(text="Modo Oscuro")
+            self.dark_mode_btn.configure(text="🌙" if self.dark_mode else "🌞")
         
         self.log(f"Modo {'Oscuro' if self.dark_mode else 'Claro'} activado", 'info')
-
-    def toggle_additional_actions(self):
-        """Muestra u oculta los botones adicionales."""
-        self.actions_expanded = not self.actions_expanded
-
-        if self.actions_expanded:
-            self.additional_actions_frame.grid()
-            self.toggle_actions_btn.configure(text="Herramientas rápidas ▴")
-        else:
-            self.additional_actions_frame.grid_remove()
-            self.toggle_actions_btn.configure(text="Herramientas rápidas ▾")
 
     def toggle_time_settings(self):
         """Muestra u oculta los ajustes de espera secundarios."""
