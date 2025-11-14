@@ -899,8 +899,18 @@ class Hermes:
         )
         self.btn_start.grid(row=0, column=0, sticky='ew', padx=20, pady=16)
 
-        controls = ctk.CTkFrame(actions_section, fg_color="transparent")
-        controls.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 10))
+        controls_card = ctk.CTkFrame(
+            actions_section,
+            fg_color=self._section_bg_color(),
+            corner_radius=22,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        controls_card.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 18))
+        controls_card.grid_columnconfigure(0, weight=1)
+
+        controls = ctk.CTkFrame(controls_card, fg_color="transparent")
+        controls.grid(row=0, column=0, sticky="ew", padx=20, pady=16)
         controls.grid_columnconfigure(0, weight=1)
         controls.grid_columnconfigure(1, weight=1)
 
@@ -1937,7 +1947,7 @@ class Hermes:
 
         # Contenido principal de Fidelizado
         content = ctk.CTkFrame(fidelizado_container, fg_color=self.colors['bg_card'], corner_radius=30)
-        content.pack(fill=tk.BOTH, expand=True, padx=0, pady=(10, 20))
+        content.pack(fill=tk.BOTH, expand=True, padx=0, pady=(10, 0))
 
         # Layout principal reconfigurado para una columna expandible
         content.grid_columnconfigure(0, weight=1)
