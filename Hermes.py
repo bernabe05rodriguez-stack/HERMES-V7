@@ -3112,23 +3112,15 @@ class Hermes:
         """
         Envía un mensaje a un target, gestionando la conexión de uiautomator2 y usando el método de envío unificado.
         """
-        # Conectar con uiautomator2 al inicio de la tarea
-        ui_device = None
-        try:
-            ui_device = u2.connect(device)
-            ui_device.unlock()
-        except Exception as e:
-            self.log(f"No se pudo conectar uiautomator2 a {device}: {e}", "warning")
-            ui_device = None
-
-        # Llamar a send_msg, que ahora contiene toda la lógica de envío y fallback
-        success = self.send_msg(device, target_link, task_counter, self.total_messages, message_to_send=mensaje, whatsapp_package=wa_package, ui_device=ui_device)
-        
-        if success:
-            self.sent_count += 1
-        else:
-            self.failed_count += 1
-        self.root.after(0, self.update_stats)
+        success = self._execute_send_task(
+            device,
+            target_link,
+            mensaje,
+            task_counter,
+            whatsapp_package=wa_package,
+            update_counters=True,
+            apply_post_delay=True,
+        )
         
         # Si es Normal y el modo es "Todas", ejecutar el cambio de cuenta DESPUÉS de enviar
         if wa_name == "Normal" and self.whatsapp_mode.get() == "Todas":
@@ -3156,7 +3148,7 @@ class Hermes:
             self._run_adb_command(open_cmd, timeout=5)
             time.sleep(2)
         
-        return True
+        return success
     
     def run_mixto_dual_whatsapp_thread(self):
         """
