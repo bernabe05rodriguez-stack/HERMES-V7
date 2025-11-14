@@ -5354,8 +5354,15 @@ class Hermes:
                         new_chat_button.click()
                         time.sleep(1) # Reducido para acelerar
 
+                        tu_regex = r"(?i).*\(t[uú]\)"
+                        simple_tu_regex = r"(?i)t[uú]"
+
                         self.log("    Buscando contacto propio (Tú)...", 'info')
-                        own_contact_element = d(textContains="Tú")
+                        own_contact_element = d(textMatches=tu_regex)
+
+                        if not own_contact_element.wait(timeout=7):
+                            self.log("    '(Tú)' con paréntesis no visible todavía. Probando coincidencia laxa...", 'warning')
+                            own_contact_element = d(textMatches=simple_tu_regex)
 
                         if own_contact_element.wait(timeout=7):
                             # Estrategia 1: Intentar extraer el número directamente de la lista
@@ -5376,84 +5383,91 @@ class Hermes:
                             # Estrategia 2: Si no se encuentra el número, navegar a la pantalla de información
                             self.log("    Número no visible en la lista. Navegando a la info de contacto...", 'info')
                             own_contact_element.click()
-                            time.sleep(2) # Esperar a que se abra el chat
 
-                            self.log("    Abriendo pantalla de información...", 'info')
+                            self.log("    Esperando a que el chat muestre '(Tú)' en la cabecera...", 'info')
+                            contact_header_element = d(textMatches=tu_regex)
+                            header_ready = contact_header_element.wait(timeout=12)
+                            if not header_ready:
+                                self.log("    No apareció '(Tú)' en la cabecera tras abrir el chat.", 'error')
+                                d.press("back")
 
-                            # Estrategia de clic modificada para ser más robusta y evitar crashes.
-                            clicked_successfully = False
+                            if header_ready:
+                                self.log("    Abriendo pantalla de información...", 'info')
 
-                            # 1. El método más fiable: buscar por el texto visible "(Tú)".
-                            self.log("    Intento 1: Buscando por texto '(Tú)'...", 'info')
-                            contact_text_element = d(textContains="(Tú)")
-                            if contact_text_element.wait(timeout=7):
-                                try:
-                                    contact_text_element.click()
-                                    clicked_successfully = True
-                                    self.log("    Éxito al hacer clic en elemento con texto '(Tú)'.", 'success')
-                                except Exception as e:
-                                    self.log(f"    Elemento de texto encontrado, pero el clic falló: {e}", 'warning')
+                                # Estrategia de clic modificada para ser más robusta y evitar crashes.
+                                clicked_successfully = False
 
-                            # 2. Si no funciona, intentar el selector original por resourceId.
-                            if not clicked_successfully:
-                                self.log("    Intento 2: Buscando por resourceId 'conversation_contact_name'...", 'info')
-                                contact_name_in_toolbar = d(resourceId=f"{pkg}:id/conversation_contact_name")
-                                if contact_name_in_toolbar.wait(timeout=5):
+                                # 1. El método más fiable: buscar por el texto visible "(Tú)".
+                                self.log("    Intento 1: Buscando por texto '(Tú)'...", 'info')
+                                contact_text_element = d(textMatches=tu_regex)
+                                if contact_text_element.wait(timeout=7):
                                     try:
-                                        contact_name_in_toolbar.click()
+                                        contact_text_element.click()
                                         clicked_successfully = True
-                                        self.log("    Éxito al hacer clic en 'conversation_contact_name'.", 'success')
+                                        self.log("    Éxito al hacer clic en elemento con texto '(Tú)'.", 'success')
                                     except Exception as e:
-                                        self.log(f"    Elemento 'conversation_contact_name' encontrado, pero el clic falló: {e}", 'warning')
+                                        self.log(f"    Elemento de texto encontrado, pero el clic falló: {e}", 'warning')
 
-                            # 3. Como último recurso, hacer clic en toda la barra de herramientas.
-                            if not clicked_successfully:
-                                self.log("    Intento 3: Buscando por resourceId 'toolbar'...", 'info')
-                                toolbar = d(resourceId=f"{pkg}:id/toolbar")
-                                if toolbar.wait(timeout=5):
-                                    try:
-                                        toolbar.click()
-                                        clicked_successfully = True
-                                        self.log("    Éxito al hacer clic en 'toolbar'.", 'success')
-                                    except Exception as e:
-                                        self.log(f"    Elemento 'toolbar' encontrado, pero el clic falló: {e}", 'warning')
+                                # 2. Si no funciona, intentar el selector original por resourceId.
+                                if not clicked_successfully:
+                                    self.log("    Intento 2: Buscando por resourceId 'conversation_contact_name'...", 'info')
+                                    contact_name_in_toolbar = d(resourceId=f"{pkg}:id/conversation_contact_name")
+                                    if contact_name_in_toolbar.wait(timeout=5):
+                                        try:
+                                            contact_name_in_toolbar.click()
+                                            clicked_successfully = True
+                                            self.log("    Éxito al hacer clic en 'conversation_contact_name'.", 'success')
+                                        except Exception as e:
+                                            self.log(f"    Elemento 'conversation_contact_name' encontrado, pero el clic falló: {e}", 'warning')
 
-                            if clicked_successfully:
-                                self.log("    En la pantalla de información, buscando número...", 'info')
-                                time.sleep(2) # Esperar a que cargue la pantalla de info
+                                # 3. Como último recurso, hacer clic en toda la barra de herramientas.
+                                if not clicked_successfully:
+                                    self.log("    Intento 3: Buscando por resourceId 'toolbar'...", 'info')
+                                    toolbar = d(resourceId=f"{pkg}:id/toolbar")
+                                    if toolbar.wait(timeout=5):
+                                        try:
+                                            toolbar.click()
+                                            clicked_successfully = True
+                                            self.log("    Éxito al hacer clic en 'toolbar'.", 'success')
+                                        except Exception as e:
+                                            self.log(f"    Elemento 'toolbar' encontrado, pero el clic falló: {e}", 'warning')
 
-                                # Bucle de desplazamiento inteligente con detección de final de página
-                                number_found_in_text = False
-                                max_scrolls = 10  # Límite de seguridad para evitar bucles infinitos
-                                for i in range(max_scrolls):
-                                    self.log(f"    Intento de búsqueda y scroll #{i+1}...", 'info')
+                                if clicked_successfully:
+                                    self.log("    En la pantalla de información, buscando número...", 'info')
+                                    time.sleep(2) # Esperar a que cargue la pantalla de info
 
-                                    # Capturar textos ANTES de desplazarse
-                                    before_scroll_texts = {elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()}
-                                    current_view_text = " ".join(before_scroll_texts)
+                                    # Bucle de desplazamiento inteligente con detección de final de página
+                                    number_found_in_text = False
+                                    max_scrolls = 10  # Límite de seguridad para evitar bucles infinitos
+                                    for i in range(max_scrolls):
+                                        self.log(f"    Intento de búsqueda y scroll #{i+1}...", 'info')
 
-                                    # Buscar el número en la vista actual
-                                    match = re.search(r'(\+[\d\s\-\(\)]+)', current_view_text)
-                                    if match:
-                                        number = re.sub(r'[\s\-\(\)]', '', match.group(1))
-                                        self.log(f"    ¡Número encontrado!: {number}", 'success')
-                                        number_found_in_text = True
-                                        break
+                                        # Capturar textos ANTES de desplazarse
+                                        before_scroll_texts = {elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()}
+                                        current_view_text = " ".join(before_scroll_texts)
 
-                                    # Si no se encuentra, realizar el desplazamiento
-                                    self.log("    Número no encontrado, realizando 'fling'...", 'info')
-                                    scrollable_view = d(scrollable=True)
-                                    if scrollable_view.exists:
-                                        scrollable_view.fling.forward()
-                                    else:
-                                        # Fallback a swipe si no hay un elemento "scrollable"
-                                        width, height = d.info['displayWidth'], d.info['displayHeight']
-                                        d.swipe(width / 2, height * 0.8, width / 2, height * 0.2, 0.5)
+                                        # Buscar el número en la vista actual
+                                        match = re.search(r'(\+[\d\s\-\(\)]+)', current_view_text)
+                                        if match:
+                                            number = re.sub(r'[\s\-\(\)]', '', match.group(1))
+                                            self.log(f"    ¡Número encontrado!: {number}", 'success')
+                                            number_found_in_text = True
+                                            break
 
-                                    time.sleep(1.5)
+                                        # Si no se encuentra, realizar el desplazamiento
+                                        self.log("    Número no encontrado, realizando 'fling'...", 'info')
+                                        scrollable_view = d(scrollable=True)
+                                        if scrollable_view.exists:
+                                            scrollable_view.fling.forward()
+                                        else:
+                                            # Fallback a swipe si no hay un elemento "scrollable"
+                                            width, height = d.info['displayWidth'], d.info['displayHeight']
+                                            d.swipe(width / 2, height * 0.8, width / 2, height * 0.2, 0.5)
 
-                                    # Capturar textos DESPUÉS de desplazarse y comparar
-                                    after_scroll_texts = {elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()}
+                                        time.sleep(1.5)
+
+                                        # Capturar textos DESPUÉS de desplazarse y comparar
+                                        after_scroll_texts = {elem.get_text() for elem in d(className="android.widget.TextView") if elem.exists and elem.get_text()}
                                     if before_scroll_texts == after_scroll_texts:
                                         self.log("    El contenido no cambió. Se ha llegado al final de la página.", 'info')
                                         # Realizar una última búsqueda por si acaso
