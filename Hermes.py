@@ -5121,6 +5121,9 @@ class Hermes:
 
         buttons_frame = ctk.CTkFrame(card, fg_color="transparent")
         buttons_frame.pack(fill=tk.X, padx=25, pady=(0, 25))
+        buttons_frame.grid_columnconfigure(0, weight=1)
+        buttons_frame.grid_columnconfigure(1, weight=1)
+        buttons_frame.grid_columnconfigure(2, weight=1)
 
         cancel_btn = ctk.CTkButton(
             buttons_frame,
@@ -5129,20 +5132,34 @@ class Hermes:
             font=self.fonts['button'],
             fg_color=action_cancel_color,
             hover_color=action_cancel_hover,
+            text_color=self.colors['text_header_buttons'],
             height=40
         )
-        cancel_btn.pack(side=tk.LEFT)
+        cancel_btn.grid(row=0, column=0, sticky='ew', padx=(0, 10))
 
-        save_btn = ctk.CTkButton(
+        save_only_btn = ctk.CTkButton(
             buttons_frame,
-            text="Iniciar",
+            text="Guardar cambios",
+            command=self._save_numbers_editor,
+            font=self.fonts['button'],
+            fg_color=action_detect_color,
+            hover_color=action_detect_hover,
+            text_color=self.colors['text_header_buttons'],
+            height=40
+        )
+        save_only_btn.grid(row=0, column=1, sticky='ew', padx=5)
+
+        start_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Confirmar e iniciar",
             command=lambda: self._save_numbers_editor(start_after_save=True),
             font=self.fonts['button'],
             fg_color=action_start_color,
             hover_color=action_start_hover,
+            text_color=self.colors['text_header_buttons'],
             height=40
         )
-        save_btn.pack(side=tk.RIGHT)
+        start_btn.grid(row=0, column=2, sticky='ew', padx=(10, 0))
 
         self.numbers_editor_window = editor
         editor.protocol("WM_DELETE_WINDOW", self._close_numbers_editor)
