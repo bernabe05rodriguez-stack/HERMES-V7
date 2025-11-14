@@ -329,6 +329,7 @@ class Hermes:
 
         self.fidelizado_unlocked = True
         self.fidelizado_unlock_btn = None
+        self.detect_numbers_btn = None
         self.dark_mode = False  # Estado del modo oscuro
 
         # Paleta de colores
@@ -1967,15 +1968,7 @@ class Hermes:
                                                   fg_color=self.colors['action_detect'],
                                                   hover_color=self.hover_colors['action_detect'],
                                                   height=40)
-        self.fidelizado_detect_btn.pack(fill='x', pady=(0, 10))
-
-        self.detect_numbers_btn = ctk.CTkButton(device_container, text="📞 Detectar Números",
-                                               command=self.detect_phone_numbers_thread,
-                                               font=self.fonts['button'],
-                                               fg_color=self.colors['action_detect'],
-                                               hover_color=self.hover_colors['action_detect'],
-                                               height=40)
-        self.detect_numbers_btn.pack(fill='x', pady=(0, 15))
+        self.fidelizado_detect_btn.pack(fill='x', pady=(0, 15))
 
         self.fidelizado_device_list_label = ctk.CTkLabel(device_container, text="No hay dispositivos detectados.",
                                                         font=self.fonts['setting_label'],
@@ -4852,7 +4845,9 @@ class Hermes:
         Retorna True si se encontraron líneas, False en caso contrario.
         """
         self.log("Iniciando detección de números de teléfono...", 'info')
-        self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.DISABLED, 'text': "Detectando..."})
+        detect_btn = getattr(self, 'detect_numbers_btn', None)
+        if detect_btn and detect_btn.winfo_exists():
+            self.root.after(0, detect_btn.configure, {'state': tk.DISABLED, 'text': "Detectando..."})
 
         self.detected_phone_lines = []
         temp_dir = tempfile.mkdtemp(prefix="hermes_ui_dump_")
@@ -4902,7 +4897,9 @@ class Hermes:
                 shutil.rmtree(temp_dir)
             except Exception as e:
                 self.log(f"Error al eliminar el directorio temporal: {e}", "warning")
-            self.root.after(0, self.detect_numbers_btn.configure, {'state': tk.NORMAL, 'text': "Detectar Números"})
+            detect_btn = getattr(self, 'detect_numbers_btn', None)
+            if detect_btn and detect_btn.winfo_exists():
+                self.root.after(0, detect_btn.configure, {'state': tk.NORMAL, 'text': "Detectar Números"})
 
     def _get_number_with_uiautomator2(self, device_serial, temp_dir):
         """Usa uiautomator2 para encontrar los números de teléfono en un dispositivo."""
