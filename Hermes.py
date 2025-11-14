@@ -621,12 +621,18 @@ class Hermes:
         ctk.CTkLabel(header, text="Modo Masivo 🚀", font=('Inter', 26, 'bold'),
                      text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
 
-        actions_section = self._build_section(
+        actions_section, actions_header = self._build_section(
             content,
             1,
             None,
             "Sigue los pasos en orden para iniciar la campaña."
         )
+
+        header_actions = ctk.CTkFrame(actions_header, fg_color="transparent")
+        header_actions.grid(row=0, column=2, rowspan=2, sticky="e", padx=(12, 0))
+        header_actions.grid_columnconfigure(0, weight=0)
+        header_actions.grid_columnconfigure(1, weight=0)
+        header_actions.grid_rowconfigure(0, weight=1)
 
         actions_body = ctk.CTkFrame(actions_section, fg_color="transparent")
         actions_body.grid(row=1, column=0, sticky="nsew", padx=20, pady=(12, 12))
@@ -637,11 +643,6 @@ class Hermes:
         self.additional_actions_frame = ctk.CTkFrame(actions_body, fg_color="transparent")
         self.additional_actions_frame.grid(row=0, column=0, sticky="nw", padx=(0, 16))
         self.additional_actions_frame.grid_columnconfigure(0, weight=1)
-
-        quick_actions_row = ctk.CTkFrame(self.additional_actions_frame, fg_color="transparent")
-        quick_actions_row.grid(row=0, column=0, sticky="ew", pady=(0, 12))
-        quick_actions_row.grid_columnconfigure(0, weight=1)
-        quick_actions_row.grid_columnconfigure(1, weight=0)
 
         tool_btn_kwargs = dict(
             fg_color=self._section_bg_color(),
@@ -657,15 +658,15 @@ class Hermes:
         )
 
         self.fidelizado_unlock_btn = ctk.CTkButton(
-            quick_actions_row,
+            header_actions,
             text="Fidelizado",
             command=self.handle_fidelizado_access,
             **tool_btn_kwargs
         )
-        self.fidelizado_unlock_btn.grid(row=0, column=0, sticky="ew")
+        self.fidelizado_unlock_btn.grid(row=0, column=0, sticky="e", padx=(0, 12))
 
         self.dark_mode_btn = ctk.CTkLabel(
-            quick_actions_row,
+            header_actions,
             text="🌙" if self.dark_mode else "🌞",
             font=('Inter', 34),
             text_color=self.colors['text'],
@@ -680,7 +681,7 @@ class Hermes:
             command=self.handle_sms_mode_access,
             **tool_btn_kwargs
         )
-        self.sms_mode_btn.grid(row=1, column=0, pady=(0, 8), sticky="ew")
+        self.sms_mode_btn.grid(row=0, column=0, pady=(0, 8), sticky="ew")
         self.sms_mode_btn.grid_remove()
 
         self.adb_injector_btn = ctk.CTkButton(
@@ -689,7 +690,7 @@ class Hermes:
             command=self.open_adb_injector,
             **tool_btn_kwargs
         )
-        self.adb_injector_btn.grid(row=2, column=0, pady=6, sticky="ew")
+        self.adb_injector_btn.grid(row=1, column=0, pady=6, sticky="ew")
         self.adb_injector_btn.grid_remove()
 
         self.adb_injector_dual_btn = ctk.CTkButton(
@@ -698,12 +699,12 @@ class Hermes:
             command=self.open_adb_injector_dual,
             **tool_btn_kwargs
         )
-        self.adb_injector_dual_btn.grid(row=3, column=0, pady=6, sticky="ew")
+        self.adb_injector_dual_btn.grid(row=2, column=0, pady=6, sticky="ew")
         self.adb_injector_dual_btn.grid_remove()
 
         # Espaciado adicional para mantener alineado con el diseño previo
         spacer = ctk.CTkLabel(self.additional_actions_frame, text="", fg_color="transparent")
-        spacer.grid(row=4, column=0, pady=(4, 0))
+        spacer.grid(row=3, column=0, pady=(4, 0))
 
         steps_wrapper = ctk.CTkFrame(actions_body, fg_color="transparent")
         steps_wrapper.grid(row=0, column=1, sticky="nsew")
@@ -917,8 +918,8 @@ class Hermes:
         )
         self.sms_back_btn.grid(row=0, column=1, sticky="e")
 
-        time_section = self._build_section(content, 1, "Configuración de tiempos (SMS)",
-                                           "Define los intervalos y esperas para los mensajes de texto.", icon="🕒")
+        time_section, _ = self._build_section(content, 1, "Configuración de tiempos (SMS)",
+                                              "Define los intervalos y esperas para los mensajes de texto.", icon="🕒")
 
         sms_settings = ctk.CTkFrame(time_section, fg_color="transparent")
         sms_settings.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
@@ -926,8 +927,8 @@ class Hermes:
         self.create_setting(sms_settings, "Espera Abrir (seg):", self.wait_after_open, None, 1)
         self.create_setting(sms_settings, "Espera Enter (seg):", self.wait_after_first_enter, None, 2)
 
-        actions_section = self._build_section(content, 2, "Flujo SMS",
-                                              "Sigue los pasos para preparar y lanzar la campaña.", icon="📨")
+        actions_section, _ = self._build_section(content, 2, "Flujo SMS",
+                                                 "Sigue los pasos para preparar y lanzar la campaña.", icon="📨")
 
         sms_steps_wrapper = ctk.CTkFrame(actions_section, fg_color="transparent")
         sms_steps_wrapper.grid(row=1, column=0, sticky="ew", padx=20, pady=(12, 10))
@@ -1188,6 +1189,7 @@ class Hermes:
         header = ctk.CTkFrame(card, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 8))
         header.grid_columnconfigure(1, weight=1)
+        header.grid_columnconfigure(2, weight=0)
 
         title_present = bool(title)
         if icon:
@@ -1206,7 +1208,7 @@ class Hermes:
             pady = (6, 0) if title_present else (0, 0)
             subtitle_label.grid(row=current_row, column=1, sticky="w", pady=pady)
 
-        return card
+        return card, header
 
     def _create_step_badge(self, parent, number):
         badge_frame = ctk.CTkFrame(
