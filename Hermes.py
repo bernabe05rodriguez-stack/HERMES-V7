@@ -348,6 +348,7 @@ class Hermes:
         self.numbers_editor_closed_event = threading.Event()
         self.numbers_editor_closed_event.set()
         self.numbers_editor_start_requested = False
+        self.numbers_editor_waiting_for_start = False
         self.dark_mode = False  # Estado del modo oscuro
 
         # Paleta de colores
@@ -875,8 +876,18 @@ class Hermes:
 
         self._create_step_badge(start_row, start_step_index).grid(row=0, column=0, padx=(0, 12))
 
-        self.btn_start = ctk.CTkButton(
+        start_card = ctk.CTkFrame(
             start_row,
+            fg_color=self._section_bg_color(),
+            corner_radius=22,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        start_card.grid(row=0, column=1, sticky='ew')
+        start_card.grid_columnconfigure(0, weight=1)
+
+        self.btn_start = ctk.CTkButton(
+            start_card,
             text="Iniciar envío",
             command=self.start_sending,
             fg_color=self.colors['action_start'],
@@ -886,7 +897,7 @@ class Hermes:
             corner_radius=24,
             height=48
         )
-        self.btn_start.grid(row=0, column=1, sticky='ew')
+        self.btn_start.grid(row=0, column=0, sticky='ew', padx=20, pady=16)
 
         controls = ctk.CTkFrame(actions_section, fg_color="transparent")
         controls.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 10))
@@ -2426,18 +2437,22 @@ class Hermes:
         Hilo de trabajo para preparar e iniciar el envío del modo NÚMEROS automático.
         Detecta los números, calcula el total y espera la confirmación desde el editor.
         """
-        if not self._detect_and_prepare_phone_lines():
-            self.root.after(0, lambda: messagebox.showerror("Error", "No se detectaron suficientes líneas de WhatsApp para iniciar (se requieren al menos 2).", parent=self.root))
-            return
+        self.numbers_editor_waiting_for_start = True
+        try:
+            if not self._detect_and_prepare_phone_lines():
+                self.root.after(0, lambda: messagebox.showerror("Error", "No se detectaron suficientes líneas de WhatsApp para iniciar (se requieren al menos 2).", parent=self.root))
+                return
 
-        if not self.numbers_editor_start_requested:
-            self.log("Inicio de envío cancelado tras revisar los números detectados.", 'info')
-            return
+            if not self.numbers_editor_start_requested:
+                self.log("Inicio de envío cancelado tras revisar los números detectados.", 'info')
+                return
 
-        if not self._prepare_fidelizado_numbers_data(from_thread=True):
-            return
+            if not self._prepare_fidelizado_numbers_data(from_thread=True):
+                return
 
-        self.root.after(0, self._start_numeros_mode_after_review)
+            self.root.after(0, self._start_numeros_mode_after_review)
+        finally:
+            self.numbers_editor_waiting_for_start = False
 
     def _prepare_fidelizado_numbers_data(self, *, from_thread=False):
         """Filtra y calcula los datos necesarios para iniciar el modo números."""
@@ -5472,6 +5487,22 @@ class Hermes:
         self._update_detected_numbers_summary(updated_snapshot)
         self.log("Números ajustados manualmente desde el editor.", 'info')
         self._close_numbers_editor(start_requested=start_after_save)
+
+        should_auto_start = start_after_save and not self.numbers_editor_waiting_for_start
+        if should_auto_start:
+            if self.fidelizado_mode == "NUMEROS":
+                if not self.manual_messages_numbers:
+                    messagebox.showerror("Error", "Modo Números requiere mensajes cargados.", parent=self.root)
+                    self.numbers_editor_start_requested = False
+                    return
+                if not self._prepare_fidelizado_numbers_data():
+                    return
+                self.log("Confirmación desde el editor: iniciando modo Números.", 'info')
+                self._start_numeros_mode_after_review()
+                return
+            else:
+                self.numbers_editor_start_requested = False
+
         if not start_after_save:
             messagebox.showinfo("Números actualizados", "Los cambios se guardaron correctamente.", parent=self.root)
 
