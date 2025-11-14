@@ -608,21 +608,20 @@ class Hermes:
 
     def setup_traditional_view(self, parent):
         parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(1, weight=1)
+        parent.grid_rowconfigure(0, weight=1)
 
-        # Bloque 1: Configuración de Tiempo
-        time_section = self._build_section(parent, 0, "Configuración de tiempos",
-                                           "Define los intervalos para un envío estable.",
-                                           icon="🕒")
+        content = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
+        content.grid(row=0, column=0, sticky="nsew", padx=0, pady=(10, 20))
+        content.grid_columnconfigure(0, weight=1)
 
-        settings_frame = ctk.CTkFrame(time_section, fg_color="transparent")
-        settings_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
-        self.create_setting(settings_frame, "Delay (seg):", self.delay_min, self.delay_max, 0)
-        self.create_setting(settings_frame, "Espera Abrir (seg):", self.wait_after_open, None, 1)
-        self.create_setting(settings_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 2)
+        header = ctk.CTkFrame(content, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 15))
+        header.grid_columnconfigure(0, weight=1)
 
-        # Bloque 2: Acciones principales
-        actions_section = self._build_section(parent, 1, "Flujo Masivo",
+        ctk.CTkLabel(header, text="Modo Masivos", font=('Inter', 26, 'bold'),
+                     text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
+
+        actions_section = self._build_section(content, 1, "Flujo Masivo",
                                               "Sigue los pasos en orden para iniciar la campaña.",
                                               icon="🚀")
 
@@ -719,9 +718,11 @@ class Hermes:
             ("Cargar y procesar Excel", self.load_and_process_excel, 'action_excel'),
         ]
 
+        current_row = 0
+
         for index, (text, command, color_key) in enumerate(step_buttons, start=1):
             row_frame = ctk.CTkFrame(steps_wrapper, fg_color="transparent")
-            row_frame.grid(row=index - 1, column=0, sticky="ew", pady=6)
+            row_frame.grid(row=current_row, column=0, sticky="ew", pady=6)
             row_frame.grid_columnconfigure(1, weight=1)
 
             badge = self._create_step_badge(row_frame, index)
@@ -745,9 +746,11 @@ class Hermes:
             elif index == 2:
                 self.btn_load = btn
 
+            current_row += 1
+
         mode_step_index = len(step_buttons) + 1
         mode_row = ctk.CTkFrame(steps_wrapper, fg_color="transparent")
-        mode_row.grid(row=mode_step_index - 1, column=0, sticky="ew", pady=6)
+        mode_row.grid(row=current_row, column=0, sticky="ew", pady=6)
         mode_row.grid_columnconfigure(1, weight=1)
 
         self._create_step_badge(mode_row, mode_step_index).grid(row=0, column=0, padx=(0, 12))
@@ -773,9 +776,68 @@ class Hermes:
         self.mode_selector.grid(row=0, column=0, sticky="ew")
         self.traditional_send_mode.trace_add('write', self.update_per_whatsapp_stat)
 
+        current_row += 1
+
+        time_row = ctk.CTkFrame(steps_wrapper, fg_color="transparent")
+        time_row.grid(row=current_row, column=0, sticky="ew", pady=(4, 8))
+        time_row.grid_columnconfigure(0, weight=0)
+        time_row.grid_columnconfigure(1, weight=1)
+
+        badge_placeholder = ctk.CTkFrame(time_row, width=34, height=34, fg_color="transparent")
+        badge_placeholder.grid(row=0, column=0, padx=(0, 12))
+        badge_placeholder.grid_propagate(False)
+
+        self.traditional_time_card = ctk.CTkFrame(
+            time_row,
+            fg_color=self._section_bg_color(),
+            corner_radius=16,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        self.traditional_time_card.grid(row=0, column=1, sticky="ew")
+        self.traditional_time_card.grid_columnconfigure(0, weight=1)
+
+        time_header = ctk.CTkFrame(self.traditional_time_card, fg_color="transparent")
+        time_header.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 8))
+        time_header.grid_columnconfigure(0, weight=1)
+        time_header.grid_columnconfigure(1, weight=0)
+
+        ctk.CTkLabel(time_header, text="Tiempo de envío", font=self.fonts['card_title'],
+                     text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
+
+        self.time_advanced_toggle_btn = ctk.CTkButton(
+            time_header,
+            text="Opciones avanzadas ▾",
+            command=self.toggle_time_settings,
+            fg_color=self._section_bg_color(),
+            hover_color=lighten_color(self._section_bg_color(), 0.12),
+            text_color=self.colors['text_light'],
+            font=self.fonts['button_small'],
+            cursor='hand2',
+            height=30,
+            corner_radius=10,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        self.time_advanced_toggle_btn.grid(row=0, column=1, sticky="e")
+
+        time_main_settings = ctk.CTkFrame(self.traditional_time_card, fg_color="transparent")
+        time_main_settings.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
+        self.create_setting(time_main_settings, "Tiempo entre envíos (seg):", self.delay_min, self.delay_max, 0)
+
+        self.time_advanced_frame = ctk.CTkFrame(self.traditional_time_card, fg_color="transparent")
+        self.time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
+        self.create_setting(self.time_advanced_frame, "Espera Abrir (seg):", self.wait_after_open, None, 0)
+        self.create_setting(self.time_advanced_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 1)
+
+        self.time_advanced_visible = False
+        self.time_advanced_frame.grid_remove()
+
+        current_row += 1
+
         start_step_index = mode_step_index + 1
         start_row = ctk.CTkFrame(steps_wrapper, fg_color="transparent")
-        start_row.grid(row=start_step_index - 1, column=0, sticky="ew", pady=(12, 0))
+        start_row.grid(row=current_row, column=0, sticky="ew", pady=(12, 0))
         start_row.grid_columnconfigure(1, weight=1)
 
         self._create_step_badge(start_row, start_step_index).grid(row=0, column=0, padx=(0, 12))
@@ -1098,8 +1160,7 @@ class Hermes:
         ctrls = ctk.CTkFrame(parent, fg_color="transparent")
         ctrls.grid(row=row, column=1, sticky='e', pady=10, padx=(10, 0))
 
-        spinbox1_min_val = 1 if label == "Delay (seg):" else 1 # Min 1 seg
-        spinbox1 = self._create_spinbox_widget(ctrls, var1, min_val=spinbox1_min_val, max_val=300)
+        spinbox1 = self._create_spinbox_widget(ctrls, var1, min_val=1, max_val=300)
         spinbox1.pack(side=tk.LEFT, padx=(0, 8))
 
         if var2:
@@ -1366,6 +1427,17 @@ class Hermes:
         else:
             self.additional_actions_frame.grid_remove()
             self.toggle_actions_btn.configure(text="Herramientas rápidas ▾")
+
+    def toggle_time_settings(self):
+        """Muestra u oculta los ajustes de espera secundarios."""
+        self.time_advanced_visible = not self.time_advanced_visible
+
+        if self.time_advanced_visible:
+            self.time_advanced_frame.grid()
+            self.time_advanced_toggle_btn.configure(text="Opciones avanzadas ▴")
+        else:
+            self.time_advanced_frame.grid_remove()
+            self.time_advanced_toggle_btn.configure(text="Opciones avanzadas ▾")
 
     def update_per_whatsapp_stat(self, *args):
         """Calcula y actualiza la estadística de mensajes por cuenta de WhatsApp."""
