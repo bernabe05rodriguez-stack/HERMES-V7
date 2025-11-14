@@ -4411,27 +4411,19 @@ class Hermes:
             time.sleep(0.1)
             elapsed += 0.1
 
-    def _locate_message_send_button(self, ui_device, is_sms=False, include_voice=True):
-        """Busca el botón de enviar/nota de voz dentro de la conversación actual."""
+    def _locate_message_send_button(self, ui_device, is_sms=False):
+        """Busca el botón de enviar dentro de la conversación actual."""
         if ui_device is None:
             return None
 
-        selectors = []
-
-        if include_voice:
-            selectors.extend([
-                dict(resourceId="com.whatsapp:id/send"),
-                dict(resourceId="com.whatsapp.w4b:id/send"),
-                dict(resourceIdMatches="(?i).*voice.*"),
-                dict(descriptionMatches="(?i).*(nota de voz|microf|audio).*"),
-            ])
-
-        selectors.extend([
+        selectors = [
             dict(description="Enviar"),
             dict(descriptionMatches="(?i).*enviar.*"),
             dict(text="Enviar"),
             dict(textMatches="(?i).*enviar.*"),
-        ])
+            dict(resourceId="com.whatsapp:id/send"),
+            dict(resourceId="com.whatsapp.w4b:id/send"),
+        ]
 
         if is_sms:
             selectors.extend([
@@ -4449,6 +4441,38 @@ class Hermes:
                 info = candidate.info or {}
                 class_name = (info.get('className') or '').lower()
                 if 'edittext' in class_name:
+                    continue
+
+                bounds = info.get('bounds') or {}
+                if not bounds or bounds.get('left') == bounds.get('right'):
+                    continue
+
+                return candidate
+            except Exception:
+                continue
+
+        return None
+
+    def _locate_voice_note_button(self, ui_device):
+        """Localiza específicamente el botón de nota de voz (micrófono)."""
+        if ui_device is None:
+            return None
+
+        voice_selectors = [
+            dict(resourceId="com.whatsapp:id/voice_note_btn"),
+            dict(resourceId="com.whatsapp.w4b:id/voice_note_btn"),
+            dict(resourceIdMatches=r"(?i)com\.whatsapp(\.w4b)?\:id/(voice_note_btn|voice_note|mic)"),
+            dict(descriptionMatches="(?i)(nota de voz|mant[eé]n pulsado|grabar|microf)")
+        ]
+
+        for selector in voice_selectors:
+            try:
+                candidate = ui_device(**selector)
+                if not candidate.wait(timeout=3):
+                    continue
+
+                info = candidate.info or {}
+                if not info.get('visibleToUser', True):
                     continue
 
                 bounds = info.get('bounds') or {}
@@ -4488,9 +4512,11 @@ class Hermes:
                 len(self.audio_known_combinations) > 1
             )
             if skip_for_same_combo:
+                self.log("Audio pendiente aplazado para otra cuenta/dispositivo.", 'info')
                 return
 
             attempted_audio = True
+            self.log("Intentando enviar nota de voz...", 'info')
             audio_success = self._send_audio_note(ui_device, device, whatsapp_package)
 
             if audio_success:
@@ -4510,6 +4536,7 @@ class Hermes:
         if self.audio_message_counter >= frequency:
             self.audio_pending_for_next_sender = True
             self.audio_pending_trigger_combo = combo
+            self.log("Nota de voz programada para el próximo envío.", 'info')
 
         # Si se intentó enviar audio y falló, mantener el estado pendiente
         if attempted_audio and not audio_success:
@@ -4550,15 +4577,21 @@ class Hermes:
         except Exception:
             pass
 
-        mic_button = self._locate_message_send_button(
-            ui_device,
-            is_sms=(whatsapp_package is None and self.sms_mode_active),
-            include_voice=True,
-        )
+        mic_button = self._locate_voice_note_button(ui_device)
+
+        if not mic_button:
+            mic_button = self._locate_message_send_button(
+                ui_device,
+                is_sms=(whatsapp_package is None and self.sms_mode_active),
+            )
+            if mic_button:
+                self.log("Usando el botón principal como botón de audio (compatibilidad).", 'info')
 
         if not mic_button:
             self.log("No se encontró el botón para enviar audio.", 'warning')
             return False
+
+        self.log("Botón de audio localizado. Preparando grabación...", 'info')
 
         try:
             center = mic_button.center()
@@ -4589,39 +4622,55 @@ class Hermes:
         hold_succeeded = False
         errors = []
 
-        try:
-            mic_button.long_click(duration=hold_time)
-            hold_succeeded = True
-        except Exception as e:
-            errors.append(str(e))
+        touch = getattr(ui_device, 'touch', None)
+        hold_methods = []
+        if touch:
+            hold_methods.append('touch')
+        hold_methods.append('uiautomator')
+        if device_id:
+            hold_methods.append('adb')
 
-        if not hold_succeeded:
+        method_labels = {
+            'touch': 'gesto táctil directo',
+            'uiautomator': 'long click UIAutomator',
+            'adb': 'simulación ADB'
+        }
+
+        for method in hold_methods:
+            if self.should_stop:
+                break
+
             try:
-                ui_device.long_click(x, y, duration=hold_time)
-                hold_succeeded = True
-            except Exception as e:
-                errors.append(str(e))
+                label = method_labels.get(method, method)
+                self.log(f"Manteniendo botón de audio ({label})...", 'info')
 
-        if not hold_succeeded and device_id:
-            try:
-                duration_ms = max(1000, int(hold_time * 1000))
-                swipe_args = ['-s', device_id, 'shell', 'input', 'touchscreen', 'swipe',
-                              str(x), str(y), str(x), str(y), str(duration_ms)]
-                self._run_adb_command(swipe_args, timeout=max(5, int(hold_time) + 2))
-                hold_succeeded = True
-            except Exception as e:
-                errors.append(str(e))
-
-        if not hold_succeeded:
-            touch = getattr(ui_device, 'touch', None)
-            if touch:
-                try:
+                if method == 'touch' and touch:
                     touch.down(x, y)
                     self._controlled_sleep(hold_time)
                     touch.up(x, y)
-                    hold_succeeded = True
-                except Exception as e:
-                    errors.append(str(e))
+                elif method == 'uiautomator':
+                    mic_button.long_click(duration=max(1.0, hold_time))
+                elif method == 'adb' and device_id:
+                    duration_ms = max(1000, int(hold_time * 1000))
+                    swipe_args = [
+                        '-s', device_id, 'shell', 'input', 'touchscreen', 'swipe',
+                        str(x), str(y), str(x), str(y), str(duration_ms)
+                    ]
+                    self._run_adb_command(swipe_args, timeout=max(5, int(hold_time) + 2))
+                else:
+                    continue
+
+                hold_succeeded = True
+                break
+            except Exception as e:
+                errors.append(f"{method}: {e}")
+                continue
+            finally:
+                if method == 'touch' and touch:
+                    try:
+                        touch.up(x, y)
+                    except Exception:
+                        pass
 
         if not hold_succeeded or self.should_stop:
             if errors:
@@ -4717,7 +4766,6 @@ class Hermes:
                     send_button = self._locate_message_send_button(
                         ui_device,
                         is_sms=local_is_sms,
-                        include_voice=False,
                     )
                     if not send_button:
                         self.log("No se encontró el botón 'Enviar'.", "error")
