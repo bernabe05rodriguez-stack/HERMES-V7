@@ -1959,20 +1959,13 @@ class Hermes:
         self.fidelizado_inputs_col.grid_rowconfigure(0, weight=1) # Permitir que el frame interno crezca
         self.fidelizado_inputs_col.grid_columnconfigure(0, weight=1)
 
-        # Card para Textos de Mensajes
-        self.fidelizado_inputs_card = ctk.CTkFrame(self.fidelizado_inputs_col, fg_color=self.colors['bg'], corner_radius=15)
-        self.fidelizado_inputs_card.grid(row=0, column=0, sticky="nsew")
-        self.fidelizado_inputs_card.grid_rowconfigure(1, weight=1)
-        self.fidelizado_inputs_card.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(self.fidelizado_inputs_card, text="✉️ Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', padx=20, pady=(15, 10))
-
-        self.fidelizado_inputs_container = ctk.CTkFrame(self.fidelizado_inputs_card, fg_color="transparent")
-        self.fidelizado_inputs_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        # Contenedor principal para los textos dinámicos (sin tarjeta vacía visible)
+        self.fidelizado_inputs_container = ctk.CTkFrame(self.fidelizado_inputs_col, fg_color="transparent")
+        self.fidelizado_inputs_container.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
         self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
 
-        # Contenido de la tarjeta de "Mensajes" se gestiona dinámicamente según el modo
+        # El contenido de "Mensajes" se gestiona dinámicamente según el modo
 
         # --- Columna Derecha: Controles de Envío ---
         self.fidelizado_controls_col = ctk.CTkFrame(self.fidelizado_main_content_frame, fg_color="transparent")
@@ -2105,15 +2098,28 @@ class Hermes:
         self.fidelizado_audio_enabled.trace_add('write', lambda *args: self._update_audio_settings_visibility())
         self._update_audio_settings_visibility()
 
-        # Card para cargas de mensajes y grupos
-        self.fidelizado_cargas_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        self.fidelizado_cargas_card.grid(row=2, column=0, sticky="nsew", pady=(0, 20))
-        self.fidelizado_cargas_card.grid_columnconfigure(0, weight=1)
-        self.fidelizado_cargas_card.grid_rowconfigure(1, weight=1)
+        # Botón para mostrar/ocultar la sección de cargas dentro de configuración
+        self.fidelizado_carga_toggle_btn = ctk.CTkButton(
+            config_card,
+            text="📥 Carga ▼",
+            font=self.fonts['button'],
+            fg_color=self.colors['bg_card'],
+            hover_color=darken_color(self.colors['bg_card'], 0.1),
+            text_color=self.colors['text'],
+            height=38,
+            corner_radius=12,
+            command=self._toggle_fidelizado_carga_section
+        )
+        self.fidelizado_carga_toggle_btn.pack(fill=tk.X, padx=20, pady=(0, 10))
 
-        ctk.CTkLabel(self.fidelizado_cargas_card, text="📥 Cargas", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', padx=20, pady=(15, 10))
+        self.fidelizado_carga_section = ctk.CTkFrame(config_card, fg_color=self.colors['bg'], corner_radius=12)
+        self.fidelizado_carga_section.pack(fill=tk.X, padx=20, pady=(0, 20))
+        self.fidelizado_carga_section.grid_columnconfigure(0, weight=1)
+        self.fidelizado_carga_section.grid_rowconfigure(1, weight=1)
 
-        self.fidelizado_messages_container = ctk.CTkFrame(self.fidelizado_cargas_card, fg_color="transparent")
+        ctk.CTkLabel(self.fidelizado_carga_section, text="📥 Cargas", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', padx=20, pady=(15, 10))
+
+        self.fidelizado_messages_container = ctk.CTkFrame(self.fidelizado_carga_section, fg_color="transparent")
         self.fidelizado_messages_container.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 15))
         self.fidelizado_messages_container.grid_columnconfigure(0, weight=0)
         self.fidelizado_messages_container.grid_columnconfigure(1, weight=0)
@@ -2179,7 +2185,7 @@ class Hermes:
 
         # --- Botones de Acción ---
         self.actions_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color="transparent")
-        self.actions_frame.grid(row=3, column=0, sticky="sew", pady=(15, 0))
+        self.actions_frame.grid(row=2, column=0, sticky="sew", pady=(15, 0))
         self.actions_frame.grid_columnconfigure(0, weight=1)
         self.actions_frame.grid_columnconfigure(1, weight=1)
 
@@ -2191,7 +2197,7 @@ class Hermes:
 
         # --- Botones de Control (Pausa/Cancelar) ---
         self.control_buttons_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color="transparent")
-        self.control_buttons_frame.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+        self.control_buttons_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
         self.control_buttons_frame.grid_columnconfigure(0, weight=1)
         self.control_buttons_frame.grid_columnconfigure(1, weight=1)
 
@@ -2227,6 +2233,18 @@ class Hermes:
         else:
             if self.fidelizado_audio_settings.winfo_manager():
                 self.fidelizado_audio_settings.pack_forget()
+
+    def _toggle_fidelizado_carga_section(self):
+        """Alterna la visibilidad del bloque de cargas dentro del panel de configuración."""
+        if not hasattr(self, 'fidelizado_carga_section') or not hasattr(self, 'fidelizado_carga_toggle_btn'):
+            return
+
+        if self.fidelizado_carga_section.winfo_manager():
+            self.fidelizado_carga_section.pack_forget()
+            self.fidelizado_carga_toggle_btn.configure(text="📥 Carga ▶")
+        else:
+            self.fidelizado_carga_section.pack(fill=tk.X, padx=20, pady=(0, 20))
+            self.fidelizado_carga_toggle_btn.configure(text="📥 Carga ▼")
 
     def _update_fidelizado_ui_mode(self, *args):
         """Muestra u oculta los widgets y reorganiza el layout según el modo Fidelizado seleccionado."""
