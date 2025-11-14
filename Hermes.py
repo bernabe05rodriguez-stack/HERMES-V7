@@ -35,6 +35,7 @@ import pytesseract
 from PIL import Image
 import re
 import xml.etree.ElementTree as ET
+from collections import defaultdict
 
 
 # --- Clase auxiliar para evitar errores de Tkinter con campos numéricos vacíos ---
@@ -319,6 +320,7 @@ class Hermes:
         self.fidelizado_audio_frequency = SafeIntVar(value=5)
         self.fidelizado_audio_duration_min = SafeIntVar(value=8)
         self.fidelizado_audio_duration_max = SafeIntVar(value=15)
+        self.audio_counters = defaultdict(int)
         
         # Variables de tiempo para Modo Grupos Dual
         self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
@@ -2942,6 +2944,9 @@ class Hermes:
         self._enter_task_mode()
         self.update_stats() # Actualizar UI con el total
 
+        # Reiniciar el contador de audios antes de comenzar un nuevo envío
+        self.audio_counters.clear()
+
         # Iniciar hilo
         threading.Thread(target=self.send_thread, daemon=True).start()
 
@@ -4401,9 +4406,9 @@ class Hermes:
             time.sleep(0.1)
             elapsed += 0.1
 
-    def _maybe_send_audio(self, ui_device, device, task_index):
+    def _maybe_send_audio(self, ui_device, device, task_index, whatsapp_package=None):
         """Envía una nota de voz si la configuración de Fidelizado lo requiere."""
-        if not self.manual_mode or not self.fidelizado_audio_enabled.get():
+        if ui_device is None or not self.fidelizado_audio_enabled.get() or self.should_stop:
             return
 
         try:
@@ -4412,7 +4417,15 @@ class Hermes:
             frequency = 0
 
         frequency = max(1, frequency)
-        if task_index <= 0 or (task_index % frequency) != 0:
+
+        if whatsapp_package is None and self.sms_mode_active:
+            return
+
+        key = (device or "default", whatsapp_package or "default")
+        current_count = self.audio_counters[key] + 1
+        self.audio_counters[key] = current_count
+
+        if current_count < frequency:
             return
 
         if self.should_stop:
@@ -4444,6 +4457,7 @@ class Hermes:
                 continue
 
         if not mic_button:
+            self.audio_counters[key] = max(0, frequency - 1)
             self.log("No se encontró el botón para enviar audio.", 'warning')
             return
 
@@ -4455,6 +4469,7 @@ class Hermes:
             x = int((bounds['left'] + bounds['right']) / 2)
             y = int((bounds['top'] + bounds['bottom']) / 2)
         except Exception as e:
+            self.audio_counters[key] = max(0, frequency - 1)
             self.log(f"No se pudieron obtener las coordenadas del botón de audio: {e}", 'warning')
             return
 
@@ -4469,24 +4484,32 @@ class Hermes:
 
         self.log(f"Grabando audio durante {hold_time:.1f}s...", 'info')
 
-        pressed = False
-        try:
-            ui_device.touch.down(x, y)
-            pressed = True
-            self._controlled_sleep(hold_time)
-        except Exception as e:
-            self.log(f"No se pudo mantener el botón de audio: {e}", 'warning')
-        finally:
-            if pressed:
-                try:
-                    ui_device.touch.up(x, y)
-                except Exception as e:
-                    self.log(f"No se pudo soltar el botón de audio: {e}", 'warning')
-                    pressed = False
+        hold_succeeded = False
+        errors = []
 
-        if not pressed or self.should_stop:
+        # Primero intentar long_click (mantiene presionado automáticamente)
+        try:
+            ui_device.long_click(x, y, duration=hold_time)
+            hold_succeeded = True
+        except Exception as e:
+            errors.append(str(e))
+            touch = getattr(ui_device, 'touch', None)
+            if touch:
+                try:
+                    touch.down(x, y)
+                    self._controlled_sleep(hold_time)
+                    touch.up(x, y)
+                    hold_succeeded = True
+                except Exception as e2:
+                    errors.append(str(e2))
+
+        if not hold_succeeded or self.should_stop:
+            self.audio_counters[key] = max(0, frequency - 1)
+            if errors:
+                self.log(f"No se pudo mantener el botón de audio: {' | '.join(errors)}", 'warning')
             return
 
+        self.audio_counters[key] = 0
         self._controlled_sleep(1.0)
         if not self.should_stop:
             self.log("Audio enviado con éxito.", 'success')
@@ -4607,7 +4630,8 @@ class Hermes:
 
                     self.log("Mensaje enviado con éxito.", 'success')
                     self._controlled_sleep(1.5)
-                    self._maybe_send_audio(ui_device, device, i)
+                    active_package = None if local_is_sms else whatsapp_package
+                    self._maybe_send_audio(ui_device, device, i, whatsapp_package=active_package)
                     return True, False
 
                 except Exception as e:
