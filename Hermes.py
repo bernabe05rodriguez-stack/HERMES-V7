@@ -317,8 +317,6 @@ class Hermes:
         # Configuración de notas de voz para Fidelizado
         self.fidelizado_audio_enabled = tk.BooleanVar(value=False)
         self.fidelizado_audio_frequency = SafeIntVar(value=5)
-        self.fidelizado_audio_delay_min = SafeIntVar(value=3)
-        self.fidelizado_audio_delay_max = SafeIntVar(value=6)
         self.fidelizado_audio_duration_min = SafeIntVar(value=8)
         self.fidelizado_audio_duration_max = SafeIntVar(value=15)
         
@@ -2090,17 +2088,6 @@ class Hermes:
         audio_freq_spin.pack(side=tk.LEFT, padx=10)
         ctk.CTkLabel(audio_freq_frame, text="mensajes", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(side=tk.LEFT)
 
-        audio_delay_frame = ctk.CTkFrame(self.fidelizado_audio_settings, fg_color="transparent")
-        audio_delay_frame.pack(fill=tk.X, pady=(12, 0))
-        ctk.CTkLabel(audio_delay_frame, text="Espera antes del audio (s):", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
-        audio_delay_spins = ctk.CTkFrame(audio_delay_frame, fg_color="transparent")
-        audio_delay_spins.pack(side=tk.RIGHT)
-        audio_delay_max_spin = self._create_spinbox_widget(audio_delay_spins, self.fidelizado_audio_delay_max, min_val=0, max_val=300)
-        audio_delay_max_spin.pack(side=tk.RIGHT)
-        ctk.CTkLabel(audio_delay_spins, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.RIGHT, padx=8)
-        audio_delay_min_spin = self._create_spinbox_widget(audio_delay_spins, self.fidelizado_audio_delay_min, min_val=0, max_val=300)
-        audio_delay_min_spin.pack(side=tk.RIGHT)
-
         audio_duration_frame = ctk.CTkFrame(self.fidelizado_audio_settings, fg_color="transparent")
         audio_duration_frame.pack(fill=tk.X, pady=(12, 0))
         ctk.CTkLabel(audio_duration_frame, text="Duración del audio (s):", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
@@ -2323,9 +2310,14 @@ class Hermes:
         """Función específica para validar y preparar el envío desde la vista Fidelizado."""
         # 1. Guardar los datos de los TextBoxes en las variables de la clase
         self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
+        if hasattr(self, 'fidelizado_numbers_text'):
+            self.manual_inputs_numbers = [line.strip() for line in self.fidelizado_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
 
         # 2. Validar los datos según el modo
         if self.fidelizado_mode == "NUMEROS":
+            if not self.manual_messages_numbers:
+                messagebox.showerror("Error", "Modo Números requiere mensajes cargados.", parent=self.root)
+                return
             # Si hay números en la caja de texto, se usa el modo manual.
             if self.manual_inputs_numbers:
                 self.manual_mode = True
@@ -2336,7 +2328,13 @@ class Hermes:
                 return
             else:
                 # Si no, se usa el modo automático.
-                threading.Thread(target=self.start_fidelizado_numeros_thread, daemon=True).start()
+                if self.detected_phone_lines:
+                    self.log("Usando líneas detectadas previamente para iniciar el envío.", 'info')
+                    if not self._prepare_fidelizado_numbers_data():
+                        return
+                    self.root.after(0, self._start_numeros_mode_after_review)
+                else:
+                    threading.Thread(target=self.start_fidelizado_numeros_thread, daemon=True).start()
                 return
 
         if self.fidelizado_mode == "GRUPOS" and not self.manual_inputs_groups:
@@ -2370,50 +2368,67 @@ class Hermes:
             self.log("Inicio de envío cancelado tras revisar los números detectados.", 'info')
             return
 
-        # --- FILTRADO DE LÍNEAS POR TIPO DE WHATSAPP ---
+        if not self._prepare_fidelizado_numbers_data(from_thread=True):
+            return
+
+        self.root.after(0, self._start_numeros_mode_after_review)
+
+    def _prepare_fidelizado_numbers_data(self, *, from_thread=False):
+        """Filtra y calcula los datos necesarios para iniciar el modo números."""
+        if not self.detected_phone_lines:
+            msg = "No hay líneas detectadas para iniciar el modo Números."
+            self.log(msg, 'error')
+            self.numbers_editor_start_requested = False
+            handler = (lambda: messagebox.showerror("Error", msg, parent=self.root))
+            if from_thread:
+                self.root.after(0, handler)
+            else:
+                handler()
+            return False
+
         whatsapp_mode = self.whatsapp_mode.get()
         original_line_count = len(self.detected_phone_lines)
 
         if whatsapp_mode == "Normal":
-            self.detected_phone_lines = [line for line in self.detected_phone_lines if line['type'] == 'WhatsApp']
-            self.log(f"Filtrando por 'Normal'. Líneas a usar: {len(self.detected_phone_lines)} de {original_line_count}", 'info')
+            filtered_lines = [line for line in self.detected_phone_lines if line['type'] == 'WhatsApp']
+            self.log(f"Filtrando por 'Normal'. Líneas a usar: {len(filtered_lines)} de {original_line_count}", 'info')
         elif whatsapp_mode == "Business":
-            self.detected_phone_lines = [line for line in self.detected_phone_lines if line['type'] == 'WhatsApp Business']
-            self.log(f"Filtrando por 'Business'. Líneas a usar: {len(self.detected_phone_lines)} de {original_line_count}", 'info')
-        else: # Ambas
-            self.log(f"Modo 'Ambas'. Usando {len(self.detected_phone_lines)} líneas detectadas.", 'info')
+            filtered_lines = [line for line in self.detected_phone_lines if line['type'] == 'WhatsApp Business']
+            self.log(f"Filtrando por 'Business'. Líneas a usar: {len(filtered_lines)} de {original_line_count}", 'info')
+        else:
+            filtered_lines = list(self.detected_phone_lines)
+            modo = "Ambas" if whatsapp_mode == "Ambas" else ("Todas" if whatsapp_mode == "Todas" else whatsapp_mode)
+            self.log(f"Modo '{modo}'. Usando {len(filtered_lines)} líneas detectadas.", 'info')
 
-        if len(self.detected_phone_lines) < 2 and self.fidelizado_numeros_mode.get() != "Uno a muchos":
+        if len(filtered_lines) < 2 and self.fidelizado_numeros_mode.get() != "Uno a muchos":
             msg = (
-                f"Después de filtrar por '{whatsapp_mode}', solo quedan {len(self.detected_phone_lines)} "
+                f"Después de filtrar por '{whatsapp_mode}', solo quedan {len(filtered_lines)} "
                 "líneas. Se requieren al menos 2 para este modo."
             )
             self.log(msg, 'error')
             self.numbers_editor_start_requested = False
-            self.root.after(0, lambda: messagebox.showerror("Error", msg, parent=self.root))
-            return
-        # --- FIN FILTRADO ---
+            handler = (lambda: messagebox.showerror("Error", msg, parent=self.root))
+            if from_thread:
+                self.root.after(0, handler)
+            else:
+                handler()
+            return False
 
-        # Calcular total_messages
+        self.detected_phone_lines = filtered_lines
+
         num_lines = len(self.detected_phone_lines)
         num_bucles = self.manual_loops_var.get()
         num_ciclos = self.manual_cycles_var.get()
 
         if self.fidelizado_numeros_mode.get() == "Uno a uno":
-            # Cada ciclo crea N/2 parejas, y cada pareja envía 2 mensajes.
-            # Esto se repite por el número de ciclos y luego por el número de bucles.
             total = (num_lines // 2) * 2 * num_ciclos * num_bucles
-        else: # Uno a muchos
-            # Se generan N*(N-1)/2 parejas únicas.
-            # Cada pareja tiene una conversación de ida y vuelta (2 mensajes).
-            # Esto se repite por el número de bucles.
+        else:
             num_pairs = num_lines * (num_lines - 1) // 2
             total = num_pairs * 2 * num_bucles
 
         self.total_messages = total
         self.log(f"Cálculo para Modo '{self.fidelizado_numeros_mode.get()}': {self.total_messages} mensajes en total.", 'info')
-
-        self.root.after(0, self._start_numeros_mode_after_review)
+        return True
 
     def _start_numeros_mode_after_review(self):
         """Inicia el envío del modo números después de revisar y confirmar desde el editor."""
@@ -4400,16 +4415,6 @@ class Hermes:
         if task_index <= 0 or (task_index % frequency) != 0:
             return
 
-        delay_min = self.fidelizado_audio_delay_min.get()
-        delay_max = self.fidelizado_audio_delay_max.get()
-        if delay_min > delay_max:
-            delay_min, delay_max = delay_max, delay_min
-        wait_before = float(delay_min)
-        if delay_max > delay_min:
-            wait_before = random.uniform(delay_min, delay_max)
-        if wait_before > 0:
-            self.log(f"Esperando {wait_before:.1f}s antes de enviar audio...", 'info')
-            self._controlled_sleep(wait_before)
         if self.should_stop:
             return
 
