@@ -1081,7 +1081,11 @@ class Hermes:
             fg_color="transparent",
             hover_color="transparent",
             text_color=self.colors['log_info'],
+ codex/fix-tabla-function-styling-pqm7t7
             text_color_disabled=self.colors['log_info'],
+
+            text_color_disabled=self.colors['text_light'],
+codex/mejoras-desde-base-jule
             font=self.fonts['button_small'],
             height=32,
             width=0,
