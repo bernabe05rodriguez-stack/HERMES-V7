@@ -1081,13 +1081,14 @@ class Hermes:
             fg_color="transparent",
             hover_color="transparent",
             text_color=self.colors['log_info'],
+            text_color_disabled=self.colors['log_info'],
             font=self.fonts['button_small'],
             height=32,
             width=0,
             corner_radius=0
         )
         self.toggle_log_view_btn.pack(side=tk.RIGHT, padx=(10, 0))
-        self.toggle_log_view_btn.configure(state=tk.DISABLED)
+        self.toggle_log_view_btn.configure(state=tk.DISABLED, text_color_disabled=self.colors['log_info'])
 
         lco = ctk.CTkFrame(lc, fg_color="transparent")
         lco.grid(row=1, column=0, sticky='nsew', pady=(0, 25), padx=25)
@@ -1223,6 +1224,7 @@ class Hermes:
         self.toggle_log_view_btn.configure(
             state=state,
             text_color=self.colors['log_info'],
+            text_color_disabled=self.colors['log_info'],
             fg_color="transparent",
             hover_color="transparent"
         )
