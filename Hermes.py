@@ -330,6 +330,9 @@ class Hermes:
         self.fidelizado_unlocked = True
         self.fidelizado_unlock_btn = None
         self.detect_numbers_btn = None
+        self.last_detection_snapshot = {}
+        self.numbers_editor_window = None
+        self.numbers_editor_entries = {}
         self.dark_mode = False  # Estado del modo oscuro
 
         # Paleta de colores
@@ -4864,26 +4867,21 @@ class Hermes:
                 if numbers.get("WhatsApp Business") not in ["No encontrado", "Error"]:
                     self.detected_phone_lines.append({"device": device_serial, "type": "WhatsApp Business", "number": numbers["WhatsApp Business"], "package": "com.whatsapp.w4b"})
 
-            # Actualizar la UI
-            display_text = ""
-            if self.detected_phone_lines:
-                display_text = "Líneas detectadas:\n"
-                # Ordenar para consistencia
-                sorted_lines = sorted(self.detected_phone_lines, key=lambda x: (x['device'], x['type']))
-                for line in sorted_lines:
-                    display_text += f"· {line['type']} ({line['device']}): {line['number']}\n"
-            else:
-                display_text = "No se encontraron líneas de WhatsApp válidas."
-
-            # Actualizar la etiqueta en la vista de Fidelizado
-            if hasattr(self, 'fidelizado_device_list_label'):
-                self.root.after(0, self.fidelizado_device_list_label.configure, {'text': display_text})
+            snapshot_copy = {dev: numbers.copy() for dev, numbers in all_numbers.items()}
+            self.last_detection_snapshot = snapshot_copy
+            self._update_detected_numbers_summary(snapshot_copy)
 
             if show_results_popup:
                 self.log("Detección de números finalizada.", 'success')
-                # Usar un formato ligeramente diferente para el popup para mejor legibilidad
-                popup_text = display_text.replace("·", "\n·").strip()
+                summary_lines = self._format_detected_numbers_summary_lines(snapshot_copy)
+                if summary_lines:
+                    popup_text = "Líneas detectadas:\n" + "\n".join(f"· {line}" for line in summary_lines)
+                else:
+                    popup_text = "No se encontraron líneas de WhatsApp válidas."
                 self.root.after(0, lambda: messagebox.showinfo("Detección Finalizada", popup_text, parent=self.root))
+
+            if snapshot_copy:
+                self.root.after(0, lambda data=snapshot_copy: self._show_detected_numbers_editor(data))
 
             return bool(self.detected_phone_lines)
 
@@ -4900,6 +4898,200 @@ class Hermes:
             detect_btn = getattr(self, 'detect_numbers_btn', None)
             if detect_btn and detect_btn.winfo_exists():
                 self.root.after(0, detect_btn.configure, {'state': tk.NORMAL, 'text': "Detectar Números"})
+
+    def _format_detected_numbers_summary_lines(self, snapshot=None):
+        """Genera las líneas de resumen para los números detectados."""
+        snapshot = snapshot if snapshot is not None else getattr(self, 'last_detection_snapshot', {})
+        lines = []
+        for device in sorted(snapshot.keys()):
+            numbers = snapshot[device]
+            segments = []
+            for whatsapp_type in ("WhatsApp", "WhatsApp Business"):
+                raw_value = numbers.get(whatsapp_type, "No encontrado")
+                display_value = raw_value if raw_value not in (None, "") else "No encontrado"
+                segments.append(f"{whatsapp_type}: {display_value}")
+            if segments:
+                lines.append(f"{device} → " + " | ".join(segments))
+        return lines
+
+    def _update_detected_numbers_summary(self, snapshot=None):
+        """Actualiza la etiqueta principal con el resumen de números detectados."""
+        lines = self._format_detected_numbers_summary_lines(snapshot)
+        if lines:
+            display_text = "Líneas detectadas:\n" + "\n".join(f"· {line}" for line in lines)
+        else:
+            display_text = "No se encontraron líneas de WhatsApp válidas."
+
+        if hasattr(self, 'fidelizado_device_list_label'):
+            def update_label():
+                if self.fidelizado_device_list_label.winfo_exists():
+                    self.fidelizado_device_list_label.configure(text=display_text)
+            self.root.after(0, update_label)
+
+    def _close_numbers_editor(self):
+        """Cierra la ventana del editor de números (si existe)."""
+        if self.numbers_editor_window is not None:
+            try:
+                self.numbers_editor_window.destroy()
+            except tk.TclError:
+                pass
+        self.numbers_editor_window = None
+        self.numbers_editor_entries = {}
+
+    def _save_numbers_editor(self):
+        """Guarda los cambios realizados manualmente en la tabla de números detectados."""
+        if not self.numbers_editor_entries:
+            self._close_numbers_editor()
+            return
+
+        updated_snapshot = {}
+        updated_lines = []
+        for device, entry_map in self.numbers_editor_entries.items():
+            updated_snapshot[device] = {}
+            for whatsapp_type, entry in entry_map.items():
+                value = entry.get().strip()
+                sanitized = value.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+                if sanitized:
+                    updated_snapshot[device][whatsapp_type] = sanitized
+                    package = 'com.whatsapp' if whatsapp_type == 'WhatsApp' else 'com.whatsapp.w4b'
+                    updated_lines.append({
+                        "device": device,
+                        "type": whatsapp_type,
+                        "number": sanitized,
+                        "package": package
+                    })
+                else:
+                    previous_value = self.last_detection_snapshot.get(device, {}).get(whatsapp_type, "No encontrado")
+                    updated_snapshot[device][whatsapp_type] = previous_value if previous_value == "Error" else "No encontrado"
+
+        self.detected_phone_lines = updated_lines
+        self.last_detection_snapshot = updated_snapshot
+        self._update_detected_numbers_summary(updated_snapshot)
+        self.log("Números ajustados manualmente desde el editor.", 'info')
+        self._close_numbers_editor()
+        messagebox.showinfo("Números actualizados", "Los cambios se guardaron correctamente.", parent=self.root)
+
+    def _show_detected_numbers_editor(self, detection_results):
+        """Muestra una tabla editable con los números detectados por dispositivo."""
+        if not detection_results:
+            return
+
+        self._close_numbers_editor()
+
+        editor = ctk.CTkToplevel(self.root)
+        editor.title("Editar números detectados")
+        editor.geometry("720x420")
+        editor.resizable(False, False)
+        editor.grab_set()
+        editor.focus_force()
+
+        instructions = ctk.CTkLabel(
+            editor,
+            text="Revisa y ajusta los números detectados. Haz clic en el código del dispositivo para abrir la calculadora y verificarlo.",
+            font=self.fonts['setting_label'],
+            text_color=self.colors['text']
+        )
+        instructions.pack(fill=tk.X, padx=20, pady=(20, 10))
+
+        table = ctk.CTkScrollableFrame(editor, fg_color="transparent", height=260)
+        table.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+        table.grid_columnconfigure(0, weight=1)
+        table.grid_columnconfigure(1, weight=1)
+        table.grid_columnconfigure(2, weight=1)
+
+        headers = ["Dispositivo", "WhatsApp", "WhatsApp Business"]
+        for col, header_text in enumerate(headers):
+            ctk.CTkLabel(table, text=header_text, font=('Inter', 13, 'bold'), text_color=self.colors['text']).grid(
+                row=0, column=col, sticky='ew', padx=10, pady=5
+            )
+
+        self.numbers_editor_entries = {}
+        for row_index, device in enumerate(sorted(detection_results.keys()), start=1):
+            values = detection_results.get(device, {})
+
+            device_button = ctk.CTkButton(
+                table,
+                text=device,
+                command=lambda ds=device: self._open_device_calculator(ds),
+                font=self.fonts['button_small'],
+                fg_color=self.colors['action_detect'],
+                hover_color=self.hover_colors['action_detect'],
+                height=32
+            )
+            device_button.grid(row=row_index, column=0, sticky='ew', padx=10, pady=6)
+
+            entries = {}
+            for col_index, whatsapp_type in enumerate(("WhatsApp", "WhatsApp Business"), start=1):
+                current_value = values.get(whatsapp_type, "No encontrado")
+                placeholder = "Error" if current_value == "Error" else "No encontrado"
+                entry = ctk.CTkEntry(
+                    table,
+                    placeholder_text=placeholder,
+                    font=self.fonts['setting_label']
+                )
+                if current_value not in ("No encontrado", "Error", None, ""):
+                    entry.insert(0, current_value)
+                entry.grid(row=row_index, column=col_index, sticky='ew', padx=10, pady=6)
+                entries[whatsapp_type] = entry
+
+            self.numbers_editor_entries[device] = entries
+
+        buttons_frame = ctk.CTkFrame(editor, fg_color="transparent")
+        buttons_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
+
+        save_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Guardar y cerrar",
+            command=self._save_numbers_editor,
+            font=self.fonts['button'],
+            fg_color=self.colors['action_start'],
+            hover_color=self.hover_colors['action_start'],
+            height=38
+        )
+        save_btn.pack(side=tk.RIGHT, padx=(10, 0))
+
+        cancel_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Cerrar",
+            command=self._close_numbers_editor,
+            font=self.fonts['button'],
+            fg_color=self.colors['action_cancel'],
+            hover_color=self.hover_colors['action_cancel'],
+            height=38
+        )
+        cancel_btn.pack(side=tk.RIGHT, padx=(0, 10))
+
+        self.numbers_editor_window = editor
+        editor.protocol("WM_DELETE_WINDOW", self._close_numbers_editor)
+
+    def _open_device_calculator(self, device_serial):
+        """Abre la calculadora del dispositivo seleccionado mediante ADB."""
+        adb_path = self.adb_path.get()
+        if not adb_path or not os.path.exists(adb_path):
+            self.auto_detect_adb()
+            adb_path = self.adb_path.get()
+
+        if not adb_path or not os.path.exists(adb_path):
+            self.log("ADB no configurado. No se puede abrir la calculadora.", 'error')
+            messagebox.showerror("ADB no configurado", "No se encontró 'adb.exe'. Configúralo antes de abrir la calculadora.", parent=self.root)
+            return
+
+        self.log(f"[{device_serial}] Abriendo calculadora para identificar el dispositivo...", 'info')
+
+        intents = [
+            ['-s', device_serial, 'shell', 'am', 'start', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.APP_CALCULATOR'],
+            ['-s', device_serial, 'shell', 'am', 'start', '-n', 'com.android.calculator2/.Calculator'],
+            ['-s', device_serial, 'shell', 'am', 'start', '-n', 'com.sec.android.app.popupcalculator/.Calculator'],
+            ['-s', device_serial, 'shell', 'am', 'start', '-n', 'com.miui.calculator/.cal.CalculatorActivity']
+        ]
+
+        for intent_args in intents:
+            if self._run_adb_command(intent_args, timeout=5):
+                self.log(f"[{device_serial}] Calculadora abierta correctamente.", 'success')
+                return
+
+        self.log(f"[{device_serial}] No se pudo abrir la calculadora.", 'warning')
+        messagebox.showwarning("Calculadora no encontrada", f"No se pudo abrir la calculadora en {device_serial}.", parent=self.root)
 
     def _get_number_with_uiautomator2(self, device_serial, temp_dir):
         """Usa uiautomator2 para encontrar los números de teléfono en un dispositivo."""
@@ -4950,9 +5142,33 @@ class Hermes:
                         # Obtener el volcado de la jerarquía de la UI como XML
                         xml_dump = d.dump_hierarchy()
                         root = ET.fromstring(xml_dump)
+                        nodes = list(root.iter())
 
-                        # Extraer todo el texto del XML
-                        all_text_nodes = [node.get('text') for node in root.iter() if node.get('text')]
+                        primary_number = None
+                        for node in nodes:
+                            text_value = node.get('text')
+                            if not text_value:
+                                continue
+                            normalized_text = text_value.strip()
+                            if normalized_text.lower().endswith('(tú)'):
+                                match_contact = re.search(r'(\+[\d\s\-\(\)]+)', normalized_text)
+                                if match_contact:
+                                    primary_number = re.sub(r'[\s\-\(\)]', '', match_contact.group(1))
+                                    break
+
+                        if primary_number:
+                            number = primary_number
+                            self.log(f"    ¡Número principal detectado en la lista!: {number}", 'success')
+
+                            if 'w4b' in pkg:
+                                device_numbers['WhatsApp Business'] = number
+                            else:
+                                device_numbers['WhatsApp'] = number
+                            d.app_stop(pkg)
+                            continue # Pasa al siguiente paquete de WhatsApp
+
+                        # Fallback: analizar todo el texto visible como antes
+                        all_text_nodes = [node.get('text') for node in nodes if node.get('text')]
                         main_screen_text = " ".join(filter(None, all_text_nodes))
 
                         match = re.search(r'(\+[\d\s\-\(\)]+)', main_screen_text)
@@ -4967,7 +5183,7 @@ class Hermes:
                             d.app_stop(pkg)
                             continue # Pasa al siguiente paquete de WhatsApp
                         else:
-                             self.log("    Número no encontrado en la pantalla principal. Continuando al Paso B...", 'info')
+                            self.log("    Número no encontrado en la pantalla principal. Continuando al Paso B...", 'info')
 
                     except Exception as e:
                         self.log(f"    Paso A falló con error: {e}. Se continuará con el Paso B.", 'warning')
