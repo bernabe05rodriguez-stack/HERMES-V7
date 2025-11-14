@@ -618,12 +618,15 @@ class Hermes:
         header.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 15))
         header.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(header, text="Modo Masivos", font=('Inter', 26, 'bold'),
+        ctk.CTkLabel(header, text="Modo Masivo 🚀", font=('Inter', 26, 'bold'),
                      text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
 
-        actions_section = self._build_section(content, 1, "Flujo Masivo",
-                                              "Sigue los pasos en orden para iniciar la campaña.",
-                                              icon="🚀")
+        actions_section = self._build_section(
+            content,
+            1,
+            None,
+            "Sigue los pasos en orden para iniciar la campaña."
+        )
 
         tools_header = ctk.CTkFrame(actions_section, fg_color="transparent")
         tools_header.grid(row=1, column=0, sticky="ew", padx=20)
@@ -648,6 +651,7 @@ class Hermes:
             border_color=self._section_border_color()
         )
         self.toggle_actions_btn.grid(row=0, column=1, sticky="e")
+        self.toggle_actions_btn.grid_remove()
 
         self.additional_actions_frame = ctk.CTkFrame(actions_section, fg_color="transparent")
         self.additional_actions_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(10, 4))
@@ -682,6 +686,7 @@ class Hermes:
             **tool_btn_kwargs
         )
         self.sms_mode_btn.grid(row=0, column=1, padx=8, pady=6, sticky="w")
+        self.sms_mode_btn.grid_remove()
 
         self.adb_injector_btn = ctk.CTkButton(
             self.additional_actions_frame,
@@ -690,6 +695,7 @@ class Hermes:
             **tool_btn_kwargs
         )
         self.adb_injector_btn.grid(row=0, column=2, padx=8, pady=6, sticky="w")
+        self.adb_injector_btn.grid_remove()
 
         self.adb_injector_dual_btn = ctk.CTkButton(
             self.additional_actions_frame,
@@ -698,6 +704,7 @@ class Hermes:
             **tool_btn_kwargs
         )
         self.adb_injector_dual_btn.grid(row=0, column=3, padx=8, pady=6, sticky="w")
+        self.adb_injector_dual_btn.grid_remove()
 
         self.dark_mode_btn = ctk.CTkButton(
             self.additional_actions_frame,
@@ -706,8 +713,6 @@ class Hermes:
             **tool_btn_kwargs
         )
         self.dark_mode_btn.grid(row=0, column=4, padx=(8, 0), pady=6, sticky="w")
-
-        self.additional_actions_frame.grid_remove()
 
         steps_wrapper = ctk.CTkFrame(actions_section, fg_color="transparent")
         steps_wrapper.grid(row=3, column=0, sticky="ew", padx=20, pady=(12, 10))
@@ -1193,17 +1198,22 @@ class Hermes:
         header.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 8))
         header.grid_columnconfigure(1, weight=1)
 
+        title_present = bool(title)
         if icon:
             icon_label = ctk.CTkLabel(header, text=icon, font=('Inter', 18), text_color=self.colors['text'])
-            rowspan = 2 if subtitle else 1
-            icon_label.grid(row=0, column=0, rowspan=rowspan, padx=(0, 12), sticky="n")
+            rows = (1 if title_present else 0) + (1 if subtitle else 0)
+            icon_label.grid(row=0, column=0, rowspan=rows or 1, padx=(0, 12), sticky="n")
 
-        title_label = ctk.CTkLabel(header, text=title, font=self.fonts['card_title'], text_color=self.colors['text'])
-        title_label.grid(row=0, column=1, sticky="w")
+        current_row = 0
+        if title_present:
+            title_label = ctk.CTkLabel(header, text=title, font=self.fonts['card_title'], text_color=self.colors['text'])
+            title_label.grid(row=current_row, column=1, sticky="w")
+            current_row += 1
 
         if subtitle:
             subtitle_label = ctk.CTkLabel(header, text=subtitle, font=self.fonts['setting_label'], text_color=self.colors['text_light'])
-            subtitle_label.grid(row=1, column=1, sticky="w", pady=(6, 0))
+            pady = (6, 0) if title_present else (0, 0)
+            subtitle_label.grid(row=current_row, column=1, sticky="w", pady=pady)
 
         return card
 
