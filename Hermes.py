@@ -313,6 +313,14 @@ class Hermes:
         # --- FIX: Añadir variables separadas para el retardo entre envíos ---
         self.fidelizado_send_delay_min = SafeIntVar(value=10)
         self.fidelizado_send_delay_max = SafeIntVar(value=15)
+
+        # Configuración de notas de voz para Fidelizado
+        self.fidelizado_audio_enabled = tk.BooleanVar(value=False)
+        self.fidelizado_audio_frequency = SafeIntVar(value=5)
+        self.fidelizado_audio_delay_min = SafeIntVar(value=3)
+        self.fidelizado_audio_delay_max = SafeIntVar(value=6)
+        self.fidelizado_audio_duration_min = SafeIntVar(value=8)
+        self.fidelizado_audio_duration_max = SafeIntVar(value=15)
         
         # Variables de tiempo para Modo Grupos Dual
         self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
@@ -2060,6 +2068,53 @@ class Hermes:
         spinbox_min = self._create_spinbox_widget(spinbox_frame, self.fidelizado_send_delay_min, min_val=1, max_val=300)
         spinbox_min.pack(side=tk.RIGHT)
 
+        # --- Fila 6: Configuración de audios ---
+        audio_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        audio_container.grid(row=6, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        self.fidelizado_audio_switch = ctk.CTkSwitch(
+            audio_container,
+            text="Enviar audios de voz",
+            variable=self.fidelizado_audio_enabled,
+            command=self._update_audio_settings_visibility,
+            font=self.fonts['button'],
+            text_color=self.colors['text']
+        )
+        self.fidelizado_audio_switch.pack(anchor='w')
+
+        self.fidelizado_audio_settings = ctk.CTkFrame(audio_container, fg_color="transparent")
+
+        audio_freq_frame = ctk.CTkFrame(self.fidelizado_audio_settings, fg_color="transparent")
+        audio_freq_frame.pack(fill=tk.X, pady=(12, 0))
+        ctk.CTkLabel(audio_freq_frame, text="Enviar audio cada", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
+        audio_freq_spin = self._create_spinbox_widget(audio_freq_frame, self.fidelizado_audio_frequency, min_val=1, max_val=500)
+        audio_freq_spin.pack(side=tk.LEFT, padx=10)
+        ctk.CTkLabel(audio_freq_frame, text="mensajes", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(side=tk.LEFT)
+
+        audio_delay_frame = ctk.CTkFrame(self.fidelizado_audio_settings, fg_color="transparent")
+        audio_delay_frame.pack(fill=tk.X, pady=(12, 0))
+        ctk.CTkLabel(audio_delay_frame, text="Espera antes del audio (s):", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
+        audio_delay_spins = ctk.CTkFrame(audio_delay_frame, fg_color="transparent")
+        audio_delay_spins.pack(side=tk.RIGHT)
+        audio_delay_max_spin = self._create_spinbox_widget(audio_delay_spins, self.fidelizado_audio_delay_max, min_val=0, max_val=300)
+        audio_delay_max_spin.pack(side=tk.RIGHT)
+        ctk.CTkLabel(audio_delay_spins, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.RIGHT, padx=8)
+        audio_delay_min_spin = self._create_spinbox_widget(audio_delay_spins, self.fidelizado_audio_delay_min, min_val=0, max_val=300)
+        audio_delay_min_spin.pack(side=tk.RIGHT)
+
+        audio_duration_frame = ctk.CTkFrame(self.fidelizado_audio_settings, fg_color="transparent")
+        audio_duration_frame.pack(fill=tk.X, pady=(12, 0))
+        ctk.CTkLabel(audio_duration_frame, text="Duración del audio (s):", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
+        audio_duration_spins = ctk.CTkFrame(audio_duration_frame, fg_color="transparent")
+        audio_duration_spins.pack(side=tk.RIGHT)
+        audio_duration_max_spin = self._create_spinbox_widget(audio_duration_spins, self.fidelizado_audio_duration_max, min_val=1, max_val=300)
+        audio_duration_max_spin.pack(side=tk.RIGHT)
+        ctk.CTkLabel(audio_duration_spins, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.RIGHT, padx=8)
+        audio_duration_min_spin = self._create_spinbox_widget(audio_duration_spins, self.fidelizado_audio_duration_min, min_val=1, max_val=300)
+        audio_duration_min_spin.pack(side=tk.RIGHT)
+
+        self.fidelizado_audio_enabled.trace_add('write', lambda *args: self._update_audio_settings_visibility())
+        self._update_audio_settings_visibility()
+
         # Card para Mensajes
         self.messages_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
         self.messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 20))
@@ -2133,6 +2188,17 @@ class Hermes:
         self._update_fidelizado_ui_mode()
         # Marcar el widget para que el evento no se dispare recursivamente
         self.fidelizado_numbers_text.edit_modified(False)
+
+    def _update_audio_settings_visibility(self, *args):
+        """Muestra u oculta la configuración de audios según el interruptor."""
+        if not hasattr(self, 'fidelizado_audio_settings'):
+            return
+        if self.fidelizado_audio_enabled.get():
+            if not self.fidelizado_audio_settings.winfo_manager():
+                self.fidelizado_audio_settings.pack(fill=tk.X, pady=(10, 0))
+        else:
+            if self.fidelizado_audio_settings.winfo_manager():
+                self.fidelizado_audio_settings.pack_forget()
 
     def _update_fidelizado_ui_mode(self, *args):
         """Muestra u oculta los widgets y reorganiza el layout según el modo Fidelizado seleccionado."""
@@ -4305,6 +4371,121 @@ class Hermes:
             self.log(f"Error inesperado ejecutando ADB: {e}", 'error')
             return False
 
+    def _controlled_sleep(self, duration):
+        """Realiza una espera respetando pausas y cancelaciones."""
+        try:
+            duration = max(0.0, float(duration))
+        except (TypeError, ValueError):
+            duration = 0.0
+        elapsed = 0.0
+        while elapsed < duration and not self.should_stop:
+            while self.is_paused and not self.should_stop:
+                time.sleep(0.1)
+            if self.should_stop:
+                break
+            time.sleep(0.1)
+            elapsed += 0.1
+
+    def _maybe_send_audio(self, ui_device, device, task_index):
+        """Envía una nota de voz si la configuración de Fidelizado lo requiere."""
+        if not self.manual_mode or not self.fidelizado_audio_enabled.get():
+            return
+
+        try:
+            frequency = int(self.fidelizado_audio_frequency.get())
+        except (tk.TclError, ValueError, TypeError):
+            frequency = 0
+
+        frequency = max(1, frequency)
+        if task_index <= 0 or (task_index % frequency) != 0:
+            return
+
+        delay_min = self.fidelizado_audio_delay_min.get()
+        delay_max = self.fidelizado_audio_delay_max.get()
+        if delay_min > delay_max:
+            delay_min, delay_max = delay_max, delay_min
+        wait_before = float(delay_min)
+        if delay_max > delay_min:
+            wait_before = random.uniform(delay_min, delay_max)
+        if wait_before > 0:
+            self.log(f"Esperando {wait_before:.1f}s antes de enviar audio...", 'info')
+            self._controlled_sleep(wait_before)
+        if self.should_stop:
+            return
+
+        try:
+            edit_text = ui_device(className="android.widget.EditText")
+            if edit_text.wait(timeout=3):
+                edit_text.set_text("")
+        except Exception:
+            pass
+
+        mic_selectors = [
+            dict(descriptionMatches="(?i).*nota de voz.*"),
+            dict(descriptionMatches="(?i).*microf.*"),
+            dict(descriptionMatches="(?i).*audio.*"),
+            dict(resourceIdMatches="(?i).*voice.*"),
+            dict(resourceIdMatches="(?i).*send.*")
+        ]
+
+        mic_button = None
+        for selector in mic_selectors:
+            try:
+                candidate = ui_device(**selector)
+                if candidate.wait(timeout=3):
+                    mic_button = candidate
+                    break
+            except Exception:
+                continue
+
+        if not mic_button:
+            self.log("No se encontró el botón para enviar audio.", 'warning')
+            return
+
+        try:
+            info = mic_button.info
+            bounds = info.get('bounds', {}) if isinstance(info, dict) else {}
+            if not bounds:
+                raise ValueError("sin coordenadas")
+            x = int((bounds['left'] + bounds['right']) / 2)
+            y = int((bounds['top'] + bounds['bottom']) / 2)
+        except Exception as e:
+            self.log(f"No se pudieron obtener las coordenadas del botón de audio: {e}", 'warning')
+            return
+
+        duration_min = self.fidelizado_audio_duration_min.get()
+        duration_max = self.fidelizado_audio_duration_max.get()
+        if duration_min > duration_max:
+            duration_min, duration_max = duration_max, duration_min
+        duration_min = max(1, duration_min)
+        duration_max = max(duration_min, duration_max)
+        hold_time = float(duration_min) if duration_max == duration_min else random.uniform(duration_min, duration_max)
+        hold_time = max(1.0, hold_time)
+
+        self.log(f"Grabando audio durante {hold_time:.1f}s...", 'info')
+
+        pressed = False
+        try:
+            ui_device.touch.down(x, y)
+            pressed = True
+            self._controlled_sleep(hold_time)
+        except Exception as e:
+            self.log(f"No se pudo mantener el botón de audio: {e}", 'warning')
+        finally:
+            if pressed:
+                try:
+                    ui_device.touch.up(x, y)
+                except Exception as e:
+                    self.log(f"No se pudo soltar el botón de audio: {e}", 'warning')
+                    pressed = False
+
+        if not pressed or self.should_stop:
+            return
+
+        self._controlled_sleep(1.0)
+        if not self.should_stop:
+            self.log("Audio enviado con éxito.", 'success')
+
     def send_msg(
         self,
         device,
@@ -4413,14 +4594,15 @@ class Hermes:
                         return False, False
 
                     send_button.click()
-                    time.sleep(2)
+                    self._controlled_sleep(2)
 
                     if self._detect_send_failure(ui_device):
                         self.log("Se detectó el mensaje 'No se envió'.", 'warning')
                         return False, True
 
                     self.log("Mensaje enviado con éxito.", 'success')
-                    time.sleep(1.5)
+                    self._controlled_sleep(1.5)
+                    self._maybe_send_audio(ui_device, device, i)
                     return True, False
 
                 except Exception as e:
