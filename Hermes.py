@@ -2101,7 +2101,7 @@ class Hermes:
         # Botón para mostrar/ocultar la sección de cargas dentro de configuración
         self.fidelizado_carga_toggle_btn = ctk.CTkButton(
             config_card,
-            text="📥 Carga ▼",
+            text="📥 Carga ▶",
             font=self.fonts['button'],
             fg_color=self.colors['bg_card'],
             hover_color=darken_color(self.colors['bg_card'], 0.1),
@@ -2113,7 +2113,7 @@ class Hermes:
         self.fidelizado_carga_toggle_btn.pack(fill=tk.X, padx=20, pady=(0, 10))
 
         self.fidelizado_carga_section = ctk.CTkFrame(config_card, fg_color=self.colors['bg'], corner_radius=12)
-        self.fidelizado_carga_section.pack(fill=tk.X, padx=20, pady=(0, 20))
+        # Inicialmente la sección permanece comprimida hasta que el usuario la despliegue
         self.fidelizado_carga_section.grid_columnconfigure(0, weight=1)
         self.fidelizado_carga_section.grid_rowconfigure(1, weight=1)
 
@@ -2124,7 +2124,7 @@ class Hermes:
         self.fidelizado_messages_container.grid_columnconfigure(0, weight=0)
         self.fidelizado_messages_container.grid_columnconfigure(1, weight=0)
         self.fidelizado_messages_container.grid_columnconfigure(2, weight=1)
-        self.fidelizado_messages_container.grid_rowconfigure(0, weight=1)
+        self.fidelizado_messages_container.grid_rowconfigure(0, weight=0)
 
         load_messages_btn = ctk.CTkButton(self.fidelizado_messages_container, text="Cargar Archivo",
                                           command=self._load_fidelizado_messages_from_file,
@@ -2138,7 +2138,7 @@ class Hermes:
         self.fidelizado_message_count_label.grid(row=0, column=1, sticky='nw', padx=15)
 
         self.fidelizado_manual_inputs_frame = ctk.CTkFrame(self.fidelizado_messages_container, fg_color=self.colors['bg'], corner_radius=12)
-        self.fidelizado_manual_inputs_frame.grid(row=0, column=2, sticky="nsew", padx=(20, 0))
+        self.fidelizado_manual_inputs_frame.grid(row=0, column=2, sticky="new", padx=(20, 0))
         self.fidelizado_manual_inputs_frame.grid_columnconfigure(0, weight=1)
         self.fidelizado_manual_inputs_frame.grid_rowconfigure(0, weight=1)
         self.fidelizado_manual_inputs_frame.grid_rowconfigure(1, weight=1)
