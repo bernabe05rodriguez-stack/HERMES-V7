@@ -1078,13 +1078,13 @@ class Hermes:
             ltf,
             text="Tabla",
             command=self.toggle_log_view,
-            fg_color=self.colors['blue'],
-            hover_color=darken_color(self.colors['blue'], 0.15),
-            text_color=self.colors['text_header_buttons'],
+            fg_color="transparent",
+            hover_color="transparent",
+            text_color=self.colors['log_info'],
             font=self.fonts['button_small'],
             height=32,
-            width=90,
-            corner_radius=14
+            width=0,
+            corner_radius=0
         )
         self.toggle_log_view_btn.pack(side=tk.RIGHT, padx=(10, 0))
         self.toggle_log_view_btn.configure(state=tk.DISABLED)
@@ -1101,7 +1101,7 @@ class Hermes:
         self.log_text.tag_config('warning', foreground=self.colors['log_warning'])
         self.log_text.tag_config('info', foreground=self.colors['log_info'])
 
-        self.log_table_container = ctk.CTkFrame(lco, fg_color=self.colors['bg_log'], corner_radius=10)
+        self.log_table_container = ctk.CTkFrame(lco, fg_color="#000000", corner_radius=10)
         self.log_table_container.grid(row=0, column=0, sticky="nsew")
         self.log_table_container.grid_columnconfigure(0, weight=1)
         self.log_table_container.grid_rowconfigure(0, weight=1)
@@ -1143,8 +1143,35 @@ class Hermes:
     def configure_activity_table_style(self):
         """Configura el estilo visual para la tabla de actividad."""
         style = ttk.Style()
-        style.configure("Activity.Treeview", font=('Inter', 11), rowheight=26)
-        style.configure("Activity.Treeview.Heading", font=('Inter', 12, 'bold'))
+        table_bg = "#000000"
+        table_fg = "#4285F4"
+
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+
+        style.configure(
+            "Activity.Treeview",
+            font=('Inter', 11),
+            rowheight=26,
+            background=table_bg,
+            fieldbackground=table_bg,
+            foreground=table_fg,
+            bordercolor=table_bg
+        )
+        style.configure(
+            "Activity.Treeview.Heading",
+            font=('Inter', 12, 'bold'),
+            background=table_bg,
+            foreground=table_fg,
+            bordercolor=table_bg
+        )
+        style.map(
+            "Activity.Treeview",
+            background=[("selected", "#111827")],
+            foreground=[("selected", "#60A5FA")]
+        )
         if hasattr(self, 'activity_table'):
             self.activity_table.configure(style="Activity.Treeview")
 
@@ -1193,7 +1220,12 @@ class Hermes:
         if not hasattr(self, 'toggle_log_view_btn'):
             return
         state = tk.NORMAL if enabled else tk.DISABLED
-        self.toggle_log_view_btn.configure(state=state)
+        self.toggle_log_view_btn.configure(
+            state=state,
+            text_color=self.colors['log_info'],
+            fg_color="transparent",
+            hover_color="transparent"
+        )
         if not enabled and self.log_view_mode == "table":
             self.show_activity_log()
 
