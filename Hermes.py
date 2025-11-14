@@ -703,7 +703,7 @@ class Hermes:
 
         self.dark_mode_btn = ctk.CTkLabel(
             header_actions,
-            text="🌙" if self.dark_mode else "🌞",
+            text="🌙" if self.dark_mode else "☀️",
             font=('Inter', 34),
             text_color=self.colors['text'],
             cursor='hand2'
@@ -1583,7 +1583,7 @@ class Hermes:
         
         # Actualizar icono del botón
         if hasattr(self, 'dark_mode_btn') and self.dark_mode_btn:
-            self.dark_mode_btn.configure(text="🌙" if self.dark_mode else "🌞")
+            self.dark_mode_btn.configure(text="🌙" if self.dark_mode else "☀️")
         
         self.log(f"Modo {'Oscuro' if self.dark_mode else 'Claro'} activado", 'info')
 
