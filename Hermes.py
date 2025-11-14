@@ -638,6 +638,11 @@ class Hermes:
         self.additional_actions_frame.grid(row=0, column=0, sticky="nw", padx=(0, 16))
         self.additional_actions_frame.grid_columnconfigure(0, weight=1)
 
+        quick_actions_row = ctk.CTkFrame(self.additional_actions_frame, fg_color="transparent")
+        quick_actions_row.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        quick_actions_row.grid_columnconfigure(0, weight=1)
+        quick_actions_row.grid_columnconfigure(1, weight=0)
+
         tool_btn_kwargs = dict(
             fg_color=self._section_bg_color(),
             text_color=self.colors['text'],
@@ -652,12 +657,22 @@ class Hermes:
         )
 
         self.fidelizado_unlock_btn = ctk.CTkButton(
-            self.additional_actions_frame,
+            quick_actions_row,
             text="Fidelizado",
             command=self.handle_fidelizado_access,
             **tool_btn_kwargs
         )
-        self.fidelizado_unlock_btn.grid(row=0, column=0, pady=(0, 8), sticky="ew")
+        self.fidelizado_unlock_btn.grid(row=0, column=0, sticky="ew")
+
+        self.dark_mode_btn = ctk.CTkLabel(
+            quick_actions_row,
+            text="🌙" if self.dark_mode else "🌞",
+            font=('Inter', 34),
+            text_color=self.colors['text'],
+            cursor='hand2'
+        )
+        self.dark_mode_btn.grid(row=0, column=1, padx=(12, 0))
+        self.dark_mode_btn.bind("<Button-1>", lambda _event: self.toggle_dark_mode())
 
         self.sms_mode_btn = ctk.CTkButton(
             self.additional_actions_frame,
@@ -665,7 +680,7 @@ class Hermes:
             command=self.handle_sms_mode_access,
             **tool_btn_kwargs
         )
-        self.sms_mode_btn.grid(row=1, column=0, pady=6, sticky="ew")
+        self.sms_mode_btn.grid(row=1, column=0, pady=(0, 8), sticky="ew")
         self.sms_mode_btn.grid_remove()
 
         self.adb_injector_btn = ctk.CTkButton(
@@ -686,13 +701,9 @@ class Hermes:
         self.adb_injector_dual_btn.grid(row=3, column=0, pady=6, sticky="ew")
         self.adb_injector_dual_btn.grid_remove()
 
-        self.dark_mode_btn = ctk.CTkButton(
-            self.additional_actions_frame,
-            text="🌙" if self.dark_mode else "🌞",
-            command=self.toggle_dark_mode,
-            **tool_btn_kwargs
-        )
-        self.dark_mode_btn.grid(row=4, column=0, pady=(8, 0), sticky="ew")
+        # Espaciado adicional para mantener alineado con el diseño previo
+        spacer = ctk.CTkLabel(self.additional_actions_frame, text="", fg_color="transparent")
+        spacer.grid(row=4, column=0, pady=(4, 0))
 
         steps_wrapper = ctk.CTkFrame(actions_body, fg_color="transparent")
         steps_wrapper.grid(row=0, column=1, sticky="nsew")
@@ -758,7 +769,7 @@ class Hermes:
             unselected_hover_color=self._section_bg_color(),
             text_color=self.colors['text']
         )
-        self.mode_selector.grid(row=0, column=0, sticky="ew")
+        self.mode_selector.grid(row=0, column=0, sticky="e")
         self.traditional_send_mode.trace_add('write', self.update_per_whatsapp_stat)
 
         current_row += 1
