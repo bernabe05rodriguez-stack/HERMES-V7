@@ -5055,6 +5055,14 @@ class Hermes:
         table_container = ctk.CTkFrame(card, fg_color="transparent")
         table_container.pack(fill=tk.BOTH, expand=True, padx=25, pady=(0, 20))
 
+        # Preparar colores con valores predeterminados para evitar errores si faltan claves
+        action_detect_color = self.colors.get('action_detect', '#2563EB')
+        action_detect_hover = self.hover_colors.get('action_detect', darken_color(action_detect_color, 0.18))
+        action_cancel_color = self.colors.get('action_cancel', '#DC2626')
+        action_cancel_hover = self.hover_colors.get('action_cancel', darken_color(action_cancel_color, 0.18))
+        action_start_color = self.colors.get('action_start', '#16A34A')
+        action_start_hover = self.hover_colors.get('action_start', darken_color(action_start_color, 0.18))
+
         table = ctk.CTkScrollableFrame(
             table_container,
             fg_color=self.colors['bg'],
@@ -5084,8 +5092,8 @@ class Hermes:
                 text=device,
                 command=lambda ds=device: self._open_device_calculator(ds),
                 font=self.fonts['button_small'],
-                fg_color=self.colors['action_detect'],
-                hover_color=self.hover_colors['action_detect'],
+                fg_color=action_detect_color,
+                hover_color=action_detect_hover,
                 corner_radius=10,
                 height=34
             )
@@ -5119,8 +5127,8 @@ class Hermes:
             text="Cancelar",
             command=self._close_numbers_editor,
             font=self.fonts['button'],
-            fg_color=self.colors['action_cancel'],
-            hover_color=self.hover_colors['action_cancel'],
+            fg_color=action_cancel_color,
+            hover_color=action_cancel_hover,
             height=40
         )
         cancel_btn.pack(side=tk.LEFT)
@@ -5130,8 +5138,8 @@ class Hermes:
             text="Iniciar",
             command=lambda: self._save_numbers_editor(start_after_save=True),
             font=self.fonts['button'],
-            fg_color=self.colors['action_start'],
-            hover_color=self.hover_colors['action_start'],
+            fg_color=action_start_color,
+            hover_color=action_start_hover,
             height=40
         )
         save_btn.pack(side=tk.RIGHT)
