@@ -17,6 +17,7 @@ import random
 import tkinter as tk
 import customtkinter as ctk
 import tkinter.font as tkfont
+import tkinter.ttk as ttk
 from tkinter import filedialog, messagebox
 import os
 import threading
@@ -287,9 +288,13 @@ class Hermes:
         
         self.manual_mode = False # Flag general de Fidelizado
         self.group_mode = False # Flag para MODO GRUPO (puro)
-        
+
+        # Registro de actividad para modo Fidelizado (Números)
+        self.fidelizado_activity_records = []
+        self.log_view_mode = "log"
+
         # Estado: "NUMEROS", "GRUPOS", "MIXTO" o None (modo tradicional Excel/CSV)
-        self.fidelizado_mode = None 
+        self.fidelizado_mode = None
         self.mixto_variant = tk.IntVar(value=1)  # Variante del modo mixto: 1, 2 o 3
         
         # Índice de inicio aleatorio para rotación de mensajes
@@ -1069,6 +1074,20 @@ class Hermes:
         ltf.grid(row=0, column=0, sticky='ew', pady=(25, 15), padx=25)
         ctk.CTkLabel(ltf, text="▶", font=('Inter', 14), fg_color="transparent", text_color=self.colors['log_info']).pack(side=tk.LEFT, padx=(0, 8))
         ctk.CTkLabel(ltf, text="Registro de actividad", font=self.fonts['log_title'], fg_color="transparent", text_color=self.colors['log_title_color']).pack(side=tk.LEFT)
+        self.toggle_log_view_btn = ctk.CTkButton(
+            ltf,
+            text="Tabla",
+            command=self.toggle_log_view,
+            fg_color=self.colors['blue'],
+            hover_color=darken_color(self.colors['blue'], 0.15),
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['button_small'],
+            height=32,
+            width=90,
+            corner_radius=14
+        )
+        self.toggle_log_view_btn.pack(side=tk.RIGHT, padx=(10, 0))
+        self.toggle_log_view_btn.configure(state=tk.DISABLED)
 
         lco = ctk.CTkFrame(lc, fg_color="transparent")
         lco.grid(row=1, column=0, sticky='nsew', pady=(0, 25), padx=25)
@@ -1082,6 +1101,31 @@ class Hermes:
         self.log_text.tag_config('warning', foreground=self.colors['log_warning'])
         self.log_text.tag_config('info', foreground=self.colors['log_info'])
 
+        self.log_table_container = ctk.CTkFrame(lco, fg_color=self.colors['bg_log'], corner_radius=10)
+        self.log_table_container.grid(row=0, column=0, sticky="nsew")
+        self.log_table_container.grid_columnconfigure(0, weight=1)
+        self.log_table_container.grid_rowconfigure(0, weight=1)
+        self.log_table_container.grid_remove()
+
+        self.activity_table = ttk.Treeview(
+            self.log_table_container,
+            columns=("from", "to", "time"),
+            show="headings",
+            selectmode="browse"
+        )
+        self.activity_table.heading("from", text="Desde")
+        self.activity_table.heading("to", text="Hacia")
+        self.activity_table.heading("time", text="Hora")
+        self.activity_table.column("from", anchor="center", width=200)
+        self.activity_table.column("to", anchor="center", width=200)
+        self.activity_table.column("time", anchor="center", width=120)
+        self.activity_table.grid(row=0, column=0, sticky="nsew", padx=(2, 0), pady=2)
+
+        self.activity_table_scrollbar = ttk.Scrollbar(self.log_table_container, orient=tk.VERTICAL, command=self.activity_table.yview)
+        self.activity_table.configure(yscrollcommand=self.activity_table_scrollbar.set)
+        self.activity_table_scrollbar.grid(row=0, column=1, sticky="ns", padx=(0, 2), pady=2)
+        self.configure_activity_table_style()
+
         self.log_text.configure(state=tk.DISABLED)
         self.log("HΞЯMΞS V1 (Modern) iniciado", 'success')
         self.log("Sigue los pasos 1, 2, 3 en orden", 'info')
@@ -1089,6 +1133,101 @@ class Hermes:
             self.log("ADB detectado correctamente", 'success')
         else:
             self.log("ADB no detectado automáticamente. Asegúrate de que esté en la carpeta o ejecuta INSTALAR.bat", 'warning')
+
+        if self.log_view_mode == "table":
+            self.show_activity_table()
+        else:
+            self.show_activity_log()
+        self.set_activity_table_enabled(self.fidelizado_mode == "NUMEROS")
+
+    def configure_activity_table_style(self):
+        """Configura el estilo visual para la tabla de actividad."""
+        style = ttk.Style()
+        style.configure("Activity.Treeview", font=('Inter', 11), rowheight=26)
+        style.configure("Activity.Treeview.Heading", font=('Inter', 12, 'bold'))
+        if hasattr(self, 'activity_table'):
+            self.activity_table.configure(style="Activity.Treeview")
+
+    def toggle_log_view(self):
+        """Alterna entre el registro tradicional y la tabla de actividad."""
+        if self.log_view_mode == "table":
+            self.show_activity_log()
+        else:
+            self.show_activity_table()
+
+    def show_activity_log(self):
+        """Muestra el registro de actividad en formato texto."""
+        self.log_view_mode = "log"
+        if hasattr(self, 'log_table_container'):
+            self.log_table_container.grid_remove()
+        if hasattr(self, 'log_text'):
+            self.log_text.grid(row=0, column=0, sticky="nsew")
+        if hasattr(self, 'toggle_log_view_btn'):
+            self.toggle_log_view_btn.configure(text="Tabla")
+
+    def show_activity_table(self):
+        """Muestra la tabla con los envíos realizados en modo Fidelizado Números."""
+        if not hasattr(self, 'log_table_container'):
+            return
+        self.log_view_mode = "table"
+        if hasattr(self, 'log_text'):
+            self.log_text.grid_remove()
+        self.log_table_container.grid(row=0, column=0, sticky="nsew")
+        self.refresh_activity_table()
+        if hasattr(self, 'toggle_log_view_btn'):
+            self.toggle_log_view_btn.configure(text="Registro")
+
+    def refresh_activity_table(self):
+        """Actualiza el contenido completo de la tabla de actividad."""
+        if not hasattr(self, 'activity_table'):
+            return
+        self.activity_table.delete(*self.activity_table.get_children())
+        last_item = None
+        for record in self.fidelizado_activity_records:
+            last_item = self.activity_table.insert('', 'end', values=record)
+        if last_item is not None:
+            self.activity_table.see(last_item)
+
+    def set_activity_table_enabled(self, enabled):
+        """Habilita o deshabilita el botón para mostrar la tabla de actividad."""
+        if not hasattr(self, 'toggle_log_view_btn'):
+            return
+        state = tk.NORMAL if enabled else tk.DISABLED
+        self.toggle_log_view_btn.configure(state=state)
+        if not enabled and self.log_view_mode == "table":
+            self.show_activity_log()
+
+    def reset_fidelizado_activity_records(self):
+        """Limpia los registros de actividad almacenados."""
+        self.fidelizado_activity_records = []
+
+        def clear_table():
+            if hasattr(self, 'activity_table'):
+                self.activity_table.delete(*self.activity_table.get_children())
+
+        if threading.current_thread() is threading.main_thread():
+            clear_table()
+        else:
+            self.root.after(0, clear_table)
+
+    def record_fidelizado_activity(self, sender_number, receiver_number):
+        """Registra un envío exitoso en modo Fidelizado Números."""
+        if not sender_number or not receiver_number:
+            return
+
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        record = (sender_number, receiver_number, timestamp)
+        self.fidelizado_activity_records.append(record)
+
+        if self.log_view_mode == "table":
+            self.root.after(0, lambda: self._insert_activity_record(record))
+
+    def _insert_activity_record(self, record):
+        """Inserta un registro individual en la tabla de actividad."""
+        if not hasattr(self, 'activity_table'):
+            return
+        item = self.activity_table.insert('', 'end', values=record)
+        self.activity_table.see(item)
 
     def create_stat(self, parent, label, value, color, col):
         """Crea un widget de estadística en el panel de estado."""
@@ -1983,6 +2122,7 @@ class Hermes:
 
         mode_map_from_ui = {"Modo Números": "NUMEROS", "Modo Grupos": "GRUPOS", "Modo Mixto": "MIXTO"}
         self.fidelizado_mode = mode_map_from_ui.get(mode_ui)
+        self.set_activity_table_enabled(self.fidelizado_mode == "NUMEROS")
 
         show_numeros_mode = self.fidelizado_mode == "NUMEROS"
         show_mixto_variant = self.fidelizado_mode == "MIXTO"
@@ -2187,9 +2327,13 @@ class Hermes:
         if not messagebox.askyesno("Confirmar Envío", f"Se detectaron {len(self.detected_phone_lines)} líneas.\n\nSe enviarán un total de {self.total_messages} mensajes en modo '{self.fidelizado_numeros_mode.get()}'.\n\n¿Deseas iniciar?", parent=self.root):
             return
 
+        self.reset_fidelizado_activity_records()
+        self.show_activity_log()
+
         # Iniciar el envío
         self.manual_mode = True
         self.fidelizado_mode = "NUMEROS"
+        self.set_activity_table_enabled(True)
         self.links = []
         self.link_retry_map = {}
 
@@ -2824,7 +2968,7 @@ class Hermes:
             # Siempre reestablecer la UI
             self.root.after(100, self._finalize_sending)
     
-    def run_single_task(self, device, link, message_to_send, task_index, whatsapp_package="com.whatsapp.w4b", link_index=None):
+    def run_single_task(self, device, link, message_to_send, task_index, whatsapp_package="com.whatsapp.w4b", link_index=None, activity_info=None):
         """
         Ejecuta una única tarea de envío (abrir link, enviar, esperar), gestionando la conexión de uiautomator2.
         """
@@ -2864,6 +3008,10 @@ class Hermes:
         # --- Importante: Actualizar contadores DESPUÉS de send_msg ---
         if success:
             self.sent_count += 1
+            if activity_info and self.fidelizado_mode == "NUMEROS":
+                sender = activity_info.get('from')
+                receiver = activity_info.get('to')
+                self.record_fidelizado_activity(sender, receiver)
         else:
             self.failed_count += 1
 
@@ -3368,14 +3516,28 @@ class Hermes:
                     task_counter += 1
                     mensaje_ida = self.manual_messages_numbers[mensaje_index % total_mensajes_lib]; mensaje_index += 1
                     link_ida = f"https://wa.me/{line_b['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_ida, safe='')}"
-                    self.run_single_task(line_a['device'], link_ida, None, task_counter, whatsapp_package=line_a['package'])
+                    self.run_single_task(
+                        line_a['device'],
+                        link_ida,
+                        None,
+                        task_counter,
+                        whatsapp_package=line_a['package'],
+                        activity_info={'from': line_a['number'], 'to': line_b['number']}
+                    )
                     if self.should_stop: break
 
                     # B -> A
                     task_counter += 1
                     mensaje_vuelta = self.manual_messages_numbers[mensaje_index % total_mensajes_lib]; mensaje_index += 1
                     link_vuelta = f"https://wa.me/{line_a['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_vuelta, safe='')}"
-                    self.run_single_task(line_b['device'], link_vuelta, None, task_counter, whatsapp_package=line_b['package'])
+                    self.run_single_task(
+                        line_b['device'],
+                        link_vuelta,
+                        None,
+                        task_counter,
+                        whatsapp_package=line_b['package'],
+                        activity_info={'from': line_b['number'], 'to': line_a['number']}
+                    )
 
             if self.should_stop: break
             self.log(f"\n--- FIN BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
@@ -3420,14 +3582,28 @@ class Hermes:
                 task_counter += 1
                 mensaje_ida = self.manual_messages_numbers[mensaje_index % total_mensajes_lib]; mensaje_index += 1
                 link_ida = f"https://wa.me/{line_b['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_ida, safe='')}"
-                self.run_single_task(line_a['device'], link_ida, None, task_counter, whatsapp_package=line_a['package'])
+                self.run_single_task(
+                    line_a['device'],
+                    link_ida,
+                    None,
+                    task_counter,
+                    whatsapp_package=line_a['package'],
+                    activity_info={'from': line_a['number'], 'to': line_b['number']}
+                )
                 if self.should_stop: break
 
                 # B -> A
                 task_counter += 1
                 mensaje_vuelta = self.manual_messages_numbers[mensaje_index % total_mensajes_lib]; mensaje_index += 1
                 link_vuelta = f"https://wa.me/{line_a['number'].replace('+', '')}?text={urllib.parse.quote(mensaje_vuelta, safe='')}"
-                self.run_single_task(line_b['device'], link_vuelta, None, task_counter, whatsapp_package=line_b['package'])
+                self.run_single_task(
+                    line_b['device'],
+                    link_vuelta,
+                    None,
+                    task_counter,
+                    whatsapp_package=line_b['package'],
+                    activity_info={'from': line_b['number'], 'to': line_a['number']}
+                )
     
     def run_grupos_dual_whatsapp_thread(self):
         """
