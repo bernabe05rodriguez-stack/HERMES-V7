@@ -4505,6 +4505,7 @@ class Hermes:
             dict(resourceId="com.whatsapp.w4b:id/send"),
             dict(resourceIdMatches="(?i).*voice.*"),
             dict(resourceIdMatches="(?i).*send.*"),
+ codex/fix-audio-recording-and-account-switching-bugs-78e5ej
             dict(descriptionMatches="(?i).*nota de voz.*"),
             dict(descriptionMatches="(?i).*microf.*"),
             dict(descriptionMatches="(?i).*audio.*"),
@@ -4518,6 +4519,11 @@ class Hermes:
             dict(descriptionMatches="(?i).*audio.*"),
             dict(resourceIdMatches="(?i).*voice.*"),
             dict(resourceIdMatches="(?i).*send.*"),
+
+            dict(descriptionMatches="(?i).*nota de voz.*"),
+            dict(descriptionMatches="(?i).*microf.*"),
+            dict(descriptionMatches="(?i).*audio.*"),
+ codex/mejoras-desde-base-jule
         ]
 
         mic_button = None
@@ -4537,6 +4543,7 @@ class Hermes:
                 if not bounds or bounds.get('left') == bounds.get('right'):
                     continue
 
+ codex/fix-audio-recording-and-account-switching-bugs-78e5ej
                 if ('button' not in class_name and not info.get('clickable')) or class_name in {"android.view.view"}:
                     for child_selector in child_button_selectors:
                         try:
@@ -4555,6 +4562,9 @@ class Hermes:
 
                 mic_button = candidate
                 mic_bounds = bounds
+
+                mic_button = candidate
+ codex/mejoras-desde-base-jule
                 break
             except Exception:
                 continue
@@ -4567,6 +4577,7 @@ class Hermes:
             center = mic_button.center()
             x, y = int(center[0]), int(center[1])
         except Exception:
+ codex/fix-audio-recording-and-account-switching-bugs-78e5ej
             center = None
 
         if not center:
@@ -4612,6 +4623,18 @@ class Hermes:
             if width > 0 and height > 0 and width > height * 1.5:
                 x = int(mic_bounds['right']) - max(10, int(height * 0.45))
                 y = int(mic_bounds['top']) + height // 2
+
+            try:
+                info = mic_button.info or {}
+                bounds = info.get('bounds') or {}
+                if not bounds:
+                    raise ValueError('sin coordenadas')
+                x = int((bounds['left'] + bounds['right']) / 2)
+                y = int((bounds['top'] + bounds['bottom']) / 2)
+            except Exception as e:
+                self.log(f"No se pudieron obtener las coordenadas del botón de audio: {e}", 'warning')
+                return False
+ codex/mejoras-desde-base-jule
 
         duration_min = self.fidelizado_audio_duration_min.get()
         duration_max = self.fidelizado_audio_duration_max.get()
