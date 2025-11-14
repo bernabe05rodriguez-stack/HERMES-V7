@@ -316,10 +316,12 @@ class Hermes:
 
         # Configuración de notas de voz para Fidelizado
         self.fidelizado_audio_enabled = tk.BooleanVar(value=False)
-        self.fidelizado_audio_frequency = SafeIntVar(value=5)
+        self.fidelizado_audio_interval_min = SafeIntVar(value=5)
+        self.fidelizado_audio_interval_max = SafeIntVar(value=20)
         self.fidelizado_audio_duration_min = SafeIntVar(value=8)
         self.fidelizado_audio_duration_max = SafeIntVar(value=15)
         self.audio_message_counter = 0
+        self.audio_next_trigger_count = None
         self.audio_pending_for_next_sender = False
         self.audio_pending_trigger_combo = None
         self.audio_known_combinations = set()
@@ -2088,9 +2090,12 @@ class Hermes:
         audio_freq_frame = ctk.CTkFrame(self.fidelizado_audio_settings, fg_color="transparent")
         audio_freq_frame.pack(fill=tk.X, pady=(12, 0))
         ctk.CTkLabel(audio_freq_frame, text="Enviar audio cada", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
-        audio_freq_spin = self._create_spinbox_widget(audio_freq_frame, self.fidelizado_audio_frequency, min_val=1, max_val=500)
-        audio_freq_spin.pack(side=tk.LEFT, padx=10)
-        ctk.CTkLabel(audio_freq_frame, text="mensajes", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(side=tk.LEFT)
+        audio_freq_min_spin = self._create_spinbox_widget(audio_freq_frame, self.fidelizado_audio_interval_min, min_val=1, max_val=500)
+        audio_freq_min_spin.pack(side=tk.LEFT, padx=6)
+        ctk.CTkLabel(audio_freq_frame, text="a", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(side=tk.LEFT)
+        audio_freq_max_spin = self._create_spinbox_widget(audio_freq_frame, self.fidelizado_audio_interval_max, min_val=1, max_val=500)
+        audio_freq_max_spin.pack(side=tk.LEFT, padx=6)
+        ctk.CTkLabel(audio_freq_frame, text="mensajes (aleatorio)", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(side=tk.LEFT)
 
         audio_duration_frame = ctk.CTkFrame(self.fidelizado_audio_settings, fg_color="transparent")
         audio_duration_frame.pack(fill=tk.X, pady=(12, 0))
@@ -2948,6 +2953,7 @@ class Hermes:
 
         # Reiniciar el contador de audios antes de comenzar un nuevo envío
         self.audio_message_counter = 0
+        self.audio_next_trigger_count = None
         self.audio_pending_for_next_sender = False
         self.audio_pending_trigger_combo = None
         self.audio_known_combinations.clear()
@@ -4485,37 +4491,58 @@ class Hermes:
 
         return None
 
-    def _maybe_send_audio(self, ui_device, device, task_index, whatsapp_package=None):
-        """Envía una nota de voz si la configuración de Fidelizado lo requiere."""
-        if ui_device is None or not self.fidelizado_audio_enabled.get() or self.should_stop:
-            return
-
-        if whatsapp_package is None and self.sms_mode_active:
-            return
+    def _get_audio_interval_range(self):
+        """Obtiene el rango configurado para el envío aleatorio de audios."""
+        try:
+            interval_min = int(self.fidelizado_audio_interval_min.get())
+        except (tk.TclError, ValueError, TypeError):
+            interval_min = 1
 
         try:
-            frequency = int(self.fidelizado_audio_frequency.get())
+            interval_max = int(self.fidelizado_audio_interval_max.get())
         except (tk.TclError, ValueError, TypeError):
-            frequency = 0
+            interval_max = interval_min
 
-        frequency = max(1, frequency)
+        interval_min = max(1, interval_min)
+        interval_max = max(1, interval_max)
 
+        if interval_min > interval_max:
+            interval_min, interval_max = interval_max, interval_min
+
+        return interval_min, interval_max
+
+    def _maybe_send_audio(self, ui_device, device, task_index, whatsapp_package=None, *, pre_send=False):
+        """Gestiona el envío de audios según la configuración actual."""
+        if ui_device is None or not self.fidelizado_audio_enabled.get() or self.should_stop:
+            return False if pre_send else None
+
+        if whatsapp_package is None and self.sms_mode_active:
+            return False if pre_send else None
+
+        interval_min, interval_max = self._get_audio_interval_range()
         combo = (device or "default", whatsapp_package or "default")
         self.audio_known_combinations.add(combo)
 
-        attempted_audio = False
-        audio_success = False
+        if self.audio_next_trigger_count is None:
+            self.audio_next_trigger_count = random.randint(interval_min, interval_max)
+            self.audio_message_counter = 0
+            self.log(
+                f"Próximo audio programado tras {self.audio_next_trigger_count} mensajes.",
+                'info'
+            )
 
-        if self.audio_pending_for_next_sender:
+        if pre_send:
+            if not self.audio_pending_for_next_sender:
+                return False
+
             skip_for_same_combo = (
                 combo == self.audio_pending_trigger_combo and
                 len(self.audio_known_combinations) > 1
             )
             if skip_for_same_combo:
                 self.log("Audio pendiente aplazado para otra cuenta/dispositivo.", 'info')
-                return
+                return False
 
-            attempted_audio = True
             self.log("Intentando enviar nota de voz...", 'info')
             audio_success = self._send_audio_note(ui_device, device, whatsapp_package)
 
@@ -4523,24 +4550,30 @@ class Hermes:
                 self.audio_pending_for_next_sender = False
                 self.audio_pending_trigger_combo = None
                 self.audio_message_counter = 0
-            else:
-                # Intentar nuevamente pronto con la siguiente combinación disponible
-                self.audio_pending_trigger_combo = combo
-                self.audio_message_counter = max(0, frequency - 1)
+                self.audio_next_trigger_count = random.randint(interval_min, interval_max)
+                self.log(
+                    f"Audio enviado. Próximo audio entre {interval_min} y {interval_max} mensajes (programado en {self.audio_next_trigger_count}).",
+                    'info'
+                )
+                return True
 
-        if self.should_stop:
-            return
+            # Audio falló, mantener pendiente para intentar nuevamente
+            self.audio_pending_trigger_combo = combo
+            if self.audio_next_trigger_count:
+                self.audio_message_counter = max(0, self.audio_next_trigger_count - 1)
+            return False
+
+        if self.audio_pending_for_next_sender:
+            return None
 
         self.audio_message_counter += 1
 
-        if self.audio_message_counter >= frequency:
+        if self.audio_message_counter >= (self.audio_next_trigger_count or interval_min):
             self.audio_pending_for_next_sender = True
             self.audio_pending_trigger_combo = combo
             self.log("Nota de voz programada para el próximo envío.", 'info')
 
-        # Si se intentó enviar audio y falló, mantener el estado pendiente
-        if attempted_audio and not audio_success:
-            self.audio_pending_for_next_sender = True
+        return None
 
     def _send_audio_note(self, ui_device, device_id, whatsapp_package):
         """Realiza la interacción necesaria para grabar y enviar una nota de voz."""
@@ -4754,6 +4787,19 @@ class Hermes:
                         msg_to_send = None
 
                 try:
+                    active_package = None if local_is_sms else whatsapp_package
+
+                    if self._maybe_send_audio(
+                        ui_device,
+                        device,
+                        i,
+                        whatsapp_package=active_package,
+                        pre_send=True,
+                    ):
+                        self.log("Nota de voz enviada en lugar del mensaje de texto.", 'success')
+                        self._controlled_sleep(1.5)
+                        return True, False
+
                     needs_text_input = is_group or local_is_sms
                     if needs_text_input:
                         edit_text = ui_device(className="android.widget.EditText")
@@ -4780,8 +4826,13 @@ class Hermes:
 
                     self.log("Mensaje enviado con éxito.", 'success')
                     self._controlled_sleep(1.5)
-                    active_package = None if local_is_sms else whatsapp_package
-                    self._maybe_send_audio(ui_device, device, i, whatsapp_package=active_package)
+                    self._maybe_send_audio(
+                        ui_device,
+                        device,
+                        i,
+                        whatsapp_package=active_package,
+                        pre_send=False,
+                    )
                     return True, False
 
                 except Exception as e:
