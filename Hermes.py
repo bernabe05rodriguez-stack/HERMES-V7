@@ -4434,7 +4434,43 @@ class Hermes:
         try:
             edit_text = ui_device(className="android.widget.EditText")
             if edit_text.wait(timeout=3):
-                edit_text.set_text("")
+                try:
+                    edit_text.set_text("")
+                    time.sleep(0.2)
+                except Exception:
+                    pass
+
+                remaining_text = None
+                try:
+                    remaining_text = edit_text.get_text()
+                except Exception:
+                    remaining_text = None
+
+                if remaining_text:
+                    try:
+                        edit_text.click()
+                        time.sleep(0.2)
+                    except Exception:
+                        pass
+
+                    if device is not None:
+                        try:
+                            device.shell("input keyevent KEYCODE_MOVE_END")
+                        except Exception:
+                            pass
+
+                        try:
+                            for _ in range(80):
+                                device.shell("input keyevent KEYCODE_DEL")
+                        except Exception:
+                            pass
+
+                        time.sleep(0.2)
+
+                    try:
+                        edit_text.set_text("")
+                    except Exception:
+                        pass
         except Exception:
             pass
 
@@ -4487,12 +4523,32 @@ class Hermes:
         hold_succeeded = False
         errors = []
 
-        # Primero intentar long_click (mantiene presionado automáticamente)
+        # Primero intentar mantener presionado directamente sobre el botón encontrado
         try:
-            ui_device.long_click(x, y, duration=hold_time)
+            mic_button.long_click(duration=hold_time)
             hold_succeeded = True
         except Exception as e:
             errors.append(str(e))
+
+        # Luego intentar con long_click del dispositivo completo
+        if not hold_succeeded:
+            try:
+                ui_device.long_click(x, y, duration=hold_time)
+                hold_succeeded = True
+            except Exception as e:
+                errors.append(str(e))
+
+        # Intentar con comando ADB manteniendo pulsado el mismo punto
+        if not hold_succeeded and device is not None:
+            try:
+                duration_ms = max(1000, int(hold_time * 1000))
+                device.shell(f"input touchscreen swipe {x} {y} {x} {y} {duration_ms}")
+                hold_succeeded = True
+            except Exception as e:
+                errors.append(str(e))
+
+        # Último recurso: usar la API touch manual
+        if not hold_succeeded:
             touch = getattr(ui_device, 'touch', None)
             if touch:
                 try:
