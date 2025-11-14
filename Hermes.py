@@ -5034,12 +5034,32 @@ class Hermes:
 
         header = ctk.CTkFrame(card, fg_color="transparent")
         header.pack(fill=tk.X, padx=25, pady=(25, 10))
+        header.grid_columnconfigure(0, weight=1)
+
         ctk.CTkLabel(
             header,
             text="Verifica las líneas detectadas",
             font=self.fonts['card_title'],
             text_color=self.colors['text']
-        ).pack(anchor='w')
+        ).grid(row=0, column=0, sticky='w')
+
+        header_actions = ctk.CTkFrame(header, fg_color="transparent")
+        header_actions.grid(row=0, column=1, sticky='e')
+
+        ctk.CTkButton(
+            header_actions,
+            text="Confirmar e iniciar",
+            command=lambda: self._save_numbers_editor(start_after_save=True),
+            font=self.fonts['button'],
+            fg_color=self.colors.get('action_start', '#16A34A'),
+            hover_color=self.hover_colors.get(
+                'action_start',
+                darken_color(self.colors.get('action_start', '#16A34A'), 0.18)
+            ),
+            text_color=self.colors['text_header_buttons'],
+            height=40,
+            corner_radius=10
+        ).grid(row=0, column=0, sticky='e')
 
         instructions = ctk.CTkLabel(
             card,
