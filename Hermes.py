@@ -262,6 +262,7 @@ class Hermes:
 
         self.excel_file = ""
         self.links = []
+        self.link_retry_map = {}
         self.devices = []
 
         self.is_running = False
@@ -596,6 +597,7 @@ class Hermes:
         self.fidelizado_mode = None
         if self.links and not all(link.lower().startswith("sms:") for link in self.links):
             self.links = []
+            self.link_retry_map = {}
             self.total_messages = 0
             self.update_stats()
             self.log("Modo SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
@@ -1577,11 +1579,13 @@ class Hermes:
                     # Priorizar los enlaces según el modo activo o el contenido del archivo
                     if sms_links and (self.sms_mode_active or not whatsapp_links):
                         self.links = sms_links
+                        self.link_retry_map = {}
                         link_label = "links SMS"
                         # Asegurar que el modo SMS quede activo cuando se cargan enlaces procesados de SMS
                         self.sms_mode_active = True
                     else:
                         self.links = whatsapp_links
+                        self.link_retry_map = {}
                         link_label = "URLs"
 
                     self.total_messages = len(self.links)
@@ -1602,6 +1606,7 @@ class Hermes:
             self.log(f"✓ {len(self.raw_data)} filas.", 'success')
             self.log(f"✓ Cols Tel: {', '.join(self.phone_columns)}", 'success')
             self.links = []
+            self.link_retry_map = {}
             self.total_messages = 0
             self.update_stats()
             self.open_processor_window(fp)
@@ -2040,6 +2045,7 @@ class Hermes:
                 self.manual_mode = True
                 self.fidelizado_mode = "NUMEROS_MANUAL" # Un modo interno para distinguirlo
                 self.links = []
+                self.link_retry_map = {}
                 self.start_sending()
                 return
             else:
@@ -2061,6 +2067,7 @@ class Hermes:
         self.manual_mode = True
         self.group_mode = self.fidelizado_mode == "GRUPOS" # Flag legacy
         self.links = [] # Limpiar links del modo tradicional
+        self.link_retry_map = {}
 
         self.start_sending() # Llamar a la lógica de envío compartida
 
@@ -2123,6 +2130,7 @@ class Hermes:
         self.manual_mode = True
         self.fidelizado_mode = "NUMEROS"
         self.links = []
+        self.link_retry_map = {}
 
         self._enter_task_mode()
         self.update_stats()
@@ -2436,6 +2444,7 @@ class Hermes:
     def process_excel_data(self, selected_columns, message_template, selected_phones):
         """Genera la lista de URLs de WhatsApp a partir de los datos y la plantilla."""
         processed_rows = []
+        retry_map = {}
         for row in self.raw_data:
             # Obtener todos los números de las columnas de teléfono seleccionadas
             phone_nums = []
@@ -2447,32 +2456,44 @@ class Hermes:
             if not phone_nums:
                 continue # Sin número en esta fila
 
+            links_for_row = []
+            msg = message_template
+            # Rellenar plantilla una sola vez por fila
+            for col in selected_columns:
+                pl = f"{{{col}}}"
+                if pl in msg:
+                    val = row.get(col, '')
+                    val = '' if val is None else str(val)
+                    # Formato especial para valores monetarios
+                    if '$ Hist.' in col or '$ Asig.' in col:
+                        val = format_currency_value(val)
+                    msg = msg.replace(pl, val)
+
             for phone in phone_nums:
-                if phone and phone.strip():
-                    msg = message_template
-                    # Rellenar plantilla
-                    for col in selected_columns:
-                        pl = f"{{{col}}}"
-                        if pl in msg:
-                            val = row.get(col, '')
-                            val = '' if val is None else str(val)
-                            # Formato especial para valores monetarios
-                            if '$ Hist.' in col or '$ Asig.' in col:
-                                val = format_currency_value(val)
-                            msg = msg.replace(pl, val)
+                if not phone or not phone.strip():
+                    continue
 
-                    ph_digits = re.sub(r'\D', '', phone)
-                    if not ph_digits:
-                        continue
+                ph_digits = re.sub(r'\D', '', phone)
+                if not ph_digits:
+                    continue
 
-                    enc_msg = urllib.parse.quote(msg, safe='')
-                    if self.sms_mode_active:
-                        link = f"sms:{ph_digits}?body={enc_msg}"
-                    else:
-                        link = f"https://wa.me/549{ph_digits}?text={enc_msg}"
-                    processed_rows.append(link)
+                enc_msg = urllib.parse.quote(msg, safe='')
+                if self.sms_mode_active:
+                    link = f"sms:{ph_digits}?body={enc_msg}"
+                else:
+                    link = f"https://wa.me/549{ph_digits}?text={enc_msg}"
+                links_for_row.append(link)
+
+            if not links_for_row:
+                continue
+
+            primary_index = len(processed_rows)
+            processed_rows.append(links_for_row[0])
+            if len(links_for_row) > 1:
+                retry_map[primary_index] = links_for_row[1:]
 
         self.links = processed_rows
+        self.link_retry_map = retry_map
         self.total_messages = len(self.links)
         self.update_stats()
         self.log(f"{len(self.links)} URLs generados", 'success')
@@ -2742,7 +2763,7 @@ class Hermes:
             # Siempre reestablecer la UI
             self.root.after(100, self._finalize_sending)
     
-    def run_single_task(self, device, link, message_to_send, task_index, whatsapp_package="com.whatsapp.w4b"):
+    def run_single_task(self, device, link, message_to_send, task_index, whatsapp_package="com.whatsapp.w4b", link_index=None):
         """
         Ejecuta una única tarea de envío (abrir link, enviar, esperar), gestionando la conexión de uiautomator2.
         """
@@ -2768,7 +2789,16 @@ class Hermes:
         if self.should_stop: return False
 
         # Enviar mensaje, pasando el objeto ui_device
-        success = self.send_msg(device, link, task_index, self.total_messages, message_to_send, whatsapp_package, ui_device)
+        success = self.send_msg(
+            device,
+            link,
+            task_index,
+            self.total_messages,
+            message_to_send,
+            whatsapp_package,
+            ui_device,
+            primary_index=link_index,
+        )
         
         # --- Importante: Actualizar contadores DESPUÉS de send_msg ---
         if success:
@@ -2829,12 +2859,12 @@ class Hermes:
             if self.should_stop:
                 self.log("Cancelado en bucle", 'warning')
                 break
-            
+
             device = self.devices[idx]
             idx = (idx + 1) % len(self.devices)
-            
+
             # Ejecutar tarea con el paquete de WA especificado
-            self.run_single_task(device, link, None, i + 1, whatsapp_package=whatsapp_package)
+            self.run_single_task(device, link, None, i + 1, whatsapp_package=whatsapp_package, link_index=i)
 
     def _run_doble_mode(self):
         """Modo Doble: Rota secuencialmente entre dispositivos y cuentas Business/Normal."""
@@ -2866,7 +2896,7 @@ class Hermes:
             wa_package = combination["wa_package"]
 
             self.log(f"[{device}] Enviando con {wa_name}", 'info')
-            self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package)
+            self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package, link_index=i)
 
     def _run_triple_mode(self):
         """Modo Triple: Rota secuencialmente entre dispositivos y las 3 cuentas."""
@@ -2917,7 +2947,7 @@ class Hermes:
             if self.should_stop: break
 
             self.log(f"[{device}] Enviando con {wa_name}", 'info')
-            self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package)
+            self.run_single_task(device, link, None, i + 1, whatsapp_package=wa_package, link_index=i)
 
         # Dejar todas las cuentas Normal en el estado inicial (Cuenta 1)
         self.log("Finalizando y restaurando cuentas a estado inicial...", 'info')
@@ -2944,7 +2974,7 @@ class Hermes:
             device = self.devices[idx]
             idx = (idx + 1) % len(self.devices)
 
-            self.run_single_task(device, link, None, i + 1, whatsapp_package=None)
+            self.run_single_task(device, link, None, i + 1, whatsapp_package=None, link_index=i)
 
     def run_numeros_manual_thread(self):
         """Lógica de envío para MODO NÚMEROS - MANUAL."""
@@ -4012,101 +4042,181 @@ class Hermes:
             self.log(f"Error inesperado ejecutando ADB: {e}", 'error')
             return False
 
-    def send_msg(self, device, link, i, total, message_to_send=None, whatsapp_package="com.whatsapp.w4b", ui_device=None):
-        """Ejecuta los comandos para enviar un único mensaje, usando uiautomator2 si está disponible."""
+    def send_msg(
+        self,
+        device,
+        link,
+        i,
+        total,
+        message_to_send=None,
+        whatsapp_package="com.whatsapp.w4b",
+        ui_device=None,
+        primary_index=None,
+    ):
+        """Ejecuta los comandos para enviar un único mensaje.
+
+        Si el envío falla por el mensaje "No se envió", intenta nuevamente usando
+        números alternativos registrados para la misma fila (si existen).
+        """
         try:
-            is_sms = link.lower().startswith("sms:")
-            num_display = "?"
-            is_group = bool(message_to_send)
-            if is_group:
-                num_display = f"Grupo ({link[:40]}...)"
-            elif is_sms:
-                num_display = link.split("sms:", 1)[1].split('?')[0]
-            elif 'wa.me/' in link:
-                num_display = link.split('wa.me/')[1].split('?')[0]
-
-            self.log(f"({i}/{total}) → {num_display} [en {device}]", 'info')
-
-            # 1. Abrir el enlace correspondiente (WhatsApp o SMS)
-            self.log(f"Abriendo link en {device} con ADB...", 'info')
-            open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{link}"']
-            if whatsapp_package and not is_sms:
-                open_args.extend(['-p', whatsapp_package])
-            if not self._run_adb_command(open_args, timeout=20):
-                self.log(f"Fallo al abrir link para {num_display}. Saltando...", "warning")
-                return False
-
-            time.sleep(self.wait_after_open.get())
-            if self.should_stop:
-                return False
-
-            # 2. Determinar el mensaje a enviar
-            msg_to_send = message_to_send
-            if not msg_to_send and not is_group:
-                try:
-                    if is_sms and '?body=' in link:
-                        msg_to_send = urllib.parse.unquote(link.split('?body=')[1])
-                    elif 'text=' in link:
-                        msg_to_send = urllib.parse.unquote(link.split('text=')[1])
-                except Exception:
-                    msg_to_send = None
-
-            # 3. Lógica de envío refactorizada: usar siempre uiautomator2 para escribir y hacer clic en el botón de enviar.
             if not ui_device:
                 self.log("Error crítico: la conexión de uiautomator2 no está disponible.", "error")
                 return False
 
-            self.log("Usando uiautomator2 para escribir y enviar.", 'info')
-            try:
-                needs_text_input = is_group or is_sms
-                if needs_text_input:
-                    edit_text = ui_device(className="android.widget.EditText")
-                    if not edit_text.wait(timeout=10):
-                        self.log("No se encontró el campo de texto para escribir.", "error")
-                        return False
-                    if msg_to_send is not None:
-                        edit_text.set_text(msg_to_send)
+            is_group = bool(message_to_send)
+            attempt_links = [link]
+            if primary_index is not None:
+                alternates = self.link_retry_map.get(primary_index, [])
+                if alternates:
+                    attempt_links.extend(alternates)
 
-                # Esperar y hacer clic en el botón de enviar.
-                send_selectors = [
-                    dict(description="Enviar"),
-                    dict(descriptionMatches="(?i).*enviar.*"),
-                    dict(text="Enviar"),
-                    dict(textMatches="(?i).*enviar.*")
-                ]
-                if is_sms:
-                    send_selectors.extend([
-                        dict(resourceIdMatches="(?i).*send.*"),
-                        dict(descriptionMatches="(?i).*sms.*enviar.*"),
-                        dict(textMatches="(?i).*sms.*enviar.*")
-                    ])
+            total_attempts = len(attempt_links)
 
-                send_button = None
-                for selector in send_selectors:
-                    candidate = ui_device(**selector)
-                    if candidate.wait(timeout=2):
-                        send_button = candidate
-                        break
+            def describe_link(current_link):
+                lower_link = current_link.lower()
+                if is_group and not lower_link.startswith("https://wa.me/"):
+                    return f"Grupo ({current_link[:40]}...)"
+                if lower_link.startswith("sms:"):
+                    return current_link.split("sms:", 1)[1].split('?')[0]
+                if 'wa.me/' in current_link:
+                    return current_link.split('wa.me/')[1].split('?')[0]
+                return current_link[:50]
 
-                if not send_button:
-                    self.log("No se encontró el botón 'Enviar'. El mensaje no se puede enviar.", "error")
+            def attempt_send(current_link, attempt_idx):
+                local_is_sms = current_link.lower().startswith("sms:")
+                num_display = describe_link(current_link)
+                intento = "Principal" if attempt_idx == 0 else f"Alternativo {attempt_idx}"
+                self.log(f"({i}/{total}) → {num_display} [en {device}] ({intento})", 'info')
+
+                self.log(f"Abriendo link en {device} con ADB...", 'info')
+                open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{current_link}"']
+                if whatsapp_package and not local_is_sms:
+                    open_args.extend(['-p', whatsapp_package])
+                if not self._run_adb_command(open_args, timeout=20):
+                    self.log(f"Fallo al abrir link para {num_display}.", 'error')
+                    return False, False
+
+                wait_time = max(0, int(self.wait_after_open.get()))
+                if wait_time:
+                    time.sleep(wait_time)
+                if self.should_stop:
+                    return False, False
+
+                msg_to_send = message_to_send
+                if not msg_to_send and not is_group:
+                    try:
+                        if local_is_sms and '?body=' in current_link:
+                            msg_to_send = urllib.parse.unquote(current_link.split('?body=')[1])
+                        elif 'text=' in current_link:
+                            msg_to_send = urllib.parse.unquote(current_link.split('text=')[1])
+                    except Exception:
+                        msg_to_send = None
+
+                try:
+                    needs_text_input = is_group or local_is_sms
+                    if needs_text_input:
+                        edit_text = ui_device(className="android.widget.EditText")
+                        if not edit_text.wait(timeout=10):
+                            self.log("No se encontró el campo de texto para escribir.", "error")
+                            return False, False
+                        if msg_to_send is not None:
+                            edit_text.set_text(msg_to_send)
+
+                    send_selectors = [
+                        dict(description="Enviar"),
+                        dict(descriptionMatches="(?i).*enviar.*"),
+                        dict(text="Enviar"),
+                        dict(textMatches="(?i).*enviar.*")
+                    ]
+                    if local_is_sms:
+                        send_selectors.extend([
+                            dict(resourceIdMatches="(?i).*send.*"),
+                            dict(descriptionMatches="(?i).*sms.*enviar.*"),
+                            dict(textMatches="(?i).*sms.*enviar.*")
+                        ])
+
+                    send_button = None
+                    for selector in send_selectors:
+                        candidate = ui_device(**selector)
+                        try:
+                            if candidate.wait(timeout=2):
+                                send_button = candidate
+                                break
+                        except Exception:
+                            continue
+
+                    if not send_button:
+                        self.log("No se encontró el botón 'Enviar'.", "error")
+                        return False, False
+
+                    send_button.click()
+                    time.sleep(2)
+
+                    if self._detect_send_failure(ui_device):
+                        self.log("Se detectó el mensaje 'No se envió'.", 'warning')
+                        return False, True
+
+                    self.log("Mensaje enviado con éxito.", 'success')
+                    time.sleep(1.5)
+                    return True, False
+
+                except Exception as e:
+                    self.log(f"Falló el envío con uiautomator2: {e}", 'error')
+                    return False, False
+
+            for attempt_idx, current_link in enumerate(attempt_links):
+                if self.should_stop:
                     return False
 
-                send_button.click()
+                if attempt_idx > 0:
+                    self.log("Intentando con un número alternativo...", 'warning')
+                    self.close_all_apps(device)
+                    if self.should_stop:
+                        return False
 
-                self.log("Mensaje enviado con éxito.", 'success')
-                time.sleep(1.5) # Pequeña pausa post-envío
-                return True
+                success, should_retry = attempt_send(current_link, attempt_idx)
+                if success:
+                    return True
 
-            except Exception as e:
-                self.log(f"Falló el envío con uiautomator2: {e}", 'error')
+                if should_retry and attempt_idx < total_attempts - 1:
+                    continue
+
+                if should_retry and attempt_idx == total_attempts - 1:
+                    self.log("No se pudo enviar el mensaje tras agotar los números disponibles.", 'error')
                 return False
+
+            return False
 
         except Exception as e:
             self.log(f"Error inesperado en send_msg: {e}", 'error')
             import traceback
             traceback.print_exc()
             return False
+
+    def _detect_send_failure(self, ui_device, timeout=1.0):
+        """Verifica si aparece el mensaje de error de WhatsApp/SMS indicando que no se envió."""
+        failure_selectors = [
+            dict(textMatches="(?i)no se envi[óo]"),
+            dict(descriptionMatches="(?i)no se envi[óo]"),
+            dict(textMatches="(?i)mensaje no enviado"),
+            dict(descriptionMatches="(?i)mensaje no enviado"),
+            dict(textMatches="(?i)reintentar"),
+            dict(descriptionMatches="(?i)reintentar"),
+            dict(resourceIdMatches="(?i).*retry.*"),
+            dict(resourceIdMatches="(?i).*resend.*"),
+        ]
+
+        for selector in failure_selectors:
+            try:
+                node = ui_device(**selector)
+                if timeout:
+                    if node.wait(timeout=timeout):
+                        return True
+                elif node.exists:
+                    return True
+            except Exception:
+                continue
+        return False
     # --- ################################################################## ---
     # --- FIN
     # --- ################################################################## ---
