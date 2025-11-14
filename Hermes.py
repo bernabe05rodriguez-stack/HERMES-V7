@@ -1959,26 +1959,42 @@ class Hermes:
         self.fidelizado_inputs_col.grid_rowconfigure(0, weight=1) # Permitir que el frame interno crezca
         self.fidelizado_inputs_col.grid_columnconfigure(0, weight=1)
 
-        # Frame para los textboxes
-        self.fidelizado_inputs_container = ctk.CTkFrame(self.fidelizado_inputs_col, fg_color="transparent")
-        self.fidelizado_inputs_container.grid(row=0, column=0, sticky="nsew")
+        # Card para Textos de Mensajes
+        self.fidelizado_inputs_card = ctk.CTkFrame(self.fidelizado_inputs_col, fg_color=self.colors['bg'], corner_radius=15)
+        self.fidelizado_inputs_card.grid(row=0, column=0, sticky="nsew")
+        self.fidelizado_inputs_card.grid_rowconfigure(1, weight=1)
+        self.fidelizado_inputs_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(self.fidelizado_inputs_card, text="✉️ Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', padx=20, pady=(15, 10))
+
+        self.fidelizado_inputs_container = ctk.CTkFrame(self.fidelizado_inputs_card, fg_color="transparent")
+        self.fidelizado_inputs_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
         self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
         self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1) # Los textboxes se expanden
+        self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
 
         # Widgets de Números (MODIFICADO para incluir modo manual)
         self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
         self.fidelizado_numbers_frame.grid_columnconfigure(0, weight=1)
+        self.fidelizado_numbers_frame.grid_rowconfigure(1, weight=1)
         ctk.CTkLabel(self.fidelizado_numbers_frame, text="Números de Teléfono (uno por línea)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', pady=(0, 10))
         self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=150)
-        self.fidelizado_numbers_text.grid(row=1, column=0, sticky="ew")
+        self.fidelizado_numbers_text.grid(row=1, column=0, sticky="nsew")
         self.fidelizado_numbers_text.bind("<<Modified>>", self._on_fidelizado_numbers_changed)
+        self.fidelizado_numbers_scrollbar = ctk.CTkScrollbar(self.fidelizado_numbers_frame, command=self.fidelizado_numbers_text.yview)
+        self.fidelizado_numbers_scrollbar.grid(row=1, column=1, sticky="nsw", padx=(8, 0))
+        self.fidelizado_numbers_text.configure(yscrollcommand=self.fidelizado_numbers_scrollbar.set)
 
         # Widgets de Grupos (Label y Textbox)
         self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
         self.fidelizado_groups_frame.grid_columnconfigure(0, weight=1) # Hacer que el textbox se expanda horizontalmente
+        self.fidelizado_groups_frame.grid_rowconfigure(1, weight=1)
         ctk.CTkLabel(self.fidelizado_groups_frame, text="Links de Grupos (https://...)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', pady=(0, 10))
         self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=150) # Altura más controlada
-        self.fidelizado_groups_text.grid(row=1, column=0, sticky="ew")
+        self.fidelizado_groups_text.grid(row=1, column=0, sticky="nsew")
+        self.fidelizado_groups_scrollbar = ctk.CTkScrollbar(self.fidelizado_groups_frame, command=self.fidelizado_groups_text.yview)
+        self.fidelizado_groups_scrollbar.grid(row=1, column=1, sticky="nsw", padx=(8, 0))
+        self.fidelizado_groups_text.configure(yscrollcommand=self.fidelizado_groups_scrollbar.set)
 
         # --- Columna Derecha: Controles de Envío ---
         self.fidelizado_controls_col = ctk.CTkFrame(self.fidelizado_main_content_frame, fg_color="transparent")
@@ -2111,10 +2127,10 @@ class Hermes:
         self.fidelizado_audio_enabled.trace_add('write', lambda *args: self._update_audio_settings_visibility())
         self._update_audio_settings_visibility()
 
-        # Card para Mensajes
+        # Card para Plantillas de Mensajes
         self.messages_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
         self.messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 20))
-        ctk.CTkLabel(self.messages_card, text="✍️ Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
+        ctk.CTkLabel(self.messages_card, text="✍️ Plantillas de Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
         self.fidelizado_messages_container = ctk.CTkFrame(self.messages_card, fg_color="transparent")
         self.fidelizado_messages_container.pack(fill="x", padx=20, pady=(0, 20))
         self.fidelizado_messages_container.grid_columnconfigure(1, weight=1)
