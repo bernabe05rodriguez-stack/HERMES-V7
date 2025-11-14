@@ -2973,11 +2973,19 @@ class Hermes:
         """Lógica de envío para el modo SMS."""
         if not self.links:
             self.log("Error: No hay enlaces SMS para enviar.", 'error')
+            messagebox.showerror("Sin enlaces", "Carga un archivo con enlaces SMS antes de iniciar.", parent=self.root)
             return
 
         if not self.devices:
             self.log("Error: No hay dispositivos disponibles para el modo SMS.", 'error')
+            messagebox.showerror("Sin dispositivos", "Detecta al menos un dispositivo antes de iniciar el modo SMS.", parent=self.root)
             return
+
+        self.sms_mode_active = True
+        self.manual_mode = False
+        self.total_messages = len(self.links)
+        self.current_index = 0
+        self.root.after(0, self.update_stats)
 
         self.log("Ejecutando Modo SMS...", 'info')
         idx = 0
