@@ -2817,7 +2817,10 @@ class Hermes:
 
     def _apply_post_task_delay(self, task_index):
         """Espera configurada después de cada tarea de envío."""
-        if task_index >= self.total_messages or self.should_stop:
+        if task_index is None or self.should_stop:
+            return
+
+        if self.total_messages and task_index >= self.total_messages:
             return
 
         if self.manual_mode:
