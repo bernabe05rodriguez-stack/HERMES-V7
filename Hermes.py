@@ -4411,6 +4411,56 @@ class Hermes:
             time.sleep(0.1)
             elapsed += 0.1
 
+    def _locate_message_send_button(self, ui_device, is_sms=False, include_voice=True):
+        """Busca el botón de enviar/nota de voz dentro de la conversación actual."""
+        if ui_device is None:
+            return None
+
+        selectors = []
+
+        if include_voice:
+            selectors.extend([
+                dict(resourceId="com.whatsapp:id/send"),
+                dict(resourceId="com.whatsapp.w4b:id/send"),
+                dict(resourceIdMatches="(?i).*voice.*"),
+                dict(descriptionMatches="(?i).*(nota de voz|microf|audio).*"),
+            ])
+
+        selectors.extend([
+            dict(description="Enviar"),
+            dict(descriptionMatches="(?i).*enviar.*"),
+            dict(text="Enviar"),
+            dict(textMatches="(?i).*enviar.*"),
+        ])
+
+        if is_sms:
+            selectors.extend([
+                dict(resourceIdMatches="(?i).*send.*"),
+                dict(descriptionMatches="(?i).*sms.*enviar.*"),
+                dict(textMatches="(?i).*sms.*enviar.*"),
+            ])
+
+        for selector in selectors:
+            try:
+                candidate = ui_device(**selector)
+                if not candidate.wait(timeout=3):
+                    continue
+
+                info = candidate.info or {}
+                class_name = (info.get('className') or '').lower()
+                if 'edittext' in class_name:
+                    continue
+
+                bounds = info.get('bounds') or {}
+                if not bounds or bounds.get('left') == bounds.get('right'):
+                    continue
+
+                return candidate
+            except Exception:
+                continue
+
+        return None
+
     def _maybe_send_audio(self, ui_device, device, task_index, whatsapp_package=None):
         """Envía una nota de voz si la configuración de Fidelizado lo requiere."""
         if ui_device is None or not self.fidelizado_audio_enabled.get() or self.should_stop:
@@ -4500,36 +4550,11 @@ class Hermes:
         except Exception:
             pass
 
-        mic_selectors = [
-            dict(resourceId="com.whatsapp:id/send"),
-            dict(resourceId="com.whatsapp.w4b:id/send"),
-            dict(resourceIdMatches="(?i).*voice.*"),
-            dict(resourceIdMatches="(?i).*send.*"),
-            dict(descriptionMatches="(?i).*nota de voz.*"),
-            dict(descriptionMatches="(?i).*microf.*"),
-            dict(descriptionMatches="(?i).*audio.*"),
-        ]
-
-        mic_button = None
-        for selector in mic_selectors:
-            try:
-                candidate = ui_device(**selector)
-                if not candidate.wait(timeout=3):
-                    continue
-
-                info = candidate.info or {}
-                class_name = (info.get('className') or '').lower()
-                if 'edittext' in class_name:
-                    continue
-
-                bounds = info.get('bounds') or {}
-                if not bounds or bounds.get('left') == bounds.get('right'):
-                    continue
-
-                mic_button = candidate
-                break
-            except Exception:
-                continue
+        mic_button = self._locate_message_send_button(
+            ui_device,
+            is_sms=(whatsapp_package is None and self.sms_mode_active),
+            include_voice=True,
+        )
 
         if not mic_button:
             self.log("No se encontró el botón para enviar audio.", 'warning')
@@ -4689,29 +4714,11 @@ class Hermes:
                         if msg_to_send is not None:
                             edit_text.set_text(msg_to_send)
 
-                    send_selectors = [
-                        dict(description="Enviar"),
-                        dict(descriptionMatches="(?i).*enviar.*"),
-                        dict(text="Enviar"),
-                        dict(textMatches="(?i).*enviar.*")
-                    ]
-                    if local_is_sms:
-                        send_selectors.extend([
-                            dict(resourceIdMatches="(?i).*send.*"),
-                            dict(descriptionMatches="(?i).*sms.*enviar.*"),
-                            dict(textMatches="(?i).*sms.*enviar.*")
-                        ])
-
-                    send_button = None
-                    for selector in send_selectors:
-                        candidate = ui_device(**selector)
-                        try:
-                            if candidate.wait(timeout=2):
-                                send_button = candidate
-                                break
-                        except Exception:
-                            continue
-
+                    send_button = self._locate_message_send_button(
+                        ui_device,
+                        is_sms=local_is_sms,
+                        include_voice=False,
+                    )
                     if not send_button:
                         self.log("No se encontró el botón 'Enviar'.", "error")
                         return False, False
