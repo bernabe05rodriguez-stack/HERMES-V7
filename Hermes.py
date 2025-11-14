@@ -1970,7 +1970,6 @@ class Hermes:
         self.fidelizado_inputs_container = ctk.CTkFrame(self.fidelizado_inputs_card, fg_color="transparent")
         self.fidelizado_inputs_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
         self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
-        self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1) # Los textboxes se expanden
         self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
 
         # Widgets de Números (MODIFICADO para incluir modo manual)
@@ -1986,15 +1985,7 @@ class Hermes:
         self.fidelizado_numbers_text.configure(yscrollcommand=self.fidelizado_numbers_scrollbar.set)
 
         # Widgets de Grupos (Label y Textbox)
-        self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_inputs_container, fg_color="transparent")
-        self.fidelizado_groups_frame.grid_columnconfigure(0, weight=1) # Hacer que el textbox se expanda horizontalmente
-        self.fidelizado_groups_frame.grid_rowconfigure(1, weight=1)
-        ctk.CTkLabel(self.fidelizado_groups_frame, text="Links de Grupos (https://...)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', pady=(0, 10))
-        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=150) # Altura más controlada
-        self.fidelizado_groups_text.grid(row=1, column=0, sticky="nsew")
-        self.fidelizado_groups_scrollbar = ctk.CTkScrollbar(self.fidelizado_groups_frame, command=self.fidelizado_groups_text.yview)
-        self.fidelizado_groups_scrollbar.grid(row=1, column=1, sticky="nsw", padx=(8, 0))
-        self.fidelizado_groups_text.configure(yscrollcommand=self.fidelizado_groups_scrollbar.set)
+        # Contenedor para los campos de grupos se moverá a la tarjeta de "Cargas"
 
         # --- Columna Derecha: Controles de Envío ---
         self.fidelizado_controls_col = ctk.CTkFrame(self.fidelizado_main_content_frame, fg_color="transparent")
@@ -2127,12 +2118,16 @@ class Hermes:
         self.fidelizado_audio_enabled.trace_add('write', lambda *args: self._update_audio_settings_visibility())
         self._update_audio_settings_visibility()
 
-        # Card para Plantillas de Mensajes
-        self.messages_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        self.messages_card.grid(row=2, column=0, sticky="ew", pady=(0, 20))
-        ctk.CTkLabel(self.messages_card, text="✍️ Plantillas de Mensajes", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
-        self.fidelizado_messages_container = ctk.CTkFrame(self.messages_card, fg_color="transparent")
-        self.fidelizado_messages_container.pack(fill="x", padx=20, pady=(0, 20))
+        # Card para cargas de mensajes y grupos
+        self.fidelizado_cargas_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
+        self.fidelizado_cargas_card.grid(row=2, column=0, sticky="nsew", pady=(0, 20))
+        self.fidelizado_cargas_card.grid_columnconfigure(0, weight=1)
+        self.fidelizado_cargas_card.grid_rowconfigure(2, weight=1)
+
+        ctk.CTkLabel(self.fidelizado_cargas_card, text="📥 Cargas", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', padx=20, pady=(15, 10))
+
+        self.fidelizado_messages_container = ctk.CTkFrame(self.fidelizado_cargas_card, fg_color="transparent")
+        self.fidelizado_messages_container.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 15))
         self.fidelizado_messages_container.grid_columnconfigure(1, weight=1)
 
         load_messages_btn = ctk.CTkButton(self.fidelizado_messages_container, text="Cargar Archivo",
@@ -2145,6 +2140,17 @@ class Hermes:
 
         self.fidelizado_message_count_label = ctk.CTkLabel(self.fidelizado_messages_container, text="", font=self.fonts['setting_label'], text_color=self.colors['text'])
         self.fidelizado_message_count_label.grid(row=0, column=1, sticky='w', padx=15)
+
+        self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_cargas_card, fg_color="transparent")
+        self.fidelizado_groups_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        self.fidelizado_groups_frame.grid_columnconfigure(0, weight=1)
+        self.fidelizado_groups_frame.grid_rowconfigure(1, weight=1)
+        ctk.CTkLabel(self.fidelizado_groups_frame, text="Números o Links de Grupos (uno por línea)", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', pady=(0, 10))
+        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 14), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=150)
+        self.fidelizado_groups_text.grid(row=1, column=0, sticky="nsew")
+        self.fidelizado_groups_scrollbar = ctk.CTkScrollbar(self.fidelizado_groups_frame, command=self.fidelizado_groups_text.yview)
+        self.fidelizado_groups_scrollbar.grid(row=1, column=1, sticky="nsw", padx=(8, 0))
+        self.fidelizado_groups_text.configure(yscrollcommand=self.fidelizado_groups_scrollbar.set)
 
         initial_message_count = len(self.manual_messages_numbers)
         if initial_message_count > 0:
@@ -2249,7 +2255,9 @@ class Hermes:
 
         if self.fidelizado_mode == "NUMEROS":
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew")
-            self.fidelizado_groups_frame.grid_forget()
+            self.fidelizado_numbers_frame.grid_configure(pady=0)
+            if self.fidelizado_groups_frame.winfo_manager():
+                self.fidelizado_groups_frame.grid_remove()
 
             # Lógica de visibilidad simplificada y corregida
             if is_manual_numbers_mode:
@@ -2260,14 +2268,13 @@ class Hermes:
                     self.numeros_mode_container.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
 
         elif self.fidelizado_mode == "GRUPOS":
-            self.fidelizado_numbers_frame.grid_forget()
-            self.fidelizado_groups_frame.grid(row=0, column=0, sticky="nsew")
+            if self.fidelizado_numbers_frame.winfo_manager():
+                self.fidelizado_numbers_frame.grid_remove()
+            self.fidelizado_groups_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
 
         elif self.fidelizado_mode == "MIXTO":
-            self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
-            self.fidelizado_inputs_container.grid_rowconfigure(1, weight=1)
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
-            self.fidelizado_groups_frame.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
+            self.fidelizado_groups_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
 
 
         # --- 3. Visibilidad de Configuración Adicional ---
