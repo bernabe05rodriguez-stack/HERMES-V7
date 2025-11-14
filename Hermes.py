@@ -144,6 +144,43 @@ def darken_color(color, factor=0.1):
     b = _clamp(b * (1 - factor))
     return f"#{int(r):02x}{int(g):02x}{int(b):02x}"
 
+def format_currency_value(value):
+    """Formatea un valor numérico como moneda en formato argentino ($###.###,##)."""
+    if value is None:
+        return ''
+
+    try:
+        text = str(value).strip()
+        if not text:
+            return ''
+
+        text = (text
+                .replace('$', '')
+                .replace(' ', '')
+                .replace('\u202f', '')
+                .replace('\u00a0', '')
+                .replace('−', '-')
+                )
+
+        if ',' in text and '.' in text:
+            if text.rfind(',') > text.rfind('.'):
+                text = text.replace('.', '').replace(',', '.')
+            else:
+                text = text.replace(',', '')
+        elif ',' in text:
+            text = text.replace('.', '').replace(',', '.')
+        elif text.count('.') > 1:
+            parts = text.split('.')
+            text = ''.join(parts[:-1]) + '.' + parts[-1]
+
+        amount = float(text)
+        sign = '-' if amount < 0 else ''
+        formatted = f"{abs(amount):,.2f}"
+        formatted = formatted.replace(',', '¤').replace('.', ',').replace('¤', '.')
+        return f"{sign}${formatted}"
+    except Exception:
+        return str(value)
+
 # --- INICIO MODIFICACIÓN: Clase para Tooltips (CORREGIDA) ---
 class Tooltip:
     """
@@ -2318,8 +2355,7 @@ class Hermes:
                              v = '' if v is None else str(v)
                              # Formato especial para valores monetarios
                              if '$ Hist.' in c or '$ Asig.' in c:
-                                 try: v = f"${float(str(v).replace(',','').replace('$','').strip()):,.2f}"
-                                 except: v = str(v)
+                                 v = format_currency_value(v)
                              pm = pm.replace(pl, v)
                     pt.insert('1.0', pm)
                 else:
@@ -2422,8 +2458,7 @@ class Hermes:
                             val = '' if val is None else str(val)
                             # Formato especial para valores monetarios
                             if '$ Hist.' in col or '$ Asig.' in col:
-                                try: val = f"${float(str(val).replace(',', '').replace('$', '').strip()):,.2f}"
-                                except: val = str(val)
+                                val = format_currency_value(val)
                             msg = msg.replace(pl, val)
 
                     ph_digits = re.sub(r'\D', '', phone)
