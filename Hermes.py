@@ -646,7 +646,13 @@ class Hermes:
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_rowconfigure(0, weight=1)
 
-        content = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
+        content = ctk.CTkFrame(
+            parent,
+            fg_color=self.colors['bg_card'],
+            corner_radius=30,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
         content.grid(row=0, column=0, sticky="nsew", padx=0, pady=(10, 20))
         content.grid_columnconfigure(0, weight=1)
 
@@ -1925,7 +1931,13 @@ class Hermes:
         fidelizado_container.pack(fill=tk.BOTH, expand=True)
 
         # Contenido principal de Fidelizado
-        content = ctk.CTkFrame(fidelizado_container, fg_color=self.colors['bg_card'], corner_radius=30)
+        content = ctk.CTkFrame(
+            fidelizado_container,
+            fg_color=self.colors['bg_card'],
+            corner_radius=30,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
         content.pack(fill=tk.BOTH, expand=True, padx=0, pady=(10, 20))
 
         # Layout principal reconfigurado para una columna expandible
