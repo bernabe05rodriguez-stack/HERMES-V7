@@ -674,6 +674,7 @@ class Hermes:
         header_actions.grid(row=0, column=2, rowspan=2, sticky="e", padx=(12, 0))
         header_actions.grid_columnconfigure(0, weight=0)
         header_actions.grid_columnconfigure(1, weight=0)
+        header_actions.grid_columnconfigure(2, weight=0)
         header_actions.grid_rowconfigure(0, weight=1)
 
         actions_body = ctk.CTkFrame(actions_section, fg_color="transparent")
@@ -707,6 +708,14 @@ class Hermes:
         )
         self.fidelizado_unlock_btn.grid(row=0, column=0, sticky="e", padx=(0, 12))
 
+        self.sms_mode_btn = ctk.CTkButton(
+            header_actions,
+            text="Modo SMS",
+            command=self.handle_sms_mode_access,
+            **tool_btn_kwargs
+        )
+        self.sms_mode_btn.grid(row=0, column=1, sticky="e", padx=(0, 12))
+
         self.dark_mode_btn = ctk.CTkLabel(
             header_actions,
             text="🌙" if self.dark_mode else "☀️",
@@ -714,16 +723,8 @@ class Hermes:
             text_color=self.colors['text'],
             cursor='hand2'
         )
-        self.dark_mode_btn.grid(row=0, column=1, padx=(12, 0))
+        self.dark_mode_btn.grid(row=0, column=2, padx=(12, 0))
         self.dark_mode_btn.bind("<Button-1>", lambda _event: self.toggle_dark_mode())
-
-        self.sms_mode_btn = ctk.CTkButton(
-            self.additional_actions_frame,
-            text="Modo SMS",
-            command=self.handle_sms_mode_access,
-            **tool_btn_kwargs
-        )
-        self.sms_mode_btn.grid(row=0, column=0, pady=(0, 8), sticky="ew")
 
         self.adb_injector_btn = ctk.CTkButton(
             self.additional_actions_frame,
@@ -731,7 +732,7 @@ class Hermes:
             command=self.open_adb_injector,
             **tool_btn_kwargs
         )
-        self.adb_injector_btn.grid(row=1, column=0, pady=6, sticky="ew")
+        self.adb_injector_btn.grid(row=0, column=0, pady=6, sticky="ew")
         self.adb_injector_btn.grid_remove()
 
         self.adb_injector_dual_btn = ctk.CTkButton(
@@ -740,12 +741,12 @@ class Hermes:
             command=self.open_adb_injector_dual,
             **tool_btn_kwargs
         )
-        self.adb_injector_dual_btn.grid(row=2, column=0, pady=6, sticky="ew")
+        self.adb_injector_dual_btn.grid(row=1, column=0, pady=6, sticky="ew")
         self.adb_injector_dual_btn.grid_remove()
 
         # Espaciado adicional para mantener alineado con el diseño previo
         spacer = ctk.CTkLabel(self.additional_actions_frame, text="", fg_color="transparent")
-        spacer.grid(row=3, column=0, pady=(4, 0))
+        spacer.grid(row=2, column=0, pady=(4, 0))
 
         steps_wrapper = ctk.CTkFrame(actions_body, fg_color="transparent")
         steps_wrapper.grid(row=0, column=1, sticky="nsew")
