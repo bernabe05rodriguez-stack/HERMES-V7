@@ -724,7 +724,6 @@ class Hermes:
             **tool_btn_kwargs
         )
         self.sms_mode_btn.grid(row=0, column=0, pady=(0, 8), sticky="ew")
-        self.sms_mode_btn.grid_remove()
 
         self.adb_injector_btn = ctk.CTkButton(
             self.additional_actions_frame,
