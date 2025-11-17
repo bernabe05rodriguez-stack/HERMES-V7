@@ -330,7 +330,6 @@ class Hermes:
         self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
         self.wait_between_enters = SafeIntVar(value=3)  # Tiempo entre el primer y segundo Enter
         self.wait_between_messages = SafeIntVar(value=2)  # Tiempo entre Business y Normal
-        self.write_speed = tk.StringVar(value="Normal")  # Velocidad de escritura: Lento, Normal, Rápido
         self.whatsapp_mode = tk.StringVar(value="Todas")  # Qué WhatsApp usar: Normal, Business, Ambos
         self.traditional_send_mode = tk.StringVar(value="Business")  # Modo de envío tradicional: Business, Normal, Ambos, TODOS
 
@@ -2046,22 +2045,16 @@ class Hermes:
         spinbox_cycles = self._create_spinbox_widget(self.cycles_container, self.manual_cycles_var, min_val=1, max_val=100)
         spinbox_cycles.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Fila 3: Velocidad y WhatsApp
-        speed_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        speed_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
-        ctk.CTkLabel(speed_container, text="Velocidad escritura:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        speed_menu = ctk.CTkSegmentedButton(speed_container, variable=self.write_speed, values=["Lento", "Normal", "Rápido"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['blue'], selected_hover_color=darken_color(self.colors['blue'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
-        speed_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
-
+        # Fila 3: WhatsApp
         whatsapp_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        whatsapp_container.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        whatsapp_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         self.fidelizado_whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
         self.fidelizado_whatsapp_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # --- Fila 5: Retardo entre envíos ---
+        # --- Fila 4: Retardo entre envíos ---
         delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        delay_container.grid(row=5, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        delay_container.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         ctk.CTkLabel(delay_container, text="Retardo Envíos (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         spinbox_frame = ctk.CTkFrame(delay_container, fg_color="transparent")
         spinbox_frame.pack(side=tk.RIGHT)
@@ -2071,9 +2064,9 @@ class Hermes:
         spinbox_min = self._create_spinbox_widget(spinbox_frame, self.fidelizado_send_delay_min, min_val=1, max_val=300)
         spinbox_min.pack(side=tk.RIGHT)
 
-        # --- Fila 6: Configuración de audios ---
+        # --- Fila 5: Configuración de audios ---
         audio_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        audio_container.grid(row=6, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        audio_container.grid(row=5, column=0, columnspan=2, sticky='ew', pady=(0, 15))
         self.fidelizado_audio_switch = ctk.CTkSwitch(
             audio_container,
             text="Enviar audios de voz",
@@ -4141,7 +4134,6 @@ class Hermes:
     def _write_message_with_keyevents(self, device, message):
         """
         Escribe un mensaje carácter por carácter usando input text de ADB.
-        La velocidad depende de la configuración del usuario.
         Retorna True si tuvo éxito, False si falló.
         """
         try:
@@ -4152,16 +4144,7 @@ class Hermes:
                 time.sleep(0.1)
             if self.should_stop:
                 return False
-            
-            # Obtener delay según velocidad seleccionada
-            speed = self.write_speed.get()
-            if speed == "Lento":
-                char_delay = 0.15  # 150ms por carácter
-            elif speed == "Normal":
-                char_delay = 0.08  # 80ms por carácter
-            else:  # Rápido
-                char_delay = 0.03  # 30ms por carácter
-            
+
             # Escribir carácter por carácter
             for char in message:
                 if self.should_stop:
@@ -4183,18 +4166,13 @@ class Hermes:
                 
                 # Enviar el carácter
                 text_args = ['-s', device, 'shell', 'input', 'text', char_escaped]
-                
+
                 if not self._run_adb_command(text_args, timeout=5):
                     # Si falla un carácter, intentar continuar
                     self.log(f"Advertencia: fallo al escribir '{char}'", "warning")
-                
-                # Delay entre caracteres según velocidad
-                time.sleep(char_delay)
-            
-            # Pausa final después de escribir todo
-            time.sleep(0.2)
+
             return True
-            
+
         except Exception as e:
             self.log(f"Error al escribir mensaje: {e}", 'error')
             return False
