@@ -2025,7 +2025,7 @@ class Hermes:
         mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['button'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg_card'], button_color=self.colors['blue'], button_hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text'], height=35)
         mode_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Fila 1: Controles para el modo "Uno a uno" vs "Uno a muchos"
+        # Fila 1: Controles para el modo "Uno a uno" vs "Uno a muchos" (solo visibles en Modo Números)
         self.numeros_mode_container = ctk.CTkFrame(config_grid, fg_color="transparent")
         ctk.CTkLabel(self.numeros_mode_container, text="Modo de Conversación:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, anchor="w", padx=(0,10))
         ctk.CTkRadioButton(self.numeros_mode_container, text="Uno a uno", variable=self.fidelizado_numeros_mode, value="Uno a uno", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(15, 10))
@@ -2293,13 +2293,9 @@ class Hermes:
             if self.fidelizado_groups_frame.winfo_manager():
                 self.fidelizado_groups_frame.grid_remove()
 
-            # Lógica de visibilidad simplificada y corregida
-            if is_manual_numbers_mode:
-                if hasattr(self, 'numeros_mode_container'):
-                    self.numeros_mode_container.grid_remove()
-            else:
-                if hasattr(self, 'numeros_mode_container'):
-                    self.numeros_mode_container.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
+            # Mostrar selector de conversación solo en modo Números
+            if hasattr(self, 'numeros_mode_container'):
+                self.numeros_mode_container.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
 
         elif self.fidelizado_mode == "GRUPOS":
             self.fidelizado_manual_inputs_frame.grid_rowconfigure(0, weight=1)
@@ -2309,11 +2305,17 @@ class Hermes:
             self.fidelizado_groups_frame.grid(row=0, column=0, sticky="nsew")
             self.fidelizado_groups_frame.grid_configure(pady=(0, 0))
 
+            if hasattr(self, 'numeros_mode_container'):
+                self.numeros_mode_container.grid_remove()
+
         elif self.fidelizado_mode == "MIXTO":
             self.fidelizado_manual_inputs_frame.grid_rowconfigure(0, weight=1)
             self.fidelizado_manual_inputs_frame.grid_rowconfigure(1, weight=1)
             self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
             self.fidelizado_groups_frame.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
+
+            if hasattr(self, 'numeros_mode_container'):
+                self.numeros_mode_container.grid_remove()
 
 
         # --- 3. Visibilidad de Configuración Adicional ---
@@ -3829,6 +3831,7 @@ class Hermes:
         self.log(f"Total de envíos: {self.total_messages}", 'info')
 
         # --- Bucle principal corregido ---
+        last_device_used = None
         for bucle_num in range(num_bucles):
             if self.should_stop: break
             self.log(f"\n--- INICIANDO BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
@@ -3839,8 +3842,13 @@ class Hermes:
                 grupo_display = grupo_link[:50] + "..." if len(grupo_link) > 50 else grupo_link
                 self.log(f"\n=== GRUPO {idx_grupo + 1}/{num_grupos}: {grupo_display} ===", 'info')
 
-                # Por cada dispositivo ACTIVO
-                for device in active_devices:
+                # Por cada dispositivo ACTIVO (orden aleatorio evitando repetir el último inicial)
+                shuffled_devices = active_devices.copy()
+                random.shuffle(shuffled_devices)
+                if last_device_used and len(shuffled_devices) > 1 and shuffled_devices[0] == last_device_used:
+                    shuffled_devices[0], shuffled_devices[1] = shuffled_devices[1], shuffled_devices[0]
+
+                for device in shuffled_devices:
                     if self.should_stop: break
 
                     # Por cada WhatsApp (Normal, Business, etc.)
@@ -3892,6 +3900,9 @@ class Hermes:
                                     if self.should_stop: break
                                     time.sleep(0.1)
                                     elapsed += 0.1
+
+                if shuffled_devices:
+                    last_device_used = shuffled_devices[-1]
 
                 if self.should_stop: break
                 self.log(f"\n=== GRUPO {idx_grupo + 1} completado ===", 'success')
