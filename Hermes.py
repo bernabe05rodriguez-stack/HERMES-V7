@@ -331,6 +331,7 @@ class Hermes:
         self.wait_between_enters = SafeIntVar(value=3)  # Tiempo entre el primer y segundo Enter
         self.wait_between_messages = SafeIntVar(value=2)  # Tiempo entre Business y Normal
         self.whatsapp_mode = tk.StringVar(value="Todas")  # Qué WhatsApp usar: Normal, Business, Ambos
+        self.whatsapp_mode.trace_add('write', self.update_per_whatsapp_stat)
         self.traditional_send_mode = tk.StringVar(value="Business")  # Modo de envío tradicional: Business, Normal, Ambos, TODOS
 
         self.raw_data = []
@@ -624,6 +625,7 @@ class Hermes:
         self.traditional_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self.fidelizado_view_frame.pack(fill=tk.BOTH, expand=True)
+        self.update_per_whatsapp_stat()
 
     def show_sms_view(self):
         """Activa la vista de envío por SMS."""
@@ -1607,6 +1609,27 @@ class Hermes:
         """Calcula y actualiza la estadística de mensajes por cuenta de WhatsApp."""
         num_devices = len(self.devices)
 
+        if self.fidelizado_mode == "GRUPOS":
+            groups_count = len(getattr(self, 'manual_inputs_groups', []))
+            messages_count = len(getattr(self, 'manual_messages_groups', []))
+            if groups_count == 0 or messages_count == 0 or num_devices == 0:
+                self.stat_per_whatsapp.configure(text="Mensajes por Grupo: --")
+                return
+
+            num_bucles = max(1, self.manual_loops_var.get() if hasattr(self, 'manual_loops_var') else 1)
+            whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
+
+            per_account_per_group = num_bucles
+            total_per_group = per_account_per_group * num_devices * whatsapp_multiplier
+
+            if num_devices > 1 or whatsapp_multiplier > 1:
+                stat_text = f"{per_account_per_group} por cuenta (~{total_per_group} total/grupo)"
+            else:
+                stat_text = f"{per_account_per_group} por cuenta"
+
+            self.stat_per_whatsapp.configure(text=f"Mensajes por Grupo: {stat_text}")
+            return
+
         if self.sms_mode_active:
             if not self.links or num_devices == 0:
                 self.stat_per_whatsapp.configure(text="Mensajes por dispositivo (SMS): --")
@@ -2036,6 +2059,7 @@ class Hermes:
         self.loops_container.grid(row=2, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
         ctk.CTkLabel(self.loops_container, text="Bucle:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         self.manual_loops_var = tk.IntVar(value=max(1, self.manual_loops))
+        self.manual_loops_var.trace_add('write', self.update_per_whatsapp_stat)
         spinbox_loops = self._create_spinbox_widget(self.loops_container, self.manual_loops_var, min_val=1, max_val=100)
         spinbox_loops.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
@@ -2351,7 +2375,9 @@ class Hermes:
                 self.whatsapp_mode.set("Ambas")
         else:
             if hasattr(self, 'fidelizado_whatsapp_menu'):
-                 self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas", "Todas"])
+                self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas", "Todas"])
+
+        self.update_per_whatsapp_stat()
 
     def _populate_fidelizado_inputs(self):
         """Limpia y rellena los campos de texto con los datos guardados en las variables."""
