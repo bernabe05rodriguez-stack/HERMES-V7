@@ -1959,7 +1959,7 @@ class Hermes:
             border_width=1,
             border_color=self._section_border_color()
         )
-        content.pack(fill=tk.BOTH, expand=True, padx=0, pady=(10, 20))
+        content.pack(fill=tk.BOTH, expand=True, padx=0, pady=(10, 0))
 
         # Layout principal reconfigurado para una columna expandible
         content.grid_columnconfigure(0, weight=1)
