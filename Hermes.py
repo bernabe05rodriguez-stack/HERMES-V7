@@ -2004,6 +2004,7 @@ class Hermes:
         self.fidelizado_controls_col = ctk.CTkFrame(self.fidelizado_main_content_frame, fg_color="transparent")
         self.fidelizado_controls_col.grid(row=0, column=1, sticky="nsew", padx=(20, 0))
         self.fidelizado_controls_col.grid_columnconfigure(0, weight=1)
+        self.fidelizado_controls_col.grid_rowconfigure(1, weight=1)
 
         # Card para Detección de Dispositivos
         device_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
@@ -2029,7 +2030,7 @@ class Hermes:
 
         # Card para Configuración
         config_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        config_card.grid(row=1, column=0, sticky="ew", pady=(0, 20))
+        config_card.grid(row=1, column=0, sticky="nsew", pady=(0, 20))
         ctk.CTkLabel(config_card, text="⚙️ Configuración", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
 
         config_grid = ctk.CTkFrame(config_card, fg_color="transparent")
