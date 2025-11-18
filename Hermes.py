@@ -918,7 +918,9 @@ class Hermes:
         self.btn_start.grid(row=0, column=1, sticky='ew')
 
         controls = ctk.CTkFrame(actions_section, fg_color="transparent")
-        controls.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 10))
+        controls.grid(row=4, column=0, sticky="ew", padx=20, pady=(16, 0))
+        # top padding > 0, bottom padding must be 0 so the card ends
+        # just below the buttons without a big white gap.
         controls.grid_columnconfigure(0, weight=1)
         controls.grid_columnconfigure(1, weight=1)
 
@@ -1378,7 +1380,7 @@ class Hermes:
 
     def _build_section(self, parent, row, title, subtitle=None, icon=None):
         container = ctk.CTkFrame(parent, fg_color="transparent")
-        container.grid(row=row, column=0, sticky="ew", padx=24, pady=(0, 24))
+        container.grid(row=row, column=0, sticky="ew", padx=24, pady=(0, 8))
         container.grid_columnconfigure(0, weight=1)
 
         card = ctk.CTkFrame(
