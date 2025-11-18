@@ -1948,7 +1948,7 @@ class Hermes:
             self._load_default_messages()
 
         # Contenedor principal de la vista Fidelizado
-        fidelizado_container = ctk.CTkFrame(parent, fg_color="transparent")
+        fidelizado_container = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'])
         fidelizado_container.pack(fill=tk.BOTH, expand=True)
 
         # Contenido principal de Fidelizado
@@ -1959,7 +1959,7 @@ class Hermes:
             border_width=0,
             border_color=self._section_border_color()
         )
-        content.pack(fill=tk.BOTH, expand=True, padx=0, pady=(10, 0))
+        content.pack(fill=tk.BOTH, expand=True, padx=0, pady=10)
 
         # Layout principal reconfigurado para una columna expandible
         content.grid_columnconfigure(0, weight=1)
