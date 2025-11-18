@@ -3174,8 +3174,14 @@ class Hermes:
         self.current_index = task_index
         self.root.after(0, self.update_stats)
 
-        self.close_all_apps(device)
-        if self.should_stop: return False
+        # En modo fidelizado ya se realiza una limpieza general antes de arrancar el hilo.
+        # Evitamos cerrar las apps en cada mensaje para reducir el tiempo extra entre envíos
+        # y que el intervalo se acerque más al configurado por el usuario.
+        if not self.manual_mode:
+            self.close_all_apps(device)
+
+        if self.should_stop:
+            return False
 
         # Enviar mensaje, pasando el objeto ui_device
         success = self.send_msg(
