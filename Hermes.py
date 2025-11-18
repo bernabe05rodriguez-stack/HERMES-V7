@@ -584,7 +584,7 @@ class Hermes:
     def setup_left(self, parent):
         # Contenedor principal para las vistas
         self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
-        self.views_container.pack(fill=tk.BOTH, expand=True)
+        self.views_container.pack(fill=tk.X, expand=False, anchor="n")
 
         # --- Vista Tradicional ---
         self.traditional_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
@@ -615,7 +615,7 @@ class Hermes:
         self.sms_mode_active = False
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
-        self.traditional_view_frame.pack(fill=tk.BOTH, expand=True)
+        self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
 
@@ -625,7 +625,7 @@ class Hermes:
         self.sms_mode_active = False
         self.traditional_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
-        self.fidelizado_view_frame.pack(fill=tk.BOTH, expand=True)
+        self.fidelizado_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(True)
 
@@ -642,7 +642,7 @@ class Hermes:
             self.log("Modo SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
-        self.sms_view_frame.pack(fill=tk.BOTH, expand=True)
+        self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
 
