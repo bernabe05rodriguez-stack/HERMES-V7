@@ -701,10 +701,10 @@ class Hermes:
         header_actions.grid_rowconfigure(0, weight=1)
 
         actions_body = ctk.CTkFrame(actions_section, fg_color="transparent")
-        actions_body.grid(row=1, column=0, sticky="nsew", padx=20, pady=(12, 12))
+        actions_body.grid(row=1, column=0, sticky="ew", padx=20, pady=(10, 8))
         actions_body.grid_columnconfigure(0, weight=0)
         actions_body.grid_columnconfigure(1, weight=1)
-        actions_body.grid_rowconfigure(0, weight=1)
+        actions_body.grid_rowconfigure(0, weight=0)
 
         self.additional_actions_frame = ctk.CTkFrame(actions_body, fg_color="transparent")
         self.additional_actions_frame.grid(row=0, column=0, sticky="nw", padx=(0, 16))
@@ -899,7 +899,7 @@ class Hermes:
 
         start_step_index = mode_step_index + 1
         start_row = ctk.CTkFrame(steps_wrapper, fg_color="transparent")
-        start_row.grid(row=current_row, column=0, sticky="ew", pady=(12, 0))
+        start_row.grid(row=current_row, column=0, sticky="ew", pady=(10, 4))
         start_row.grid_columnconfigure(1, weight=1)
 
         self._create_step_badge(start_row, start_step_index).grid(row=0, column=0, padx=(0, 12))
