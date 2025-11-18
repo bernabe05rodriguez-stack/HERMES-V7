@@ -1081,7 +1081,6 @@ class Hermes:
         self.create_stat(stats, "Enviados", "0", self.colors['green'], 1)
         self.create_stat(stats, "Progreso", "0%", self.colors['orange'], 2)
 
-        ctk.CTkLabel(sc, text="Progreso general", font=self.fonts['progress_label'], fg_color="transparent", text_color=self.colors['text_light']).pack(anchor='w', pady=(0, 5), padx=25)
         self.progress_label = ctk.CTkLabel(sc, text="--/--", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'])
         self.progress_label.pack(anchor='w', pady=(0, 10), padx=25)
 
@@ -1612,20 +1611,20 @@ class Hermes:
         if self.fidelizado_mode == "GRUPOS":
             groups_count = len(getattr(self, 'manual_inputs_groups', []))
             messages_count = len(getattr(self, 'manual_messages_groups', []))
-            if groups_count == 0 or messages_count == 0 or num_devices == 0:
+            whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
+            accounts_in_use = num_devices * whatsapp_multiplier
+
+            if groups_count == 0 or messages_count == 0 or accounts_in_use == 0:
                 self.stat_per_whatsapp.configure(text="Mensajes por Grupo: --")
                 return
 
             num_bucles = max(1, self.manual_loops_var.get() if hasattr(self, 'manual_loops_var') else 1)
-            whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
+            total_messages = self.total_messages if self.total_messages > 0 else num_bucles * groups_count * accounts_in_use
+            per_account_total = total_messages / accounts_in_use
 
-            per_account_total = num_bucles * groups_count
-            total_all_accounts = per_account_total * num_devices * whatsapp_multiplier
-
-            if num_devices > 1 or whatsapp_multiplier > 1:
-                stat_text = f"{per_account_total} por cuenta (~{total_all_accounts} total)"
-            else:
-                stat_text = f"{per_account_total} por cuenta"
+            stat_text = f"~{round(per_account_total)} por cuenta"
+            if accounts_in_use > 1:
+                stat_text = f"~{round(per_account_total)} por cuenta ({total_messages} total)"
 
             self.stat_per_whatsapp.configure(text=f"Mensajes por Grupo: {stat_text}")
             return
