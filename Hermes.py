@@ -667,7 +667,7 @@ class Hermes:
 
     def setup_traditional_view(self, parent):
         parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_rowconfigure(0, weight=0)
 
         content = ctk.CTkFrame(
             parent,
@@ -676,7 +676,7 @@ class Hermes:
             border_width=1,
             border_color=self._section_border_color()
         )
-        content.grid(row=0, column=0, sticky="nsew", padx=0, pady=(10, 20))
+        content.grid(row=0, column=0, sticky="ew", padx=0, pady=(10, 20))
         content.grid_columnconfigure(0, weight=1)
 
         header = ctk.CTkFrame(content, fg_color="transparent")
