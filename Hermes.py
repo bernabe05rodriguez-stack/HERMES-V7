@@ -2152,7 +2152,7 @@ class Hermes:
         self.fidelizado_messages_container.grid_columnconfigure(0, weight=0)
         self.fidelizado_messages_container.grid_columnconfigure(1, weight=0)
         self.fidelizado_messages_container.grid_columnconfigure(2, weight=1)
-        self.fidelizado_messages_container.grid_rowconfigure(0, weight=0)
+        self.fidelizado_messages_container.grid_rowconfigure(0, weight=1)
 
         load_messages_btn = ctk.CTkButton(self.fidelizado_messages_container, text="Cargar Archivo",
                                           command=self._load_fidelizado_messages_from_file,
@@ -2166,7 +2166,7 @@ class Hermes:
         self.fidelizado_message_count_label.grid(row=0, column=1, sticky='nw', padx=15)
 
         self.fidelizado_manual_inputs_frame = ctk.CTkFrame(self.fidelizado_messages_container, fg_color=self.colors['bg'], corner_radius=12)
-        self.fidelizado_manual_inputs_frame.grid(row=0, column=2, sticky="new", padx=(20, 0))
+        self.fidelizado_manual_inputs_frame.grid(row=0, column=2, sticky="nsew", padx=(20, 0))
         self.fidelizado_manual_inputs_frame.grid_columnconfigure(0, weight=1)
         self.fidelizado_manual_inputs_frame.grid_rowconfigure(0, weight=1)
         self.fidelizado_manual_inputs_frame.grid_rowconfigure(1, weight=1)
