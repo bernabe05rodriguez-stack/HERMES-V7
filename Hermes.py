@@ -1065,7 +1065,7 @@ class Hermes:
     def setup_right(self, parent):
         # Bloque 1: Estado y Progreso
         sc = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
-        sc.pack(fill=tk.X, pady=(0, 30), padx=10)
+        sc.pack(fill=tk.X, pady=(0, 20), padx=10)
 
         t = ctk.CTkFrame(sc, fg_color="transparent")
         t.pack(fill=tk.X, pady=(25, 15), padx=25)
@@ -1103,7 +1103,7 @@ class Hermes:
 
         # Bloque 2: Registro de actividad
         lc = ctk.CTkFrame(parent, fg_color=self.colors['bg_log'], corner_radius=30)
-        lc.pack(fill=tk.BOTH, expand=True, pady=(0, 30), padx=10)
+        lc.pack(fill=tk.BOTH, expand=True, pady=0, padx=10)
         lc.grid_columnconfigure(0, weight=1)
         lc.grid_rowconfigure(1, weight=1)
 
@@ -1981,7 +1981,7 @@ class Hermes:
 
         # --- Fila 1: Contenido Principal ---
         self.fidelizado_main_content_frame = ctk.CTkFrame(content, fg_color="transparent")
-        self.fidelizado_main_content_frame.grid(row=1, column=0, sticky="nsew", padx=30, pady=(0, 20))
+        self.fidelizado_main_content_frame.grid(row=1, column=0, sticky="nsew", padx=30, pady=0)
         self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=55) # Columna de inputs
         self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=45) # Columna de controles
         self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=1)
