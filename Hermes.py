@@ -1956,7 +1956,7 @@ class Hermes:
             fidelizado_container,
             fg_color=self.colors['bg_card'],
             corner_radius=30,
-            border_width=1,
+            border_width=0,
             border_color=self._section_border_color()
         )
         content.pack(fill=tk.BOTH, expand=True, padx=0, pady=(10, 0))
