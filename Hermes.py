@@ -253,7 +253,7 @@ class Hermes:
         self.adb_path = tk.StringVar(value="")
         self.delay_min = SafeIntVar(value=10)
         self.delay_max = SafeIntVar(value=15)
-        self.wait_after_open = SafeIntVar(value=15)
+        self.wait_after_open = SafeIntVar(value=8)
         self.wait_after_first_enter = SafeIntVar(value=10)
 
         # Variables para el nuevo modo SMS
@@ -4818,10 +4818,17 @@ class Hermes:
                     return False, False
 
                 wait_time = max(0, int(self.wait_after_open.get()))
-                if wait_time:
-                    time.sleep(wait_time)
-                if self.should_stop:
-                    return False, False
+                if not self._wait_for_chat_ready(
+                    ui_device,
+                    timeout=wait_time,
+                    is_sms=local_is_sms,
+                ):
+                    if self.should_stop:
+                        return False, False
+                    self.log(
+                        "No se detectó la pantalla de chat dentro del tiempo configurado.",
+                        "warning",
+                    )
 
                 msg_to_send = message_to_send
                 if not msg_to_send and not is_group:
@@ -4914,6 +4921,34 @@ class Hermes:
             import traceback
             traceback.print_exc()
             return False
+
+    def _wait_for_chat_ready(self, ui_device, timeout=8, is_sms=False):
+        """Espera de forma dinámica a que el chat esté listo para enviar."""
+
+        def is_ready():
+            try:
+                send_button = self._locate_message_send_button(ui_device, is_sms=is_sms)
+                if send_button:
+                    info = send_button.info or {}
+                    if info.get("enabled", True):
+                        return True
+                edit_text = ui_device(className="android.widget.EditText")
+                if edit_text.exists:
+                    return True
+            except Exception:
+                return False
+            return False
+
+        if is_ready():
+            return True
+
+        end_time = time.time() + max(0, timeout)
+        while time.time() < end_time and not self.should_stop:
+            time.sleep(0.4)
+            if is_ready():
+                return True
+
+        return is_ready()
 
     def _detect_send_failure(self, ui_device, timeout=1.0):
         """Verifica si aparece el mensaje de error de WhatsApp/SMS indicando que no se envió."""
@@ -5976,7 +6011,7 @@ class Hermes:
         ]
         for package in targets:
             close_args = ['-s', device, 'shell', 'am', 'force-stop', package]
-            self._run_adb_command(close_args, timeout=5) # Usar la función helper, ignorar resultado
+            self._run_adb_command(close_args, timeout=3) # Usar la función helper, ignorar resultado
 
 # --- Main y Login ---
 def main():
