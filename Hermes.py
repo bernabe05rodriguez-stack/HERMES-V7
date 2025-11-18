@@ -4464,7 +4464,7 @@ class Hermes:
             time.sleep(0.1)
             elapsed += 0.1
 
-    def _locate_message_send_button(self, ui_device, is_sms=False):
+    def _locate_message_send_button(self, ui_device, is_sms=False, wait_timeout=3):
         """Busca el botón de enviar dentro de la conversación actual."""
         if ui_device is None:
             return None
@@ -4488,7 +4488,7 @@ class Hermes:
         for selector in selectors:
             try:
                 candidate = ui_device(**selector)
-                if not candidate.wait(timeout=3):
+                if not candidate.wait(timeout=wait_timeout):
                     continue
 
                 info = candidate.info or {}
@@ -4505,6 +4505,45 @@ class Hermes:
                 continue
 
         return None
+
+    def _wait_for_chat_ready(self, ui_device, wait_time, expected_package=None, is_sms=False):
+        """Espera a que WhatsApp/SMS esté listo para escribir sin exceder el tiempo máximo."""
+        if ui_device is None:
+            return False
+
+        deadline = time.time() + max(0, wait_time)
+        poll_interval = 0.5
+
+        while not self.should_stop:
+            try:
+                current_app = ui_device.app_current()
+                current_package = None
+                if isinstance(current_app, dict):
+                    current_package = current_app.get("package") or current_app.get("pkg")
+                elif hasattr(current_app, "get"):
+                    current_package = current_app.get("package") or current_app.get("pkg")
+            except Exception:
+                current_package = None
+
+            if expected_package and current_package and current_package != expected_package:
+                pass
+            else:
+                chat_field = ui_device(className="android.widget.EditText")
+                ready_field = chat_field.wait(timeout=0.2)
+                send_button = self._locate_message_send_button(
+                    ui_device,
+                    is_sms=is_sms,
+                    wait_timeout=0.3,
+                )
+                if ready_field and send_button:
+                    return True
+
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                break
+            self._controlled_sleep(min(poll_interval, remaining))
+
+        return False
 
     def _locate_voice_note_button(self, ui_device):
         """Localiza específicamente el botón de nota de voz (micrófono)."""
@@ -4817,9 +4856,21 @@ class Hermes:
                     self.log(f"Fallo al abrir link para {num_display}.", 'error')
                     return False, False
 
+                active_package = None if local_is_sms else whatsapp_package
+
                 wait_time = max(0, int(self.wait_after_open.get()))
-                if wait_time:
-                    time.sleep(wait_time)
+                chat_ready = self._wait_for_chat_ready(
+                    ui_device,
+                    wait_time,
+                    expected_package=active_package,
+                    is_sms=local_is_sms,
+                )
+                if not chat_ready:
+                    self.log(
+                        "No se detectó la conversación lista tras la espera configurada.",
+                        'error',
+                    )
+                    return False, False
                 if self.should_stop:
                     return False, False
 
@@ -4834,7 +4885,6 @@ class Hermes:
                         msg_to_send = None
 
                 try:
-                    active_package = None if local_is_sms else whatsapp_package
 
                     if self._maybe_send_audio(
                         ui_device,
