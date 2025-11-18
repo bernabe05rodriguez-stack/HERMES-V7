@@ -4558,18 +4558,30 @@ class Hermes:
             time.sleep(0.1)
             elapsed += 0.1
 
-    def _locate_message_send_button(self, ui_device, is_sms=False, wait_timeout=3):
+    def _locate_message_send_button(self, ui_device, is_sms=False, wait_timeout=4):
         """Busca el botón de enviar dentro de la conversación actual."""
         if ui_device is None:
             return None
 
         selectors = [
             dict(description="Enviar"),
+            dict(description="Enviar mensaje"),
+            dict(description="Send"),
             dict(descriptionMatches="(?i).*enviar.*"),
+            dict(descriptionMatches="(?i).*send.*"),
             dict(text="Enviar"),
+            dict(text="Enviar mensaje"),
+            dict(text="Send"),
             dict(textMatches="(?i).*enviar.*"),
+            dict(textMatches="(?i).*send.*"),
+            dict(textMatches=r"^→$"),
             dict(resourceId="com.whatsapp:id/send"),
             dict(resourceId="com.whatsapp.w4b:id/send"),
+            dict(resourceId="com.whatsapp:id/send_button"),
+            dict(resourceId="com.whatsapp.w4b:id/send_button"),
+            dict(resourceId="com.whatsapp:id/entry"),
+            dict(resourceId="com.whatsapp.w4b:id/entry"),
+            dict(resourceIdMatches=r"(?i)com\.whatsapp(\.w4b)?\:id/(send(_button)?|entry)")
         ]
 
         if is_sms:
@@ -4579,24 +4591,28 @@ class Hermes:
                 dict(textMatches="(?i).*sms.*enviar.*"),
             ])
 
-        for selector in selectors:
-            try:
-                candidate = ui_device(**selector)
-                if not candidate.wait(timeout=wait_timeout):
+        for attempt in range(2):
+            for selector in selectors:
+                try:
+                    candidate = ui_device(**selector)
+                    if not candidate.wait(timeout=wait_timeout):
+                        continue
+
+                    info = candidate.info or {}
+                    class_name = (info.get('className') or '').lower()
+                    if 'edittext' in class_name:
+                        continue
+
+                    bounds = info.get('bounds') or {}
+                    if not bounds or bounds.get('left') == bounds.get('right'):
+                        continue
+
+                    return candidate
+                except Exception:
                     continue
 
-                info = candidate.info or {}
-                class_name = (info.get('className') or '').lower()
-                if 'edittext' in class_name:
-                    continue
-
-                bounds = info.get('bounds') or {}
-                if not bounds or bounds.get('left') == bounds.get('right'):
-                    continue
-
-                return candidate
-            except Exception:
-                continue
+            if attempt == 0 and not self.should_stop:
+                time.sleep(0.2)
 
         return None
 
