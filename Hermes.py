@@ -1619,13 +1619,13 @@ class Hermes:
             num_bucles = max(1, self.manual_loops_var.get() if hasattr(self, 'manual_loops_var') else 1)
             whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
 
-            per_account_per_group = num_bucles
-            total_per_group = per_account_per_group * num_devices * whatsapp_multiplier
+            per_account_total = num_bucles * groups_count
+            total_all_accounts = per_account_total * num_devices * whatsapp_multiplier
 
             if num_devices > 1 or whatsapp_multiplier > 1:
-                stat_text = f"{per_account_per_group} por cuenta (~{total_per_group} total/grupo)"
+                stat_text = f"{per_account_total} por cuenta (~{total_all_accounts} total)"
             else:
-                stat_text = f"{per_account_per_group} por cuenta"
+                stat_text = f"{per_account_total} por cuenta"
 
             self.stat_per_whatsapp.configure(text=f"Mensajes por Grupo: {stat_text}")
             return
