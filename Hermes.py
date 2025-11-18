@@ -1607,7 +1607,7 @@ class Hermes:
 
     def update_per_whatsapp_stat(self, *args):
         """Calcula y actualiza la estadística de mensajes por cuenta de WhatsApp."""
-        num_devices = len(self.devices)
+        num_devices = len(self._get_filtered_devices(silent=True))
 
         if self.fidelizado_mode == "GRUPOS":
             groups_count = len(getattr(self, 'manual_inputs_groups', []))
@@ -2963,9 +2963,11 @@ class Hermes:
                 messagebox.showerror("Error", "Modo Números requiere números cargados.", parent=self.root); return
             if not self.manual_messages_numbers:
                 messagebox.showerror("Error", "Modo Números requiere mensajes cargados.", parent=self.root); return
-            
+
             # Calcular total_messages para Modo Números según WhatsApp seleccionado
-            num_dev = len(self.devices)
+            num_dev = len(self._get_filtered_devices(silent=True))
+            if num_dev == 0:
+                messagebox.showerror("Error", "No hay dispositivos compatibles con el filtro de WhatsApp seleccionado.", parent=self.root); return
             num_numeros = len(self.manual_inputs_numbers)
             whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
             self.total_messages = self.manual_loops * num_numeros * num_dev * whatsapp_multiplier
@@ -2977,9 +2979,11 @@ class Hermes:
                 messagebox.showerror("Error", "Modo Grupos requiere grupos cargados.", parent=self.root); return
             if not self.manual_messages_groups:
                 messagebox.showerror("Error", "Modo Grupos requiere mensajes cargados.", parent=self.root); return
-            
+
             # --- CÁLCULO CORREGIDO ---
-            num_dev = len(self.devices)
+            num_dev = len(self._get_filtered_devices(silent=True))
+            if num_dev == 0:
+                messagebox.showerror("Error", "No hay dispositivos compatibles con el filtro de WhatsApp seleccionado.", parent=self.root); return
             num_grupos = len(self.manual_inputs_groups)
             num_bucles = self.manual_loops_var.get()
             whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
@@ -2992,14 +2996,16 @@ class Hermes:
                 messagebox.showerror("Error", "Modo Mixto requiere Grupos Y Números cargados.", parent=self.root); return
             if not self.manual_messages_numbers:
                 messagebox.showerror("Error", "Modo Mixto requiere mensajes cargados.", parent=self.root); return
-            
+
             # --- CÁLCULO CORREGIDO ---
-            num_dev = len(self.devices)
+            num_dev = len(self._get_filtered_devices(silent=True))
+            if num_dev == 0:
+                messagebox.showerror("Error", "No hay dispositivos compatibles con el filtro de WhatsApp seleccionado.", parent=self.root); return
             num_grupos = len(self.manual_inputs_groups)
             num_numeros = len(self.manual_inputs_numbers)
             num_bucles = self.manual_loops_var.get()
             whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
-            
+
             tasks_per_bucle = (num_grupos + num_numeros) * num_dev * whatsapp_multiplier
             self.total_messages = num_bucles * tasks_per_bucle
             wa_mode_str = self.whatsapp_mode.get()
@@ -3436,7 +3442,7 @@ class Hermes:
 
                     self.run_single_task(device, link, None, task_counter, whatsapp_package=wa_package)
     
-    def _get_filtered_devices(self):
+    def _get_filtered_devices(self, silent=False):
         """
         Filtra self.devices según el tipo de WhatsApp seleccionado.
         Devuelve una lista de series de dispositivos a utilizar.
@@ -3444,11 +3450,24 @@ class Hermes:
         whatsapp_mode = self.whatsapp_mode.get()
 
         if whatsapp_mode == "Ambas":
-            self.log("Modo 'Ambas' seleccionado, usando todos los dispositivos.", 'info')
+            if not silent:
+                self.log("Modo 'Ambas' seleccionado, usando todos los dispositivos.", 'info')
             return self.devices
 
+        def _log(msg, level='info'):
+            if not silent:
+                self.log(msg, level)
+
         if not self.detected_phone_lines:
-            self.log("No se han detectado líneas de WhatsApp. No se puede filtrar. Usando todos los dispositivos.", 'warning')
+            inferred_lines = self._infer_lines_from_installed_apps(log_errors=not silent)
+            if inferred_lines:
+                allowed_serials = {line['device'] for line in inferred_lines if line['type'] == ("WhatsApp" if whatsapp_mode == "Normal" else "WhatsApp Business")}
+                filtered_devices = [device for device in self.devices if device in allowed_serials]
+                if filtered_devices:
+                    _log("No se detectaron números, se usarán las apps instaladas para filtrar dispositivos.", 'info')
+                    return filtered_devices
+
+            _log("No se han detectado líneas de WhatsApp. No se puede filtrar. Usando todos los dispositivos.", 'warning')
             return self.devices
 
         target_type = "WhatsApp" if whatsapp_mode == "Normal" else "WhatsApp Business"
@@ -3457,7 +3476,7 @@ class Hermes:
 
         filtered_devices = [device for device in self.devices if device in allowed_serials]
 
-        self.log(f"Filtrando por '{whatsapp_mode}'. Dispositivos a usar: {len(filtered_devices)} de {len(self.devices)}", 'info')
+        _log(f"Filtrando por '{whatsapp_mode}'. Dispositivos a usar: {len(filtered_devices)} de {len(self.devices)}", 'info')
 
         return filtered_devices
 
@@ -5417,6 +5436,42 @@ class Hermes:
             messagebox.showwarning("Sin dispositivos", "No hay dispositivos conectados. Detecta dispositivos primero.", parent=self.root)
             return
         threading.Thread(target=self._detect_and_prepare_phone_lines, args=(True,), daemon=True).start()
+
+    def _infer_lines_from_installed_apps(self, log_errors=True):
+        """Inferir líneas disponibles solo revisando paquetes instalados cuando no hay números detectados."""
+        inferred = []
+        adb_binary = self.adb_path.get() if hasattr(self, 'adb_path') else None
+
+        if not adb_binary or not os.path.exists(adb_binary):
+            return inferred
+
+        for device_serial in self.devices:
+            try:
+                result = subprocess.run(
+                    [adb_binary, '-s', device_serial, 'shell', 'pm', 'list', 'packages'],
+                    capture_output=True,
+                    text=True,
+                    timeout=8,
+                    encoding='utf-8',
+                    errors='ignore'
+                )
+                if result.returncode != 0:
+                    if log_errors:
+                        self.log(f"No se pudo listar paquetes en {device_serial}.", 'warning')
+                    continue
+
+                packages = {line.split(':', 1)[1] for line in result.stdout.splitlines() if line.startswith('package:')}
+
+                if 'com.whatsapp' in packages:
+                    inferred.append({"device": device_serial, "type": "WhatsApp", "number": "(sin detectar)", "package": "com.whatsapp"})
+                if 'com.whatsapp.w4b' in packages:
+                    inferred.append({"device": device_serial, "type": "WhatsApp Business", "number": "(sin detectar)", "package": "com.whatsapp.w4b"})
+
+            except Exception as e:
+                if log_errors:
+                    self.log(f"Error al inferir apps instaladas en {device_serial}: {e}", 'warning')
+
+        return inferred
 
     def _detect_and_prepare_phone_lines(self, show_results_popup=False):
         """
