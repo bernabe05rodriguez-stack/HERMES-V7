@@ -617,6 +617,7 @@ class Hermes:
         self.sms_view_frame.pack_forget()
         self.traditional_view_frame.pack(fill=tk.BOTH, expand=True)
         self.update_per_whatsapp_stat()
+        self._apply_fidelizado_layout_styles(False)
 
     def show_fidelizado_view(self):
         """Muestra la vista de Fidelizado, repoblando los datos, y oculta las demás."""
@@ -626,6 +627,7 @@ class Hermes:
         self.sms_view_frame.pack_forget()
         self.fidelizado_view_frame.pack(fill=tk.BOTH, expand=True)
         self.update_per_whatsapp_stat()
+        self._apply_fidelizado_layout_styles(True)
 
     def show_sms_view(self):
         """Activa la vista de envío por SMS."""
@@ -642,6 +644,38 @@ class Hermes:
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack(fill=tk.BOTH, expand=True)
         self.update_per_whatsapp_stat()
+        self._apply_fidelizado_layout_styles(False)
+
+    def _apply_fidelizado_layout_styles(self, active):
+        """Ajusta bordes y altura de tarjetas cuando se activa el modo Fidelizado."""
+        if hasattr(self, 'fidelizado_main_card'):
+            self.fidelizado_main_card.configure(
+                corner_radius=32 if active else 30,
+                border_width=1 if active else 0,
+                border_color=self._section_border_color()
+            )
+
+        if hasattr(self, 'log_card'):
+            if active:
+                start_height = self.fidelizado_btn_start.cget("height") if hasattr(self, 'fidelizado_btn_start') else 50
+                target_height = start_height + 90
+                self.log_card.configure(height=target_height)
+                self.log_card.pack_configure(fill=tk.X, expand=False, padx=10, pady=(0, 10))
+                self.log_card.pack_propagate(False)
+
+                if hasattr(self, 'log_card_header') and hasattr(self, 'log_card_header_padding'):
+                    self.log_card_header.grid_configure(padx=20, pady=(20, 12))
+                if hasattr(self, 'log_card_body') and hasattr(self, 'log_card_body_padding'):
+                    self.log_card_body.grid_configure(padx=20, pady=(0, 15))
+            else:
+                self.log_card.configure(height=0)
+                self.log_card.pack_configure(**self.log_card_pack_defaults)
+                self.log_card.pack_propagate(True)
+
+                if hasattr(self, 'log_card_header') and hasattr(self, 'log_card_header_padding'):
+                    self.log_card_header.grid_configure(**self.log_card_header_padding)
+                if hasattr(self, 'log_card_body') and hasattr(self, 'log_card_body_padding'):
+                    self.log_card_body.grid_configure(**self.log_card_body_padding)
 
     def setup_traditional_view(self, parent):
         parent.grid_columnconfigure(0, weight=1)
@@ -1066,6 +1100,7 @@ class Hermes:
         # Bloque 1: Estado y Progreso
         sc = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
         sc.pack(fill=tk.X, pady=(0, 20), padx=10)
+        self.state_progress_card = sc
 
         t = ctk.CTkFrame(sc, fg_color="transparent")
         t.pack(fill=tk.X, pady=(25, 15), padx=25)
@@ -1104,11 +1139,15 @@ class Hermes:
         # Bloque 2: Registro de actividad
         lc = ctk.CTkFrame(parent, fg_color=self.colors['bg_log'], corner_radius=30)
         lc.pack(fill=tk.BOTH, expand=True, pady=0, padx=10)
+        self.log_card_pack_defaults = {'fill': tk.BOTH, 'expand': True, 'pady': 0, 'padx': 10}
         lc.grid_columnconfigure(0, weight=1)
         lc.grid_rowconfigure(1, weight=1)
+        self.log_card = lc
 
         ltf = ctk.CTkFrame(lc, fg_color="transparent")
         ltf.grid(row=0, column=0, sticky='ew', pady=(25, 15), padx=25)
+        self.log_card_header = ltf
+        self.log_card_header_padding = {'padx': 25, 'pady': (25, 15)}
         ctk.CTkLabel(ltf, text="▶", font=('Inter', 14), fg_color="transparent", text_color=self.colors['log_info']).pack(side=tk.LEFT, padx=(0, 8))
         ctk.CTkLabel(ltf, text="Registro de actividad", font=self.fonts['log_title'], fg_color="transparent", text_color=self.colors['log_title_color']).pack(side=tk.LEFT)
         self.toggle_log_view_btn = ctk.CTkButton(
@@ -1130,6 +1169,8 @@ class Hermes:
         lco.grid(row=1, column=0, sticky='nsew', pady=(0, 25), padx=25)
         lco.grid_columnconfigure(0, weight=1)
         lco.grid_rowconfigure(0, weight=1)
+        self.log_card_body = lco
+        self.log_card_body_padding = {'padx': 25, 'pady': (0, 25)}
 
         self.log_text = ctk.CTkTextbox(lco, fg_color=self.colors['bg_log'], text_color=self.colors['log_text'], font=self.fonts['log_text'], corner_radius=10, activate_scrollbars=True, border_width=1, border_color="#444851")
         self.log_text.grid(row=0, column=0, sticky="nsew")
@@ -1955,10 +1996,11 @@ class Hermes:
         content = ctk.CTkFrame(
             fidelizado_container,
             fg_color=self.colors['bg_card'],
-            corner_radius=30,
-            border_width=0,
+            corner_radius=32,
+            border_width=1,
             border_color=self._section_border_color()
         )
+        self.fidelizado_main_card = content
         content.pack(fill=tk.BOTH, expand=True, padx=0, pady=10)
 
         # Layout principal reconfigurado para una columna expandible
