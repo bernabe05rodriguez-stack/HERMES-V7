@@ -1983,10 +1983,9 @@ class Hermes:
         # Contenido principal de Fidelizado
         content = ctk.CTkFrame(
             fidelizado_container,
-            fg_color=self.colors['bg_card'],
-            corner_radius=32,
-            border_width=1,
-            border_color=self._section_border_color()
+            fg_color=self.colors['bg'],  # mismo color que el fondo general
+            corner_radius=0,             # sin esquinas redondeadas
+            border_width=0               # sin borde
         )
         self.fidelizado_main_card = content
         content.pack(fill=tk.X, expand=False, padx=10, pady=(10, 0))
@@ -2245,8 +2244,8 @@ class Hermes:
         # --- Botones de Acción ---
         self.fidelizado_controls_col.grid_rowconfigure(2, weight=1)
 
-        self.actions_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'])
-        self.actions_frame.grid(row=2, column=0, sticky="nsew", pady=(15, 0))
+        self.actions_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color="transparent")
+        self.actions_frame.grid(row=2, column=0, sticky="nsew", padx=0, pady=(15, 0))
         self.actions_frame.grid_columnconfigure(0, weight=1)
         self.actions_frame.grid_columnconfigure(1, weight=1)
 
