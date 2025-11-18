@@ -1989,7 +1989,7 @@ class Hermes:
             border_color=self._section_border_color()
         )
         self.fidelizado_main_card = content
-        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 0))
+        content.pack(fill=tk.X, expand=False, padx=10, pady=(10, 0))
 
         # Layout principal reconfigurado para una columna expandible
         content.grid_columnconfigure(0, weight=1)
