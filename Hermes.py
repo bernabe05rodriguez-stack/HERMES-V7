@@ -4932,6 +4932,9 @@ class Hermes:
                         return False, False
 
                     send_button.click()
+                    self._controlled_sleep(0.4)
+                    # Pulsar nuevamente para minimizar el riesgo de que el mensaje quede sin enviar
+                    send_button.click()
                     self._controlled_sleep(2)
 
                     if self._detect_send_failure(ui_device):
