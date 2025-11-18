@@ -656,26 +656,14 @@ class Hermes:
             )
 
         if hasattr(self, 'log_card'):
-            if active:
-                start_height = self.fidelizado_btn_start.cget("height") if hasattr(self, 'fidelizado_btn_start') else 50
-                target_height = start_height + 90
-                self.log_card.configure(height=target_height)
-                self.log_card.pack_configure(fill=tk.X, expand=False, padx=10, pady=(0, 10))
-                self.log_card.pack_propagate(False)
+            self.log_card.configure(height=0)
+            self.log_card.pack_configure(**self.log_card_pack_defaults)
+            self.log_card.pack_propagate(True)
 
-                if hasattr(self, 'log_card_header') and hasattr(self, 'log_card_header_padding'):
-                    self.log_card_header.grid_configure(padx=20, pady=(20, 12))
-                if hasattr(self, 'log_card_body') and hasattr(self, 'log_card_body_padding'):
-                    self.log_card_body.grid_configure(padx=20, pady=(0, 15))
-            else:
-                self.log_card.configure(height=0)
-                self.log_card.pack_configure(**self.log_card_pack_defaults)
-                self.log_card.pack_propagate(True)
-
-                if hasattr(self, 'log_card_header') and hasattr(self, 'log_card_header_padding'):
-                    self.log_card_header.grid_configure(**self.log_card_header_padding)
-                if hasattr(self, 'log_card_body') and hasattr(self, 'log_card_body_padding'):
-                    self.log_card_body.grid_configure(**self.log_card_body_padding)
+            if hasattr(self, 'log_card_header') and hasattr(self, 'log_card_header_padding'):
+                self.log_card_header.grid_configure(**self.log_card_header_padding)
+            if hasattr(self, 'log_card_body') and hasattr(self, 'log_card_body_padding'):
+                self.log_card_body.grid_configure(**self.log_card_body_padding)
 
     def setup_traditional_view(self, parent):
         parent.grid_columnconfigure(0, weight=1)
@@ -1989,7 +1977,7 @@ class Hermes:
             self._load_default_messages()
 
         # Contenedor principal de la vista Fidelizado
-        fidelizado_container = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'])
+        fidelizado_container = ctk.CTkFrame(parent, fg_color="transparent")
         fidelizado_container.pack(fill=tk.BOTH, expand=True)
 
         # Contenido principal de Fidelizado
@@ -2001,7 +1989,7 @@ class Hermes:
             border_color=self._section_border_color()
         )
         self.fidelizado_main_card = content
-        content.pack(fill=tk.BOTH, expand=True, padx=0, pady=10)
+        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 0))
 
         # Layout principal reconfigurado para una columna expandible
         content.grid_columnconfigure(0, weight=1)
