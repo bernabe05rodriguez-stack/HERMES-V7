@@ -2243,8 +2243,10 @@ class Hermes:
         ctk.CTkRadioButton(mixto_radio_frame, text="3G:1N", variable=self.mixto_variant, value=3, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
 
         # --- Botones de Acción ---
-        self.actions_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color="transparent")
-        self.actions_frame.grid(row=2, column=0, sticky="sew", pady=(15, 0))
+        self.fidelizado_controls_col.grid_rowconfigure(2, weight=1)
+
+        self.actions_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'])
+        self.actions_frame.grid(row=2, column=0, sticky="nsew", pady=(15, 0))
         self.actions_frame.grid_columnconfigure(0, weight=1)
         self.actions_frame.grid_columnconfigure(1, weight=1)
 
