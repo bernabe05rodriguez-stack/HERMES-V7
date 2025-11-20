@@ -3259,6 +3259,7 @@ class Hermes:
         if self.should_stop:
             return False
 
+        send_start = time.time()
         # Enviar mensaje, pasando el objeto ui_device
         success = self.send_msg(
             device,
@@ -3287,16 +3288,23 @@ class Hermes:
 
         # Espera entre mensajes (solo si no es la última tarea)
         if task_index < self.total_messages and not self.should_stop:
+            send_elapsed = time.time() - send_start
             if self.manual_mode:
                 # FIX: Usar las nuevas variables de retardo de envío
-                delay = random.uniform(self.fidelizado_send_delay_min.get(), self.fidelizado_send_delay_max.get())
+                target_delay = random.uniform(self.fidelizado_send_delay_min.get(), self.fidelizado_send_delay_max.get())
             elif self.sms_mode_active:
-                delay = random.uniform(self.sms_delay_min.get(), self.sms_delay_max.get())
+                target_delay = random.uniform(self.sms_delay_min.get(), self.sms_delay_max.get())
             else:
-                delay = random.uniform(self.delay_min.get(), self.delay_max.get())
-            self.log(f"Esperando {delay:.1f}s... (Post-tarea {task_index})", 'info')
+                target_delay = random.uniform(self.delay_min.get(), self.delay_max.get())
+
+            remaining_delay = max(0, target_delay - send_elapsed)
+            self.log(
+                f"Esperando {remaining_delay:.1f}s (objetivo {target_delay:.1f}s, envío tomó {send_elapsed:.1f}s)"
+                f"... (Post-tarea {task_index})",
+                'info'
+            )
             elapsed = 0
-            while elapsed < delay and not self.should_stop:
+            while elapsed < remaining_delay and not self.should_stop:
                 while self.is_paused and not self.should_stop: time.sleep(0.1)
                 if self.should_stop: break
                 time.sleep(0.1); elapsed += 0.1
