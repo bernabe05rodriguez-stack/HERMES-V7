@@ -1554,24 +1554,31 @@ class Hermes:
 
     def update_stats(self):
         """Actualiza todos los contadores y barras de progreso en la UI."""
-        self.stat_total.configure(text=str(self.total_messages))
+        effective_total = self.total_messages
+
+        # En modo SMS, garantizar que el total refleje la cantidad de enlaces cargados
+        if self.sms_mode_active and effective_total == 0 and self.links:
+            effective_total = len(self.links)
+            self.total_messages = effective_total
+
+        self.stat_total.configure(text=str(effective_total))
         self.stat_sent.configure(text=str(self.sent_count))
 
-        if self.total_messages > 0:
+        if effective_total > 0:
             # Usar sent_count en lugar de current_index para el %
-            prog_percent = int((self.sent_count / self.total_messages) * 100)
-            
+            prog_percent = int((self.sent_count / effective_total) * 100)
+
             # current_index (el que se está procesando)
             prog_label_idx = self.current_index
-            
+
             self.stat_progress.configure(text=f"{prog_percent}%")
             self.progress_bar.place(relwidth=(prog_percent / 100))
-            self.progress_label.configure(text=f"{self.sent_count}/{self.total_messages}") # Mostrar enviados/total
+            self.progress_label.configure(text=f"{self.sent_count}/{effective_total}") # Mostrar enviados/total
 
             if self.start_time and prog_label_idx > 0:
                 el = datetime.now() - self.start_time
                 self.time_elapsed.configure(text=f"Trans: {str(el).split('.')[0]}")
-                
+
                 # Calcular tiempo promedio usando lista de tiempos reales
                 if len(self.task_times) > 0:
                     # Usar promedio de los últimos tiempos para mejor precisión
@@ -1580,9 +1587,9 @@ class Hermes:
                 else:
                     # Fallback al método anterior si no hay datos
                     avg = el.total_seconds() / prog_label_idx
-                
+
                 # Calcular tiempo restante
-                tasks_remaining = self.total_messages - self.sent_count
+                tasks_remaining = effective_total - self.sent_count
                 rem_s = avg * tasks_remaining
                 rem = timedelta(seconds=int(rem_s))
                 self.time_remaining.configure(text=f"Rest: {str(rem).split('.')[0]}")
@@ -1659,10 +1666,13 @@ class Hermes:
             return
 
         if self.sms_mode_active:
-            if not self.links or num_devices == 0:
+            sms_devices = len(self.devices)
+            sms_total = self.total_messages or len(self.links)
+
+            if not self.links or sms_devices == 0:
                 self.stat_per_whatsapp.configure(text="Mensajes por dispositivo (SMS): --")
             else:
-                per_device = len(self.links) / num_devices
+                per_device = sms_total / sms_devices
                 self.stat_per_whatsapp.configure(text=f"Mensajes por dispositivo (SMS): ~{round(per_device)}")
             return
 
@@ -5026,8 +5036,12 @@ class Hermes:
 
                     send_button.click()
                     self._controlled_sleep(0.4)
-                    # Pulsar nuevamente para minimizar el riesgo de que el mensaje quede sin enviar
-                    send_button.click()
+
+                    # En SMS no se reenvía el Enter para evitar duplicados
+                    if not local_is_sms:
+                        # Pulsar nuevamente para minimizar el riesgo de que el mensaje quede sin enviar
+                        send_button.click()
+
                     self._controlled_sleep(2)
 
                     if self._detect_send_failure(ui_device):
