@@ -4570,7 +4570,7 @@ class Hermes:
             time.sleep(0.1)
             elapsed += 0.1
 
-    def _locate_message_send_button(self, ui_device, is_sms=False, wait_timeout=4):
+    def _locate_message_send_button(self, ui_device, is_sms=False, wait_timeout=2):
         """Busca el botón de enviar dentro de la conversación actual."""
         if ui_device is None:
             return None
@@ -4607,7 +4607,7 @@ class Hermes:
             for selector in selectors:
                 try:
                     candidate = ui_device(**selector)
-                    if not candidate.wait(timeout=wait_timeout):
+                    if not candidate.exists and not candidate.wait_exists(timeout=wait_timeout):
                         continue
 
                     info = candidate.info or {}
@@ -4624,7 +4624,7 @@ class Hermes:
                     continue
 
             if attempt == 0 and not self.should_stop:
-                time.sleep(0.2)
+                time.sleep(0.1)
 
         return None
 
@@ -5022,7 +5022,7 @@ class Hermes:
                     needs_text_input = is_group or local_is_sms
                     if needs_text_input:
                         edit_text = ui_device(className="android.widget.EditText")
-                        if not edit_text.wait(timeout=10):
+                        if not edit_text.wait(timeout=5):
                             self.log("No se encontró el campo de texto para escribir.", "error")
                             return False, False
                         if msg_to_send is not None:
@@ -5037,21 +5037,21 @@ class Hermes:
                         return False, False
 
                     send_button.click()
-                    self._controlled_sleep(0.4)
+                    self._controlled_sleep(0.25)
 
                     # En SMS no se reenvía el Enter para evitar duplicados
                     if not local_is_sms:
                         # Pulsar nuevamente para minimizar el riesgo de que el mensaje quede sin enviar
                         send_button.click()
 
-                    self._controlled_sleep(2)
+                    self._controlled_sleep(1.0)
 
                     if self._detect_send_failure(ui_device):
                         self.log("Se detectó el mensaje 'No se envió'.", 'warning')
                         return False, True
 
                     self.log("Mensaje enviado con éxito.", 'success')
-                    self._controlled_sleep(1.5)
+                    self._controlled_sleep(0.6)
                     self._maybe_send_audio(
                         ui_device,
                         device,
