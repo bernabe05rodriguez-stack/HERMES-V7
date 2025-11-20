@@ -4607,8 +4607,21 @@ class Hermes:
             for selector in selectors:
                 try:
                     candidate = ui_device(**selector)
-                    if not candidate.exists and not candidate.wait_exists(timeout=wait_timeout):
-                        continue
+
+                    # Algunos nodos fallan en el método "wait" con errores del JSON-RPC.
+                    # Para evitar que el flujo completo se interrumpa, comprobamos de forma
+                    # segura la existencia y pasamos al siguiente selector si ocurre un error.
+                    try:
+                        candidate_exists = candidate.exists
+                    except Exception:
+                        candidate_exists = False
+
+                    if not candidate_exists:
+                        try:
+                            if not candidate.wait_exists(timeout=wait_timeout):
+                                continue
+                        except Exception:
+                            continue
 
                     info = candidate.info or {}
                     class_name = (info.get('className') or '').lower()
