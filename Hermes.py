@@ -328,7 +328,7 @@ class Hermes:
         
         # Variables de tiempo para Modo Grupos Dual
         self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
-        self.wait_between_enters = SafeIntVar(value=3)  # Tiempo entre el primer y segundo Enter
+        self.wait_between_enters = SafeIntVar(value=3)  # Tiempo de espera tras presionar Enter
         self.wait_between_messages = SafeIntVar(value=2)  # Tiempo entre Business y Normal
         self.whatsapp_mode = tk.StringVar(value="Todas")  # Qué WhatsApp usar: Normal, Business, Ambos
         self.whatsapp_mode.trace_add('write', self.update_per_whatsapp_stat)
@@ -4015,7 +4015,7 @@ class Hermes:
           - TODOS los dispositivos se unen SIMULTÁNEAMENTE según la selección de WhatsApp
         Proceso:
           - Presiona DPAD_DOWN 3 veces (con pausas de 2s)
-          - Presiona ENTER dos veces (doble Enter)
+          - Presiona ENTER
           - Presiona BACK para salir
         """
         try:
@@ -4082,14 +4082,8 @@ class Hermes:
                     if self.should_stop:
                         return False
 
-                    # Presionar ENTER (primer Enter)
+                    # Presionar ENTER
                     enter_args = ['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENTER']
-                    self._run_adb_command(enter_args, timeout=10)
-
-                    # Esperar 0.5 segundos entre Enters (reducido de 1s)
-                    time.sleep(0.5)
-
-                    # Presionar ENTER (segundo Enter)
                     self._run_adb_command(enter_args, timeout=10)
 
                     # Esperar 1 segundo (reducido de 2s)
