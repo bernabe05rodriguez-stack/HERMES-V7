@@ -517,7 +517,8 @@ class Hermes:
 
         self.main_layout.grid_columnconfigure(0, weight=1, uniform='main_panels', minsize=0)
         self.main_layout.grid_columnconfigure(1, weight=0, minsize=0)
-        self.main_layout.grid_rowconfigure(1, weight=1)
+        self.main_layout.grid_rowconfigure(0, weight=1)
+        self.main_layout.grid_rowconfigure(1, weight=0)
         self.left_panel.grid(row=0, column=0, sticky='nsew', padx=0, pady=0)
         self._hide_right_panel()
         self._current_main_layout = 'single'
