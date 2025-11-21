@@ -487,6 +487,7 @@ class Hermes:
         right = ctk.CTkFrame(self.main_layout, fg_color="transparent")
         self.left_panel = left
         self.right_panel = right
+        self.right_panel_visible = True
         self._current_main_layout = None
 
         self.root.bind("<Configure>", self._on_main_configure)
@@ -503,13 +504,16 @@ class Hermes:
         if not hasattr(self, 'right_panel'):
             return
 
-        # Forzar reconfiguración para que grid() vuelva a colocarlo si estaba oculto
+        self.right_panel_visible = True
         self._current_main_layout = None
+        # Forzar reconfiguración para que grid() vuelva a colocarlo si estaba oculto
         self._update_main_layout()
 
     def _hide_right_panel(self):
         """Oculta el panel derecho en el menú principal."""
         if hasattr(self, 'right_panel'):
+            self.right_panel_visible = False
+            self._current_main_layout = None
             self.right_panel.grid_remove()
 
     def _update_main_layout(self, width=None):
@@ -518,6 +522,15 @@ class Hermes:
             return
         if not width:
             width = self.root.winfo_width() - 80 # 80 por el padding
+
+        if not self.right_panel_visible:
+            self.main_layout.grid_columnconfigure(0, weight=1, uniform='main_panels', minsize=0)
+            self.main_layout.grid_columnconfigure(1, weight=0, minsize=0)
+            self.main_layout.grid_rowconfigure(1, weight=0)
+            self.left_panel.grid(row=0, column=0, sticky='nsew', padx=0, pady=0)
+            self.right_panel.grid_remove()
+            self._current_main_layout = 'hidden'
+            return
 
         mode = 'stacked' if width < 1100 else 'columns'
 
