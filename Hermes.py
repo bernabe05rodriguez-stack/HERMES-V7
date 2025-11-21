@@ -611,6 +611,7 @@ class Hermes:
         container.grid_columnconfigure(0, weight=1)
         container.grid_columnconfigure(2, weight=1)
         container.grid_rowconfigure(1, weight=1)
+        container.grid_rowconfigure(2, weight=0)
 
         header = ctk.CTkFrame(container, fg_color="transparent")
         header.grid(row=0, column=1, sticky="n", padx=10, pady=(20, 28))
@@ -649,6 +650,34 @@ class Hermes:
             image_filename="SMS.png",
             command=self.show_sms_view
         )
+
+        actions = ctk.CTkFrame(container, fg_color="transparent")
+        actions.grid(row=2, column=1, sticky="ew", padx=40, pady=(0, 26))
+        actions.grid_columnconfigure(0, weight=1)
+        actions.grid_columnconfigure(1, weight=1)
+
+        btn_kwargs = dict(
+            fg_color=self.colors['action_mode'],
+            hover_color=self.hover_colors['action_mode'],
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['button'],
+            corner_radius=22,
+            height=48
+        )
+
+        ctk.CTkButton(
+            actions,
+            text="Abrir WhatsApp",
+            command=self.show_traditional_view,
+            **btn_kwargs
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 10))
+
+        ctk.CTkButton(
+            actions,
+            text="Abrir SMS",
+            command=self.show_sms_view,
+            **btn_kwargs
+        ).grid(row=0, column=1, sticky="ew", padx=(10, 0))
 
     def _build_menu_card(self, parent, column, title, description, command, image_filename=None):
         card = ctk.CTkFrame(
