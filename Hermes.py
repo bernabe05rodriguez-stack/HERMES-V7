@@ -599,6 +599,14 @@ class Hermes:
         self.sms_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
         self.setup_sms_view(self.sms_view_frame)
 
+        for frame in (
+            self.main_menu_frame,
+            self.traditional_view_frame,
+            self.fidelizado_view_frame,
+            self.sms_view_frame,
+        ):
+            frame.pack_propagate(False)
+
         # Mostrar el menú principal por defecto
         self.show_main_menu()
 
