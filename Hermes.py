@@ -493,54 +493,34 @@ class Hermes:
         self.setup_right(right) # FIX: Inicializar el panel derecho primero para que exista el log_text
         self.setup_left(left)
         self.root.update_idletasks()
-        self._update_main_layout(self.root.winfo_width())
+        self._update_main_layout()
 
     def _on_main_configure(self, event):
-        self._update_main_layout(self.root.winfo_width())
+        self._update_main_layout()
 
     def _show_right_panel(self):
-        """Garantiza que el panel derecho esté visible y posicionado correctamente."""
-        if not hasattr(self, 'right_panel'):
-            return
-
-        # Forzar reconfiguración para que grid() vuelva a colocarlo si estaba oculto
-        self._current_main_layout = None
+        """Se mantiene el panel derecho oculto para simplificar la interfaz."""
         self._update_main_layout()
 
     def _hide_right_panel(self):
-        """Oculta el panel derecho en el menú principal."""
+        """Oculta el panel derecho en todas las vistas."""
         if hasattr(self, 'right_panel'):
             self.right_panel.grid_remove()
 
-    def _update_main_layout(self, width=None):
-        """Cambia entre vista de 2 columnas o 1 columna (apilada) si la ventana es muy angosta."""
-        if not hasattr(self, 'left_panel') or not hasattr(self, 'right_panel'):
-            return
-        if not width:
-            width = self.root.winfo_width() - 80 # 80 por el padding
-
-        mode = 'stacked' if width < 1100 else 'columns'
-
-        if self._current_main_layout == mode:
+    def _update_main_layout(self):
+        """Usa siempre una sola columna y oculta el panel derecho."""
+        if not hasattr(self, 'left_panel'):
             return
 
-        self.left_panel.update_idletasks()
-        self.right_panel.update_idletasks()
+        if self._current_main_layout == 'single':
+            return
 
-        if mode == 'columns':
-            self.main_layout.grid_columnconfigure(0, weight=618, uniform='main_panels', minsize=0)
-            self.main_layout.grid_columnconfigure(1, weight=382, uniform='main_panels', minsize=0)
-            self.main_layout.grid_rowconfigure(1, weight=0)
-            self.left_panel.grid(row=0, column=0, sticky='nsew', padx=(0, 10), pady=0)
-            self.right_panel.grid(row=0, column=1, sticky='nsew', padx=(10, 0), pady=0)
-        else: # mode == 'stacked'
-            self.main_layout.grid_columnconfigure(0, weight=1, uniform='main_panels', minsize=0)
-            self.main_layout.grid_columnconfigure(1, weight=0, minsize=0)
-            self.main_layout.grid_rowconfigure(1, weight=1)
-            self.left_panel.grid(row=0, column=0, sticky='nsew', padx=0, pady=0)
-            self.right_panel.grid(row=1, column=0, sticky='nsew', padx=0, pady=0)
-
-        self._current_main_layout = mode
+        self.main_layout.grid_columnconfigure(0, weight=1, uniform='main_panels', minsize=0)
+        self.main_layout.grid_columnconfigure(1, weight=0, minsize=0)
+        self.main_layout.grid_rowconfigure(1, weight=1)
+        self.left_panel.grid(row=0, column=0, sticky='nsew', padx=0, pady=0)
+        self._hide_right_panel()
+        self._current_main_layout = 'single'
 
     def _iniciar_ver_pantalla(self):
         """Handles the logic for the 'Ver Pantalla' button."""
@@ -642,7 +622,7 @@ class Hermes:
         ).grid(row=0, column=0, sticky="n")
 
         cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=1, column=0, sticky="nsew", padx=40, pady=(10, 30))
+        cards.grid(row=1, column=0, sticky="n", padx=40, pady=(10, 30))
         cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
         cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
         cards.grid_rowconfigure(0, weight=1)
@@ -654,7 +634,6 @@ class Hermes:
             column=0,
             title="Whatsapp",
             description="Campañas de WhatsApp con herramientas avanzadas y modo Fidelizado integrado.",
-            icon="🚀",
             image_filename="WSP.png",
             command=self.show_traditional_view
         )
@@ -664,12 +643,11 @@ class Hermes:
             column=1,
             title="SMS",
             description="Envía mensajes de texto directos usando tu configuración de SMS.",
-            icon="📨",
             image_filename="SMS.png",
             command=self.show_sms_view
         )
 
-    def _build_menu_card(self, parent, column, title, description, icon, command, image_filename=None):
+    def _build_menu_card(self, parent, column, title, description, command, image_filename=None):
         card = ctk.CTkFrame(
             parent,
             fg_color=self.colors['bg_card'],
@@ -703,7 +681,7 @@ class Hermes:
 
         ctk.CTkLabel(
             body,
-            text=f"{icon} {title}",
+            text=title,
             font=('Inter', 30, 'bold'),
             text_color=self.colors['text']
         ).grid(row=1, column=0, sticky="w")
