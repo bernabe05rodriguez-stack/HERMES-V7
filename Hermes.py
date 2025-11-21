@@ -200,8 +200,8 @@ class Tooltip:
         if self.tooltip_window:
             return
 
-        # Crear la ventana Toplevel usando CustomTkinter para evitar errores con el tracker de escalado
-        self.tooltip_window = ctk.CTkToplevel(self.widget)
+        # Crear la ventana Toplevel
+        self.tooltip_window = tk.Toplevel(self.widget)
         self.tooltip_window.wm_overrideredirect(True) # Sin bordes/barra de título
 
         # --- INICIO DE LA CORRECCIÓN ---
@@ -493,35 +493,54 @@ class Hermes:
         self.setup_right(right) # FIX: Inicializar el panel derecho primero para que exista el log_text
         self.setup_left(left)
         self.root.update_idletasks()
-        self._update_main_layout()
+        self._update_main_layout(self.root.winfo_width())
 
     def _on_main_configure(self, event):
-        self._update_main_layout()
+        self._update_main_layout(self.root.winfo_width())
 
     def _show_right_panel(self):
-        """Se mantiene el panel derecho oculto para simplificar la interfaz."""
+        """Garantiza que el panel derecho esté visible y posicionado correctamente."""
+        if not hasattr(self, 'right_panel'):
+            return
+
+        # Forzar reconfiguración para que grid() vuelva a colocarlo si estaba oculto
+        self._current_main_layout = None
         self._update_main_layout()
 
     def _hide_right_panel(self):
-        """Oculta el panel derecho en todas las vistas."""
+        """Oculta el panel derecho en el menú principal."""
         if hasattr(self, 'right_panel'):
             self.right_panel.grid_remove()
 
-    def _update_main_layout(self):
-        """Usa siempre una sola columna y oculta el panel derecho."""
-        if not hasattr(self, 'left_panel'):
+    def _update_main_layout(self, width=None):
+        """Cambia entre vista de 2 columnas o 1 columna (apilada) si la ventana es muy angosta."""
+        if not hasattr(self, 'left_panel') or not hasattr(self, 'right_panel'):
+            return
+        if not width:
+            width = self.root.winfo_width() - 80 # 80 por el padding
+
+        mode = 'stacked' if width < 1100 else 'columns'
+
+        if self._current_main_layout == mode:
             return
 
-        if self._current_main_layout == 'single':
-            return
+        self.left_panel.update_idletasks()
+        self.right_panel.update_idletasks()
 
-        self.main_layout.grid_columnconfigure(0, weight=1, uniform='main_panels', minsize=0)
-        self.main_layout.grid_columnconfigure(1, weight=0, minsize=0)
-        self.main_layout.grid_rowconfigure(0, weight=1)
-        self.main_layout.grid_rowconfigure(1, weight=0)
-        self.left_panel.grid(row=0, column=0, sticky='nsew', padx=0, pady=0)
-        self._hide_right_panel()
-        self._current_main_layout = 'single'
+        if mode == 'columns':
+            self.main_layout.grid_columnconfigure(0, weight=618, uniform='main_panels', minsize=0)
+            self.main_layout.grid_columnconfigure(1, weight=382, uniform='main_panels', minsize=0)
+            self.main_layout.grid_rowconfigure(1, weight=0)
+            self.left_panel.grid(row=0, column=0, sticky='nsew', padx=(0, 10), pady=0)
+            self.right_panel.grid(row=0, column=1, sticky='nsew', padx=(10, 0), pady=0)
+        else: # mode == 'stacked'
+            self.main_layout.grid_columnconfigure(0, weight=1, uniform='main_panels', minsize=0)
+            self.main_layout.grid_columnconfigure(1, weight=0, minsize=0)
+            self.main_layout.grid_rowconfigure(1, weight=1)
+            self.left_panel.grid(row=0, column=0, sticky='nsew', padx=0, pady=0)
+            self.right_panel.grid(row=1, column=0, sticky='nsew', padx=0, pady=0)
+
+        self._current_main_layout = mode
 
     def _iniciar_ver_pantalla(self):
         """Handles the logic for the 'Ver Pantalla' button."""
@@ -580,8 +599,7 @@ class Hermes:
     def setup_left(self, parent):
         # Contenedor principal para las vistas
         self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
-        self.views_container.pack(fill=tk.BOTH, expand=True, anchor="n")
-        self.views_container.pack_propagate(False)
+        self.views_container.pack(fill=tk.X, expand=False, anchor="n")
 
         # --- Menú principal ---
         self.main_menu_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
@@ -599,45 +617,34 @@ class Hermes:
         self.sms_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
         self.setup_sms_view(self.sms_view_frame)
 
-        for frame in (
-            self.main_menu_frame,
-            self.traditional_view_frame,
-            self.fidelizado_view_frame,
-            self.sms_view_frame,
-        ):
-            frame.pack_propagate(False)
-
         # Mostrar el menú principal por defecto
         self.show_main_menu()
 
     def setup_main_menu(self, parent):
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_rowconfigure(0, weight=1)
-        parent.pack_propagate(False)
 
         container = ctk.CTkFrame(parent, fg_color="transparent")
         container.grid(row=0, column=0, sticky="nsew")
         container.grid_columnconfigure(0, weight=1)
-        container.grid_columnconfigure(2, weight=1)
         container.grid_rowconfigure(1, weight=1)
-        container.grid_rowconfigure(2, weight=0)
 
         header = ctk.CTkFrame(container, fg_color="transparent")
-        header.grid(row=0, column=1, sticky="n", padx=10, pady=(26, 18))
+        header.grid(row=0, column=0, sticky="n", padx=10, pady=(20, 28))
         header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             header,
-            text="Gestor de Mensajería",
-            font=('Inter', 30, 'bold'),
+            text="Selecciona un modo de envío",
+            font=('Inter', 32, 'bold'),
             text_color=self.colors['text'],
             justify="center"
         ).grid(row=0, column=0, sticky="n")
 
         cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=1, column=1, sticky="n", padx=28, pady=(10, 18))
-        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=320)
-        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=320)
+        cards.grid(row=1, column=0, sticky="nsew", padx=40, pady=(10, 30))
+        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
+        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
         cards.grid_rowconfigure(0, weight=1)
 
         self.menu_card_images = []
@@ -646,6 +653,8 @@ class Hermes:
             cards,
             column=0,
             title="Whatsapp",
+            description="Campañas de WhatsApp con herramientas avanzadas y modo Fidelizado integrado.",
+            icon="🚀",
             image_filename="WSP.png",
             command=self.show_traditional_view
         )
@@ -654,74 +663,71 @@ class Hermes:
             cards,
             column=1,
             title="SMS",
+            description="Envía mensajes de texto directos usando tu configuración de SMS.",
+            icon="📨",
             image_filename="SMS.png",
             command=self.show_sms_view
         )
 
-    def _build_menu_card(self, parent, column, title, command, image_filename=None):
+    def _build_menu_card(self, parent, column, title, description, icon, command, image_filename=None):
         card = ctk.CTkFrame(
             parent,
             fg_color=self.colors['bg_card'],
-            corner_radius=18,
+            corner_radius=8,
             border_width=1,
             border_color=self._section_border_color()
         )
-        card.grid(row=0, column=column, sticky="nsew", padx=18, pady=14)
+        card.grid(row=0, column=column, sticky="nsew", padx=28, pady=18)
         card.grid_propagate(False)
-        card.configure(height=320)
-        card.grid_rowconfigure(0, weight=1)
+        card.configure(height=440)
+        card.grid_rowconfigure(2, weight=1)
         card.grid_columnconfigure(0, weight=1)
 
-        hover_color = lighten_color(self.colors['bg_card'], 0.06)
-
-        def on_enter(event=None):
-            card.configure(fg_color=hover_color)
-
-        def on_leave(event=None):
-            card.configure(fg_color=self.colors['bg_card'])
-
-        def on_click(event=None):
-            command()
-
-        for widget in (card,):
-            widget.bind("<Enter>", on_enter)
-            widget.bind("<Leave>", on_leave)
-            widget.bind("<Button-1>", on_click)
-            widget.configure(cursor="hand2")
-
         body = ctk.CTkFrame(card, fg_color="transparent")
-        body.grid(row=0, column=0, sticky="nsew", padx=36, pady=(34, 28))
+        body.grid(row=0, column=0, sticky="nsew", padx=46, pady=44)
         body.grid_columnconfigure(0, weight=1)
 
         if image_filename:
             try:
                 logo_path = os.path.join(BASE_DIR, image_filename)
-                logo_image = Image.open(logo_path).resize((140, 140), Image.Resampling.LANCZOS)
+                logo_image = Image.open(logo_path).resize((170, 170), Image.Resampling.LANCZOS)
                 logo_ctk_image = ctk.CTkImage(
                     light_image=logo_image,
                     dark_image=logo_image,
-                    size=(140, 140)
+                    size=(170, 170)
                 )
                 self.menu_card_images.append(logo_ctk_image)
-                image_label = ctk.CTkLabel(body, image=logo_ctk_image, text="")
-                image_label.grid(row=0, column=0, pady=(0, 18))
-                image_label.bind("<Button-1>", on_click)
-                image_label.bind("<Enter>", on_enter)
-                image_label.bind("<Leave>", on_leave)
+                ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 20))
             except Exception as e:
                 print(f"Error cargando {image_filename}: {e}")
 
-        title_label = ctk.CTkLabel(
+        ctk.CTkLabel(
             body,
-            text=title,
-            font=('Inter', 26, 'bold'),
-            text_color=self.colors['text'],
-            justify="center"
-        )
-        title_label.grid(row=1, column=0, pady=(10, 6))
-        title_label.bind("<Button-1>", on_click)
-        title_label.bind("<Enter>", on_enter)
-        title_label.bind("<Leave>", on_leave)
+            text=f"{icon} {title}",
+            font=('Inter', 30, 'bold'),
+            text_color=self.colors['text']
+        ).grid(row=1, column=0, sticky="w")
+
+        ctk.CTkLabel(
+            body,
+            text=description,
+            font=self.fonts['subtitle'],
+            text_color=self.colors['text_light'],
+            wraplength=520,
+            justify="left"
+        ).grid(row=2, column=0, sticky="w", pady=(12, 26))
+
+        ctk.CTkButton(
+            body,
+            text=f"Abrir {title}",
+            command=command,
+            fg_color=self.colors['action_mode'],
+            hover_color=self.hover_colors['action_mode'],
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['button'],
+            corner_radius=22,
+            height=48
+        ).grid(row=3, column=0, sticky="ew")
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
@@ -738,7 +744,7 @@ class Hermes:
         self.main_menu_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
-        self.traditional_view_frame.pack(fill=tk.BOTH, expand=True, anchor="n")
+        self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self._show_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
@@ -750,7 +756,7 @@ class Hermes:
         self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
-        self.fidelizado_view_frame.pack(fill=tk.BOTH, expand=True, anchor="n")
+        self.fidelizado_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self._show_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(True)
@@ -769,7 +775,7 @@ class Hermes:
         self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
-        self.sms_view_frame.pack(fill=tk.BOTH, expand=True, anchor="n")
+        self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self._show_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
@@ -805,7 +811,7 @@ class Hermes:
 
     def setup_traditional_view(self, parent):
         parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_rowconfigure(0, weight=0)
 
         content = ctk.CTkFrame(
             parent,
@@ -814,7 +820,7 @@ class Hermes:
             border_width=1,
             border_color=self._section_border_color()
         )
-        content.grid(row=0, column=0, sticky="nsew", padx=0, pady=(10, 20))
+        content.grid(row=0, column=0, sticky="ew", padx=0, pady=(10, 20))
         content.grid_columnconfigure(0, weight=1)
 
         header = ctk.CTkFrame(content, fg_color="transparent")
@@ -2135,7 +2141,6 @@ class Hermes:
         # Contenedor principal de la vista Fidelizado
         fidelizado_container = ctk.CTkFrame(parent, fg_color="transparent")
         fidelizado_container.pack(fill=tk.BOTH, expand=True)
-        fidelizado_container.pack_propagate(False)
 
         # Contenido principal de Fidelizado
         content = ctk.CTkFrame(
@@ -2146,7 +2151,7 @@ class Hermes:
             border_color=self._section_border_color()
         )
         self.fidelizado_main_card = content
-        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 0))
+        content.pack(fill=tk.X, expand=False, padx=10, pady=(10, 0))
 
         # Layout principal reconfigurado para una columna expandible
         content.grid_columnconfigure(0, weight=1)
