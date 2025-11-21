@@ -580,6 +580,7 @@ class Hermes:
         # Contenedor principal para las vistas
         self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
         self.views_container.pack(fill=tk.BOTH, expand=True, anchor="n")
+        self.views_container.pack_propagate(False)
 
         # --- Menú principal ---
         self.main_menu_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
@@ -603,14 +604,17 @@ class Hermes:
     def setup_main_menu(self, parent):
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_rowconfigure(0, weight=1)
+        parent.pack_propagate(False)
 
         container = ctk.CTkFrame(parent, fg_color="transparent")
         container.grid(row=0, column=0, sticky="nsew")
         container.grid_columnconfigure(0, weight=1)
+        container.grid_columnconfigure(1, weight=2)
+        container.grid_columnconfigure(2, weight=1)
         container.grid_rowconfigure(1, weight=1)
 
         header = ctk.CTkFrame(container, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="n", padx=10, pady=(20, 28))
+        header.grid(row=0, column=1, sticky="n", padx=10, pady=(20, 28))
         header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -622,7 +626,7 @@ class Hermes:
         ).grid(row=0, column=0, sticky="n")
 
         cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=1, column=0, sticky="nsew", padx=28, pady=(14, 28))
+        cards.grid(row=1, column=1, sticky="n", padx=28, pady=(14, 28))
         cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
         cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
         cards.grid_rowconfigure(0, weight=1)
@@ -657,22 +661,22 @@ class Hermes:
         )
         card.grid(row=0, column=column, sticky="nsew", padx=28, pady=18)
         card.grid_propagate(False)
-        card.configure(height=440)
+        card.configure(height=340)
         card.grid_rowconfigure(2, weight=1)
         card.grid_columnconfigure(0, weight=1)
 
         body = ctk.CTkFrame(card, fg_color="transparent")
-        body.grid(row=0, column=0, sticky="nsew", padx=46, pady=44)
+        body.grid(row=0, column=0, sticky="nsew", padx=36, pady=30)
         body.grid_columnconfigure(0, weight=1)
 
         if image_filename:
             try:
                 logo_path = os.path.join(BASE_DIR, image_filename)
-                logo_image = Image.open(logo_path).resize((170, 170), Image.Resampling.LANCZOS)
+                logo_image = Image.open(logo_path).resize((140, 140), Image.Resampling.LANCZOS)
                 logo_ctk_image = ctk.CTkImage(
                     light_image=logo_image,
                     dark_image=logo_image,
-                    size=(170, 170)
+                    size=(140, 140)
                 )
                 self.menu_card_images.append(logo_ctk_image)
                 ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 20))
