@@ -625,10 +625,10 @@ class Hermes:
         parent.grid_rowconfigure(0, weight=1)
 
         container = ctk.CTkFrame(parent, fg_color="transparent")
-        container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        container.pack(expand=True, pady=20)
 
         header = ctk.CTkFrame(container, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 20))
+        header.grid(row=0, column=0, sticky="n", padx=10, pady=(10, 24))
         header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -639,9 +639,11 @@ class Hermes:
         ).grid(row=0, column=0, sticky="w")
 
         cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=1, column=0, sticky="nsew")
-        cards.grid_columnconfigure(0, weight=1, uniform="cards")
-        cards.grid_columnconfigure(1, weight=1, uniform="cards")
+        cards.grid(row=1, column=0, sticky="n")
+        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=380)
+        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=380)
+
+        self.menu_card_images = []
 
         self._build_menu_card(
             cards,
@@ -649,6 +651,7 @@ class Hermes:
             title="Whatsapp",
             description="Campañas de WhatsApp con herramientas avanzadas y modo Fidelizado integrado.",
             icon="🚀",
+            image_filename="WSP.png",
             command=self.show_traditional_view
         )
 
@@ -658,10 +661,11 @@ class Hermes:
             title="SMS",
             description="Envía mensajes de texto directos usando tu configuración de SMS.",
             icon="📨",
+            image_filename="SMS.png",
             command=self.show_sms_view
         )
 
-    def _build_menu_card(self, parent, column, title, description, icon, command):
+    def _build_menu_card(self, parent, column, title, description, icon, command, image_filename=None):
         card = ctk.CTkFrame(
             parent,
             fg_color=self.colors['bg_card'],
@@ -669,19 +673,38 @@ class Hermes:
             border_width=1,
             border_color=self._section_border_color()
         )
-        card.grid(row=0, column=column, sticky="nsew", padx=10, pady=10)
+        card.grid(row=0, column=column, sticky="n", padx=20, pady=12)
         card.grid_rowconfigure(2, weight=1)
+        card.grid_columnconfigure(0, weight=1)
 
         body = ctk.CTkFrame(card, fg_color="transparent")
-        body.grid(row=0, column=0, sticky="nsew", padx=28, pady=28)
+        body.grid(row=0, column=0, sticky="nsew", padx=36, pady=34)
         body.grid_columnconfigure(0, weight=1)
+
+        if image_filename:
+            try:
+                logo_path = os.path.join(BASE_DIR, image_filename)
+                with Image.open(logo_path) as logo_image:
+                    logo_rgba = logo_image.convert("RGBA")
+                    logo_rgba.thumbnail((130, 130), Image.Resampling.LANCZOS)
+
+                logo_ctk_image = ctk.CTkImage(
+                    light_image=logo_rgba,
+                    dark_image=logo_rgba,
+                    size=logo_rgba.size
+                )
+
+                self.menu_card_images.append(logo_ctk_image)
+                ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 18))
+            except Exception as e:
+                print(f"Error cargando {image_filename}: {e}")
 
         ctk.CTkLabel(
             body,
             text=f"{icon} {title}",
             font=('Inter', 28, 'bold'),
             text_color=self.colors['text']
-        ).grid(row=0, column=0, sticky="w")
+        ).grid(row=1, column=0, sticky="w")
 
         ctk.CTkLabel(
             body,
@@ -690,7 +713,7 @@ class Hermes:
             text_color=self.colors['text_light'],
             wraplength=420,
             justify="left"
-        ).grid(row=1, column=0, sticky="w", pady=(10, 20))
+        ).grid(row=2, column=0, sticky="w", pady=(10, 20))
 
         ctk.CTkButton(
             body,
@@ -702,7 +725,7 @@ class Hermes:
             font=self.fonts['button'],
             corner_radius=22,
             height=48
-        ).grid(row=2, column=0, sticky="ew")
+        ).grid(row=3, column=0, sticky="ew")
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
