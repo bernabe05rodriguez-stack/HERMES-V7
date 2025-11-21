@@ -6208,107 +6208,13 @@ class Hermes:
 
 # --- Main y Login ---
 def main():
-    """Función principal: Configura CTk y muestra la ventana de login."""
+    """Función principal: Configura CTk y muestra la aplicación principal."""
     ctk.set_appearance_mode("Light")
     ctk.set_default_color_theme("blue")
     root = ctk.CTk()
-    root.title("HΞЯMΞS - Autenticación")
+    root.title("HΞЯMΞS")
 
-    # Colores y fuentes específicos para el login
-    colors = {
-        'bg': '#f0f2f5', 'bg_card': '#ffffff', 'text': '#202124',
-        'text_light': '#5f6368', 'blue': '#4285F4', 'action_start': '#16A34A'
-    }
-    fonts = {
-        'header': ('Big Russian', 64, 'bold'),
-        'card_title': ('Inter', 16, 'bold'),
-        'button': ('Inter', 13, 'bold'),
-        'setting_label': ('Inter', 12)
-    }
-
-    def show_main_app():
-        """Destruye los widgets de login y construye la app principal."""
-        root.unbind('<Return>')  # --- FIX: Desactivar el atajo de teclado de login ---
-        for w in root.winfo_children():
-            w.destroy()
-        app = Hermes(root) # Reutiliza la ventana raíz
-
-    def create_login_window():
-        """Construye la UI de la ventana de login (MOD 37)."""
-        root.configure(fg_color=colors['bg'])
-        width, height = 450, 550
-        root.geometry(f"{width}x{height}")
-        root.resizable(False, False)
-
-        # Centrar ventana
-        root.update_idletasks()
-        sw = root.winfo_screenwidth()
-        sh = root.winfo_screenheight()
-        x = (sw // 2) - (width // 2)
-        y = (sh // 2) - (height // 2)
-        root.geometry(f'{width}x{height}+{x}+{y}')
-        root.attributes('-topmost', True)
-        root.after(100, root.focus_force)
-
-        # Frame contenedor transparente
-        content_frame = ctk.CTkFrame(root, fg_color="transparent")
-        content_frame.pack(expand=True, fill="x", padx=40)
-
-        # Logo
-        try:
-            logo_p = os.path.join(BASE_DIR, 'logo_left.png')
-            logo_i = Image.open(logo_p).resize((150, 150), Image.Resampling.LANCZOS)
-            logo_img = ctk.CTkImage(light_image=logo_i, dark_image=logo_i, size=(150, 150))
-            logo_label = ctk.CTkLabel(content_frame, image=logo_img, text="", fg_color="transparent")
-            logo_label.pack(pady=(20, 10))
-        except Exception as e:
-            print(f"Error cargando logo en login: {e}")
-            logo_label = ctk.CTkLabel(content_frame, text="🦶", font=('Inter', 60, 'bold'), fg_color="transparent")
-            logo_label.pack(pady=(20, 10))
-
-        # Título HΞЯMΞS
-        title_label = ctk.CTkLabel(content_frame, text="HΞЯMΞS", font=fonts['header'], text_color=colors['text'], fg_color="transparent")
-        title_label.pack(pady=(0, 5))
-
-        # Subtítulo
-        subtitle_label = ctk.CTkLabel(content_frame, text="Ingrese la contraseña", font=fonts['setting_label'], text_color=colors['text_light'], fg_color="transparent")
-        subtitle_label.pack(pady=(0, 30))
-
-        # Campo Contraseña
-        pwd_frame = ctk.CTkFrame(content_frame, fg_color='transparent')
-        pwd_frame.pack(fill="x", pady=(0, 5))
-
-        ctk.CTkLabel(pwd_frame, text="Contraseña", font=fonts['button'], text_color=colors['text']).pack(anchor='w')
-        pwd_var = tk.StringVar()
-        pwd_entry = ctk.CTkEntry(pwd_frame, textvariable=pwd_var, font=('Inter', 14), show='*', corner_radius=10, height=40, border_color="#cccccc", border_width=1)
-        pwd_entry.pack(fill=tk.X, pady=(5, 0))
-        pwd_entry.focus_set()
-
-        # Mensaje de Estado (para error)
-        status_l = ctk.CTkLabel(content_frame, text="", font=('Inter', 10, 'bold'), text_color='red', fg_color="transparent")
-        status_l.pack(pady=(5, 10))
-
-        # Botón INGRESAR
-        def check_pwd(e=None):
-            if pwd_var.get() == "1234": # Contraseña de login
-                root.attributes('-topmost', False)
-                show_main_app()
-            else:
-                status_l.configure(text="Contraseña incorrecta.")
-                pwd_var.set("")
-
-        login_btn = ctk.CTkButton(content_frame, text="INGRESAR", command=check_pwd,
-                                  fg_color=colors['action_start'],
-                                  hover_color=darken_color(colors['action_start'], 0.18),
-                                  text_color='#ffffff', font=fonts['button'],
-                                  corner_radius=30, height=50)
-        login_btn.pack(fill="x", pady=(20, 20))
-
-        root.bind('<Return>', check_pwd)
-        root.protocol("WM_DELETE_WINDOW", root.destroy)
-
-    # Iniciar la ventana de login
-    create_login_window()
+    Hermes(root)
     root.mainloop()
 
 if __name__ == "__main__":
