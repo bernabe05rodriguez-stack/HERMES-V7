@@ -46,12 +46,15 @@ class SafeIntVar(tk.IntVar):
 
 # --- Función para encontrar archivos en modo compilado ---
 def resource_path(relative_path):
-    """ Obtiene la ruta absoluta al recurso, funciona para desarrollo y para PyInstaller """
+    """Obtiene la ruta absoluta al recurso, funcionando tanto en desarrollo como con PyInstaller."""
     try:
         # PyInstaller crea una carpeta temporal y guarda la ruta en _MEIPASS
         base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+    except AttributeError:
+        if getattr(sys, "frozen", False):
+            base_path = os.path.dirname(sys.executable)
+        else:
+            base_path = os.path.dirname(os.path.abspath(__file__))
 
     return os.path.join(base_path, relative_path)
 
@@ -341,12 +344,24 @@ class Hermes:
         y = (sh // 2) - (height // 2)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
 
+    def _load_logo_image(self, filename, size):
+        logo_path = os.path.join(BASE_DIR, filename)
+        if not os.path.exists(logo_path):
+            print(f"No se encontró {filename}. Coloca el archivo en {logo_path}.")
+            return None
+        try:
+            img = Image.open(logo_path).resize(size, Image.Resampling.LANCZOS)
+            return ctk.CTkImage(light_image=img, dark_image=img, size=size)
+        except Exception as e:
+            print(f"Error cargando {filename}: {e}")
+            return None
+
     def setup_ui(self):
         # Configurar fondo de la ventana principal
         self.root.configure(fg_color=self.colors['bg'])
-        
+
         # 1. Header
-        header = ctk.CTkFrame(self.root, fg_color=self.colors['bg_header'], height=140, corner_radius=30)
+        header = ctk.CTkFrame(self.root, fg_color=self.colors['bg_header'], height=170, corner_radius=30)
         header.pack(fill=tk.X, pady=(10, 10), padx=10)
         header.pack_propagate(False)
 
@@ -354,31 +369,53 @@ class Hermes:
         hc.pack(expand=True, fill=tk.X, padx=40)
 
         # Logo Izquierdo
-        try:
-            l_img_path = os.path.join(BASE_DIR, 'logo_left.png')
-            l_img = Image.open(l_img_path).resize((150, 150), Image.Resampling.LANCZOS)
-            l_pho = ctk.CTkImage(light_image=l_img, dark_image=l_img, size=(150, 150))
-            ctk.CTkLabel(hc, image=l_pho, text="").pack(side=tk.LEFT, padx=(0, 20))
-        except Exception as e:
-            print(f"Error cargando logo_left: {e}")
-            ctk.CTkLabel(hc, text="🦶", font=('Inter', 60), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 20))
+        left_logo = self._load_logo_image('logo_left.png', (150, 150))
+        left_logo_label = ctk.CTkLabel(hc, image=left_logo, text="" if left_logo else "🦶", font=('Inter', 60), fg_color="transparent")
+        left_logo_label.pack(side=tk.LEFT, padx=(0, 20))
 
-        # Logo Derecho
-        try:
-            r_img_path = os.path.join(BASE_DIR, 'logo_right.png')
-            r_img = Image.open(r_img_path).resize((150, 150), Image.Resampling.LANCZOS)
-            r_pho = ctk.CTkImage(light_image=r_img, dark_image=r_img, size=(150, 150))
-            ctk.CTkLabel(hc, image=r_pho, text="").pack(side=tk.RIGHT, padx=(20, 0))
-        except Exception as e:
-            print(f"Error cargando logo_right: {e}")
-            ctk.CTkLabel(hc, text="🦶", font=('Inter', 60), fg_color="transparent").pack(side=tk.RIGHT, padx=(20, 0))
+        # Título y descripción central
+        title_area = ctk.CTkFrame(hc, fg_color=self.colors['bg_header'])
+        title_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Título
-        title_label = ctk.CTkLabel(hc, text="HΞЯMΞS", font=self.fonts['header'],
+        title_label = ctk.CTkLabel(title_area, text="HΞЯMΞS", font=self.fonts['header'],
                                    fg_color="transparent",
                                    text_color=self.colors['text_header'],
                                    cursor="hand2") # Añadir cursor para indicar que es interactivo
-        title_label.pack(side=tk.LEFT, fill=tk.X, expand=True, anchor='center')
+        title_label.pack(fill=tk.X)
+
+        subtitle = ctk.CTkLabel(
+            title_area,
+            text="Envío automatizado con control visual y seguimiento en tiempo real",
+            font=('Inter', 16, 'bold'),
+            fg_color="transparent",
+            text_color=self.colors['text_light']
+        )
+        subtitle.pack(pady=(4, 0))
+
+        highlight_row = ctk.CTkFrame(title_area, fg_color=self.colors['bg_header'])
+        highlight_row.pack(pady=(6, 0))
+
+        for text, color in [
+            ("Multidispositivo", self.colors['action_detect']),
+            ("Importación Excel/CSV/TXT", self.colors['action_excel']),
+            ("Métricas en vivo", self.colors['action_start'])
+        ]:
+            badge = ctk.CTkFrame(highlight_row, fg_color=color, corner_radius=12)
+            badge.pack(side=tk.LEFT, padx=6)
+            ctk.CTkLabel(
+                badge,
+                text=text,
+                fg_color="transparent",
+                text_color=self.colors['bg'],
+                font=('Inter', 12, 'bold'),
+                padx=12,
+                pady=6
+            ).pack()
+
+        # Logo Derecho
+        right_logo = self._load_logo_image('logo_right.png', (150, 150))
+        right_logo_label = ctk.CTkLabel(hc, image=right_logo, text="" if right_logo else "🦶", font=('Inter', 60), fg_color="transparent")
+        right_logo_label.pack(side=tk.RIGHT, padx=(20, 0))
 
         # Tooltip para el título
         tooltip_text = (
