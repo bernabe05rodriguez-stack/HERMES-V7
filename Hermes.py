@@ -383,6 +383,7 @@ class Hermes:
         self.fonts = {
             'header': ('Big Russian', 76, 'bold'),
             'card_title': ('Inter', 18, 'bold'),
+            'subtitle': ('Inter', 14),
             'button': ('Inter', 13, 'bold'),
             'button_small': ('Inter', 12, 'bold'),
             'stat_value': ('Inter', 40, 'bold'),
