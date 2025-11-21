@@ -586,6 +586,10 @@ class Hermes:
         self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
         self.views_container.pack(fill=tk.X, expand=False, anchor="n")
 
+        # --- Menú principal ---
+        self.main_menu_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+        self.setup_main_menu(self.main_menu_frame)
+
         # --- Vista Tradicional ---
         self.traditional_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
         self.setup_traditional_view(self.traditional_view_frame)
@@ -598,8 +602,92 @@ class Hermes:
         self.sms_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
         self.setup_sms_view(self.sms_view_frame)
 
-        # Mostrar la vista tradicional por defecto
-        self.show_traditional_view()
+        # Mostrar el menú principal por defecto
+        self.show_main_menu()
+
+    def setup_main_menu(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(0, weight=1)
+
+        container = ctk.CTkFrame(parent, fg_color="transparent")
+        container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        header = ctk.CTkFrame(container, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 20))
+        header.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            header,
+            text="Selecciona un modo de envío",
+            font=('Inter', 30, 'bold'),
+            text_color=self.colors['text']
+        ).grid(row=0, column=0, sticky="w")
+
+        cards = ctk.CTkFrame(container, fg_color="transparent")
+        cards.grid(row=1, column=0, sticky="nsew")
+        cards.grid_columnconfigure(0, weight=1, uniform="cards")
+        cards.grid_columnconfigure(1, weight=1, uniform="cards")
+
+        self._build_menu_card(
+            cards,
+            column=0,
+            title="Modo Masivo",
+            description="Campañas de WhatsApp con herramientas avanzadas y modo Fidelizado integrado.",
+            icon="🚀",
+            command=self.show_traditional_view
+        )
+
+        self._build_menu_card(
+            cards,
+            column=1,
+            title="Modo SMS",
+            description="Envía mensajes de texto directos usando tu configuración de SMS.",
+            icon="📨",
+            command=self.show_sms_view
+        )
+
+    def _build_menu_card(self, parent, column, title, description, icon, command):
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=self.colors['bg_card'],
+            corner_radius=30,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        card.grid(row=0, column=column, sticky="nsew", padx=10, pady=10)
+        card.grid_rowconfigure(2, weight=1)
+
+        body = ctk.CTkFrame(card, fg_color="transparent")
+        body.grid(row=0, column=0, sticky="nsew", padx=28, pady=28)
+        body.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            body,
+            text=f"{icon} {title}",
+            font=('Inter', 28, 'bold'),
+            text_color=self.colors['text']
+        ).grid(row=0, column=0, sticky="w")
+
+        ctk.CTkLabel(
+            body,
+            text=description,
+            font=self.fonts['subtitle'],
+            text_color=self.colors['text_light'],
+            wraplength=420,
+            justify="left"
+        ).grid(row=1, column=0, sticky="w", pady=(10, 20))
+
+        ctk.CTkButton(
+            body,
+            text=f"Abrir {title}",
+            command=command,
+            fg_color=self.colors['action_mode'],
+            hover_color=self.hover_colors['action_mode'],
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['button'],
+            corner_radius=22,
+            height=48
+        ).grid(row=2, column=0, sticky="ew")
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
@@ -613,6 +701,7 @@ class Hermes:
             self.manual_messages_groups = self.manual_messages_numbers
 
         self.sms_mode_active = False
+        self.main_menu_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
@@ -623,6 +712,7 @@ class Hermes:
         """Muestra la vista de Fidelizado, repoblando los datos, y oculta las demás."""
         self._populate_fidelizado_inputs() # Repoblar datos al mostrar la vista
         self.sms_mode_active = False
+        self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self.fidelizado_view_frame.pack(fill=tk.X, expand=False, anchor="n")
@@ -640,10 +730,20 @@ class Hermes:
             self.total_messages = 0
             self.update_stats()
             self.log("Modo SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
+        self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
+        self._apply_fidelizado_layout_styles(False)
+
+    def show_main_menu(self):
+        """Muestra el menú principal y oculta las vistas de modo."""
+        self.sms_mode_active = False
+        self.main_menu_frame.pack(fill=tk.BOTH, expand=True, anchor="n")
+        self.traditional_view_frame.pack_forget()
+        self.fidelizado_view_frame.pack_forget()
+        self.sms_view_frame.pack_forget()
         self._apply_fidelizado_layout_styles(False)
 
     def _apply_fidelizado_layout_styles(self, active):
@@ -681,10 +781,25 @@ class Hermes:
 
         header = ctk.CTkFrame(content, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 15))
-        header.grid_columnconfigure(0, weight=1)
+        header.grid_columnconfigure(0, weight=0)
+        header.grid_columnconfigure(1, weight=1)
+        header.grid_columnconfigure(2, weight=0)
+
+        ctk.CTkButton(
+            header,
+            text="← Menú principal",
+            command=self.show_main_menu,
+            fg_color=self.colors['action_mode'],
+            hover_color=self.hover_colors['action_mode'],
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['button_small'],
+            corner_radius=16,
+            height=36,
+            width=160
+        ).grid(row=0, column=0, sticky="w", padx=(0, 16))
 
         ctk.CTkLabel(header, text="Modo Masivo 🚀", font=('Inter', 26, 'bold'),
-                     text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
+                     text_color=self.colors['text']).grid(row=0, column=1, sticky="w")
 
         actions_section, actions_header = self._build_section(
             content,
@@ -731,14 +846,6 @@ class Hermes:
         )
         self.fidelizado_unlock_btn.grid(row=0, column=0, sticky="e", padx=(0, 12))
 
-        self.sms_mode_btn = ctk.CTkButton(
-            header_actions,
-            text="Modo SMS",
-            command=self.handle_sms_mode_access,
-            **tool_btn_kwargs
-        )
-        self.sms_mode_btn.grid(row=0, column=1, sticky="e", padx=(0, 12))
-
         self.dark_mode_btn = ctk.CTkLabel(
             header_actions,
             text="🌙" if self.dark_mode else "☀️",
@@ -746,7 +853,7 @@ class Hermes:
             text_color=self.colors['text'],
             cursor='hand2'
         )
-        self.dark_mode_btn.grid(row=0, column=2, padx=(12, 0))
+        self.dark_mode_btn.grid(row=0, column=1, padx=(12, 0))
         self.dark_mode_btn.bind("<Button-1>", lambda _event: self.toggle_dark_mode())
 
         self.adb_injector_btn = ctk.CTkButton(
@@ -965,23 +1072,24 @@ class Hermes:
 
         header_frame = ctk.CTkFrame(content, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 10))
-        header_frame.grid_columnconfigure(0, weight=1)
+        header_frame.grid_columnconfigure(0, weight=0)
+        header_frame.grid_columnconfigure(1, weight=1)
 
-        title = ctk.CTkLabel(header_frame, text="Modo SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
-        title.grid(row=0, column=0, sticky="w")
-
-        self.sms_back_btn = ctk.CTkButton(
+        ctk.CTkButton(
             header_frame,
-            text="Volver al modo Masivos",
-            command=self.show_traditional_view,
+            text="← Menú principal",
+            command=self.show_main_menu,
             fg_color=self.colors['action_mode'],
             hover_color=self.hover_colors['action_mode'],
             text_color=self.colors['text_header_buttons'],
-            font=self.fonts['button'],
-            corner_radius=20,
-            height=40
-        )
-        self.sms_back_btn.grid(row=0, column=1, sticky="e")
+            font=self.fonts['button_small'],
+            corner_radius=16,
+            height=36,
+            width=160
+        ).grid(row=0, column=0, sticky="w", padx=(0, 16))
+
+        title = ctk.CTkLabel(header_frame, text="Modo SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
+        title.grid(row=0, column=1, sticky="w")
 
         time_section, _ = self._build_section(content, 1, "Configuración de tiempos (SMS)",
                                               "Define los intervalos y esperas para los mensajes de texto.", icon="🕒")
@@ -2009,11 +2117,14 @@ class Hermes:
         header_frame = ctk.CTkFrame(content, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(15, 10))
 
-        self.back_to_traditional_btn = ctk.CTkButton(header_frame, text="Volver al modo Masivos",
-                                      command=self.show_traditional_view,
-                                      fg_color="transparent",
-                                      text_color=self.colors['text_light'],
-                                      hover_color=self.colors['bg'])
+        self.back_to_traditional_btn = ctk.CTkButton(
+            header_frame,
+            text="← Menú principal",
+            command=self.show_main_menu,
+            fg_color="transparent",
+            text_color=self.colors['text_light'],
+            hover_color=self.colors['bg']
+        )
         self.back_to_traditional_btn.pack(side=tk.LEFT)
 
         ctk.CTkLabel(header_frame, text="Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT, padx=20)
