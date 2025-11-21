@@ -200,8 +200,8 @@ class Tooltip:
         if self.tooltip_window:
             return
 
-        # Crear la ventana Toplevel
-        self.tooltip_window = tk.Toplevel(self.widget)
+        # Crear la ventana Toplevel usando CustomTkinter para evitar errores con el tracker de escalado
+        self.tooltip_window = ctk.CTkToplevel(self.widget)
         self.tooltip_window.wm_overrideredirect(True) # Sin bordes/barra de título
 
         # --- INICIO DE LA CORRECCIÓN ---
@@ -579,7 +579,7 @@ class Hermes:
     def setup_left(self, parent):
         # Contenedor principal para las vistas
         self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
-        self.views_container.pack(fill=tk.X, expand=False, anchor="n")
+        self.views_container.pack(fill=tk.BOTH, expand=True, anchor="n")
 
         # --- Menú principal ---
         self.main_menu_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
