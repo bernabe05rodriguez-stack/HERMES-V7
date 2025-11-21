@@ -586,6 +586,10 @@ class Hermes:
         self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
         self.views_container.pack(fill=tk.X, expand=False, anchor="n")
 
+        # --- Vista Menú Principal ---
+        self.main_menu_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+        self.setup_main_menu(self.main_menu_frame)
+
         # --- Vista Tradicional ---
         self.traditional_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
         self.setup_traditional_view(self.traditional_view_frame)
@@ -598,8 +602,129 @@ class Hermes:
         self.sms_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
         self.setup_sms_view(self.sms_view_frame)
 
-        # Mostrar la vista tradicional por defecto
-        self.show_traditional_view()
+        # Mostrar la vista de menú principal por defecto
+        self.show_main_menu()
+
+    def show_main_menu(self):
+        """Muestra el menú principal para elegir modo."""
+        self.sms_mode_active = False
+        self.manual_mode = False
+        self.fidelizado_mode = None
+
+        self.traditional_view_frame.pack_forget()
+        self.fidelizado_view_frame.pack_forget()
+        self.sms_view_frame.pack_forget()
+        self.main_menu_frame.pack(fill=tk.X, expand=False, anchor="n")
+
+        # Actualizar la fecha del menú
+        if hasattr(self, 'menu_date_label'):
+            self.menu_date_label.configure(text=datetime.now().strftime("%d/%m/%Y"))
+
+        self._apply_fidelizado_layout_styles(False)
+
+    def setup_main_menu(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+
+        container = ctk.CTkFrame(parent, fg_color="transparent")
+        container.pack(fill=tk.X, expand=False)
+
+        content = ctk.CTkFrame(
+            container,
+            fg_color=self.colors['bg_card'],
+            corner_radius=32,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        content.pack(fill=tk.X, expand=False, padx=10, pady=(10, 20))
+        content.grid_columnconfigure(0, weight=1)
+        content.grid_columnconfigure(1, weight=1)
+
+        header = ctk.CTkFrame(content, fg_color="transparent")
+        header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=30, pady=(20, 10))
+        header.grid_columnconfigure(0, weight=0)
+        header.grid_columnconfigure(1, weight=1)
+
+        self.menu_date_label = ctk.CTkLabel(
+            header,
+            text=datetime.now().strftime("%d/%m/%Y"),
+            font=self.fonts['setting_label'],
+            text_color=self.colors['text_light']
+        )
+        self.menu_date_label.grid(row=0, column=0, sticky="w")
+
+        ctk.CTkLabel(
+            header,
+            text="Selecciona un modo",
+            font=('Inter', 28, 'bold'),
+            text_color=self.colors['text']
+        ).grid(row=0, column=1, sticky="w", padx=(12, 0))
+
+        ctk.CTkLabel(
+            content,
+            text="Elige cómo deseas trabajar: Fidelizado para campañas personalizadas o SMS para envíos de texto.",
+            font=self.fonts['setting_label'],
+            text_color=self.colors['text_light'],
+            justify="left"
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=30, pady=(0, 10))
+
+        def create_mode_card(column, title, description, action_text, command, color_key, emoji):
+            card = ctk.CTkFrame(
+                content,
+                fg_color=self.colors['bg'],
+                corner_radius=24,
+                border_width=1,
+                border_color=self._section_border_color()
+            )
+            card.grid(row=2, column=column, sticky="nsew", padx=20, pady=(10, 20))
+            card.grid_columnconfigure(0, weight=1)
+
+            ctk.CTkLabel(
+                card,
+                text=f"{emoji} {title}",
+                font=('Inter', 26, 'bold'),
+                text_color=self.colors['text']
+            ).pack(anchor="w", padx=20, pady=(18, 8))
+
+            ctk.CTkLabel(
+                card,
+                text=description,
+                font=self.fonts['setting_label'],
+                text_color=self.colors['text_light'],
+                justify="left"
+            ).pack(anchor="w", padx=20, pady=(0, 16))
+
+            ctk.CTkButton(
+                card,
+                text=action_text,
+                command=command,
+                fg_color=self.colors[color_key],
+                hover_color=self.hover_colors[color_key],
+                text_color=self.colors['text_header_buttons'],
+                font=('Inter', 18, 'bold'),
+                corner_radius=18,
+                height=52,
+                width=220
+            ).pack(anchor="w", padx=20, pady=(0, 22))
+
+        create_mode_card(
+            0,
+            "Modo Fidelizado",
+            "Accede a la interfaz completa de fidelización con cargas manuales, grupos y controles avanzados.",
+            "Ingresar a Fidelizado",
+            self.show_fidelizado_view,
+            'action_fidelizador',
+            "💎"
+        )
+
+        create_mode_card(
+            1,
+            "Modo SMS",
+            "Prepara y lanza campañas de mensajes de texto de manera guiada con detección de dispositivos y tiempos.",
+            "Ingresar a SMS",
+            self.show_sms_view,
+            'action_mode',
+            "✉️"
+        )
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
@@ -613,6 +738,7 @@ class Hermes:
             self.manual_messages_groups = self.manual_messages_numbers
 
         self.sms_mode_active = False
+        self.main_menu_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
@@ -623,6 +749,7 @@ class Hermes:
         """Muestra la vista de Fidelizado, repoblando los datos, y oculta las demás."""
         self._populate_fidelizado_inputs() # Repoblar datos al mostrar la vista
         self.sms_mode_active = False
+        self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self.fidelizado_view_frame.pack(fill=tk.X, expand=False, anchor="n")
@@ -640,6 +767,7 @@ class Hermes:
             self.total_messages = 0
             self.update_stats()
             self.log("Modo SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
+        self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
@@ -972,8 +1100,8 @@ class Hermes:
 
         self.sms_back_btn = ctk.CTkButton(
             header_frame,
-            text="Volver al modo Masivos",
-            command=self.show_traditional_view,
+            text="Volver al menú principal",
+            command=self.show_main_menu,
             fg_color=self.colors['action_mode'],
             hover_color=self.hover_colors['action_mode'],
             text_color=self.colors['text_header_buttons'],
@@ -2009,8 +2137,8 @@ class Hermes:
         header_frame = ctk.CTkFrame(content, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(15, 10))
 
-        self.back_to_traditional_btn = ctk.CTkButton(header_frame, text="Volver al modo Masivos",
-                                      command=self.show_traditional_view,
+        self.back_to_traditional_btn = ctk.CTkButton(header_frame, text="Volver al menú principal",
+                                      command=self.show_main_menu,
                                       fg_color="transparent",
                                       text_color=self.colors['text_light'],
                                       hover_color=self.colors['bg'])
