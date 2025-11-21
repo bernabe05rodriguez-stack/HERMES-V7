@@ -625,23 +625,33 @@ class Hermes:
         parent.grid_rowconfigure(0, weight=1)
 
         container = ctk.CTkFrame(parent, fg_color="transparent")
-        container.pack(expand=True, pady=20)
+        container.grid(row=0, column=0, sticky="nsew")
+        container.grid_columnconfigure(0, weight=1)
+        container.grid_rowconfigure(1, weight=1)
 
         header = ctk.CTkFrame(container, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="n", padx=10, pady=(10, 24))
+        header.grid(row=0, column=0, sticky="n", padx=10, pady=(20, 28))
         header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             header,
             text="Selecciona un modo de envío",
-            font=('Inter', 30, 'bold'),
-            text_color=self.colors['text']
-        ).grid(row=0, column=0, sticky="w")
+            font=('Inter', 32, 'bold'),
+            text_color=self.colors['text'],
+            justify="center"
+        ).grid(row=0, column=0, sticky="n")
 
-        cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=1, column=0, sticky="n")
-        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=380)
-        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=380)
+        cards_wrapper = ctk.CTkFrame(container, fg_color="transparent")
+        cards_wrapper.grid(row=1, column=0, sticky="nsew", padx=40, pady=(10, 36))
+        cards_wrapper.grid_columnconfigure(0, weight=1)
+        cards_wrapper.grid_columnconfigure(3, weight=1)
+        cards_wrapper.grid_rowconfigure(0, weight=1)
+
+        cards = ctk.CTkFrame(cards_wrapper, fg_color="transparent")
+        cards.grid(row=0, column=1, columnspan=2, sticky="nsew")
+        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
+        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
+        cards.grid_rowconfigure(0, weight=1)
 
         self.menu_card_images = []
 
@@ -666,39 +676,46 @@ class Hermes:
         )
 
     def _build_menu_card(self, parent, column, title, description, icon, command, image_filename=None):
-        card = ctk.CTkFrame(
-            parent,
-            fg_color=self.colors['bg_card'],
-            corner_radius=30,
-            border_width=1,
-            border_color=self._section_border_color()
+        wrapper = ctk.CTkFrame(parent, fg_color="transparent")
+        wrapper.grid(row=0, column=column, sticky="nsew", padx=28, pady=18)
+        wrapper.grid_rowconfigure(0, weight=1)
+        wrapper.grid_columnconfigure(0, weight=1)
+
+        shadow = ctk.CTkFrame(
+            wrapper,
+            fg_color=self._card_shadow_color(),
+            corner_radius=28
         )
-        card.grid(row=0, column=column, sticky="n", padx=20, pady=12)
+        shadow.pack(expand=True, fill="both", padx=10, pady=14)
+
+        card = ctk.CTkFrame(
+            wrapper,
+            fg_color=self.colors['bg_card'],
+            corner_radius=22,
+            border_width=0
+        )
+        card.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.97, relheight=0.97)
+        card.grid_propagate(False)
+        card.configure(height=440)
         card.grid_rowconfigure(2, weight=1)
         card.grid_columnconfigure(0, weight=1)
 
         body = ctk.CTkFrame(card, fg_color="transparent")
-        body.grid(row=0, column=0, sticky="nsew", padx=36, pady=34)
+        body.grid(row=0, column=0, sticky="nsew", padx=46, pady=44)
         body.grid_columnconfigure(0, weight=1)
 
         if image_filename:
             try:
-                logo_path = os.path.join(BASE_DIR, image_filename)
-                logo_image = Image.open(logo_path).resize((140, 140), Image.Resampling.LANCZOS)
-                logo_ctk_image = ctk.CTkImage(
-                    light_image=logo_image,
-                    dark_image=logo_image,
-                    size=(140, 140)
-                )
+                logo_ctk_image = self._load_menu_image(image_filename, max_size=(170, 170))
                 self.menu_card_images.append(logo_ctk_image)
-                ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 16))
+                ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 20))
             except Exception as e:
                 print(f"Error cargando {image_filename}: {e}")
 
         ctk.CTkLabel(
             body,
             text=f"{icon} {title}",
-            font=('Inter', 28, 'bold'),
+            font=('Inter', 30, 'bold'),
             text_color=self.colors['text']
         ).grid(row=1, column=0, sticky="w")
 
@@ -707,9 +724,9 @@ class Hermes:
             text=description,
             font=self.fonts['subtitle'],
             text_color=self.colors['text_light'],
-            wraplength=420,
+            wraplength=520,
             justify="left"
-        ).grid(row=2, column=0, sticky="w", pady=(10, 20))
+        ).grid(row=2, column=0, sticky="w", pady=(12, 26))
 
         ctk.CTkButton(
             body,
@@ -722,6 +739,17 @@ class Hermes:
             corner_radius=22,
             height=48
         ).grid(row=3, column=0, sticky="ew")
+
+    def _load_menu_image(self, image_filename, max_size=(170, 170)):
+        logo_path = os.path.join(BASE_DIR, image_filename)
+        logo_image = Image.open(logo_path)
+        logo_image.thumbnail(max_size, Image.Resampling.LANCZOS)
+        final_size = logo_image.size
+        return ctk.CTkImage(
+            light_image=logo_image,
+            dark_image=logo_image,
+            size=final_size
+        )
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
@@ -1521,6 +1549,11 @@ class Hermes:
 
     def _section_border_color(self):
         return "#dde1ea" if not self.dark_mode else "#1f2937"
+
+    def _card_shadow_color(self):
+        if self.dark_mode:
+            return lighten_color(self.colors['bg'], 0.16)
+        return darken_color(self.colors['bg'], 0.12)
 
     def _build_section(self, parent, row, title, subtitle=None, icon=None):
         container = ctk.CTkFrame(parent, fg_color="transparent")
