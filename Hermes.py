@@ -644,11 +644,6 @@ class Hermes:
         cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=380)
 
         self.menu_card_images = []
- codex/check-sms-and-wsp-image-uploads-09c3es
-
-
-        self.menu_card_images = []
- main
 
         self._build_menu_card(
             cards,
@@ -689,37 +684,14 @@ class Hermes:
         if image_filename:
             try:
                 logo_path = os.path.join(BASE_DIR, image_filename)
- codex/check-sms-and-wsp-image-uploads-09c3es
-                with Image.open(logo_path) as logo_image:
-                    logo_rgba = logo_image.convert("RGBA")
-                    logo_rgba.thumbnail((130, 130), Image.Resampling.LANCZOS)
-
-                logo_ctk_image = ctk.CTkImage(
-                    light_image=logo_rgba,
-                    dark_image=logo_rgba,
-                    size=logo_rgba.size
-                )
-
-                self.menu_card_images.append(logo_ctk_image)
-                ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 18))
-
- codex/check-sms-and-wsp-image-uploads-r6j56s
-                logo_image = Image.open(logo_path).convert("RGBA")
-                logo_image.thumbnail((130, 130), Image.Resampling.LANCZOS)
+                logo_image = Image.open(logo_path).resize((140, 140), Image.Resampling.LANCZOS)
                 logo_ctk_image = ctk.CTkImage(
                     light_image=logo_image,
                     dark_image=logo_image,
-                    size=logo_image.size
+                    size=(140, 140)
                 )
                 self.menu_card_images.append(logo_ctk_image)
-                ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 18))
-
-                logo_image = Image.open(logo_path).resize((140, 140), Image.Resampling.LANCZOS)
-                logo_ctk_image = ctk.CTkImage(light_image=logo_image, dark_image=logo_image, size=(140, 140))
-                self.menu_card_images.append(logo_ctk_image)
                 ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 16))
- main
- main
             except Exception as e:
                 print(f"Error cargando {image_filename}: {e}")
 
