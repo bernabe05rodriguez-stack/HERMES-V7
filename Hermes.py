@@ -625,10 +625,10 @@ class Hermes:
         parent.grid_rowconfigure(0, weight=1)
 
         container = ctk.CTkFrame(parent, fg_color="transparent")
-        container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        container.pack(expand=True, pady=20)
 
         header = ctk.CTkFrame(container, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 20))
+        header.grid(row=0, column=0, sticky="n", padx=10, pady=(10, 24))
         header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -639,9 +639,11 @@ class Hermes:
         ).grid(row=0, column=0, sticky="w")
 
         cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=1, column=0, sticky="nsew")
-        cards.grid_columnconfigure(0, weight=1, uniform="cards")
-        cards.grid_columnconfigure(1, weight=1, uniform="cards")
+        cards.grid(row=1, column=0, sticky="n")
+        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=380)
+        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=380)
+
+        self.menu_card_images = []
 
         self.menu_card_images = []
 
@@ -673,20 +675,33 @@ class Hermes:
             border_width=1,
             border_color=self._section_border_color()
         )
-        card.grid(row=0, column=column, sticky="nsew", padx=10, pady=10)
+        card.grid(row=0, column=column, sticky="n", padx=20, pady=12)
         card.grid_rowconfigure(2, weight=1)
+        card.grid_columnconfigure(0, weight=1)
 
         body = ctk.CTkFrame(card, fg_color="transparent")
-        body.grid(row=0, column=0, sticky="nsew", padx=28, pady=28)
+        body.grid(row=0, column=0, sticky="nsew", padx=36, pady=34)
         body.grid_columnconfigure(0, weight=1)
 
         if image_filename:
             try:
                 logo_path = os.path.join(BASE_DIR, image_filename)
+ codex/check-sms-and-wsp-image-uploads-r6j56s
+                logo_image = Image.open(logo_path).convert("RGBA")
+                logo_image.thumbnail((130, 130), Image.Resampling.LANCZOS)
+                logo_ctk_image = ctk.CTkImage(
+                    light_image=logo_image,
+                    dark_image=logo_image,
+                    size=logo_image.size
+                )
+                self.menu_card_images.append(logo_ctk_image)
+                ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 18))
+
                 logo_image = Image.open(logo_path).resize((140, 140), Image.Resampling.LANCZOS)
                 logo_ctk_image = ctk.CTkImage(light_image=logo_image, dark_image=logo_image, size=(140, 140))
                 self.menu_card_images.append(logo_ctk_image)
                 ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 16))
+ main
             except Exception as e:
                 print(f"Error cargando {image_filename}: {e}")
 
