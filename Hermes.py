@@ -599,6 +599,14 @@ class Hermes:
         self.sms_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
         self.setup_sms_view(self.sms_view_frame)
 
+        for frame in (
+            self.main_menu_frame,
+            self.traditional_view_frame,
+            self.fidelizado_view_frame,
+            self.sms_view_frame,
+        ):
+            frame.pack_propagate(False)
+
         # Mostrar el menú principal por defecto
         self.show_main_menu()
 
@@ -730,7 +738,7 @@ class Hermes:
         self.main_menu_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
-        self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
+        self.traditional_view_frame.pack(fill=tk.BOTH, expand=True, anchor="n")
         self._show_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
@@ -742,7 +750,7 @@ class Hermes:
         self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
-        self.fidelizado_view_frame.pack(fill=tk.X, expand=False, anchor="n")
+        self.fidelizado_view_frame.pack(fill=tk.BOTH, expand=True, anchor="n")
         self._show_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(True)
@@ -761,7 +769,7 @@ class Hermes:
         self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
-        self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
+        self.sms_view_frame.pack(fill=tk.BOTH, expand=True, anchor="n")
         self._show_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
