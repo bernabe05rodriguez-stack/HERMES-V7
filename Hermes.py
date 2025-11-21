@@ -805,7 +805,7 @@ class Hermes:
 
     def setup_traditional_view(self, parent):
         parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(0, weight=0)
+        parent.grid_rowconfigure(0, weight=1)
 
         content = ctk.CTkFrame(
             parent,
@@ -814,7 +814,7 @@ class Hermes:
             border_width=1,
             border_color=self._section_border_color()
         )
-        content.grid(row=0, column=0, sticky="ew", padx=0, pady=(10, 20))
+        content.grid(row=0, column=0, sticky="nsew", padx=0, pady=(10, 20))
         content.grid_columnconfigure(0, weight=1)
 
         header = ctk.CTkFrame(content, fg_color="transparent")
@@ -2135,6 +2135,7 @@ class Hermes:
         # Contenedor principal de la vista Fidelizado
         fidelizado_container = ctk.CTkFrame(parent, fg_color="transparent")
         fidelizado_container.pack(fill=tk.BOTH, expand=True)
+        fidelizado_container.pack_propagate(False)
 
         # Contenido principal de Fidelizado
         content = ctk.CTkFrame(
@@ -2145,7 +2146,7 @@ class Hermes:
             border_color=self._section_border_color()
         )
         self.fidelizado_main_card = content
-        content.pack(fill=tk.X, expand=False, padx=10, pady=(10, 0))
+        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 0))
 
         # Layout principal reconfigurado para una columna expandible
         content.grid_columnconfigure(0, weight=1)
