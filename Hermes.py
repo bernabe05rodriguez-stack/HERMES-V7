@@ -614,21 +614,21 @@ class Hermes:
         container.grid_rowconfigure(2, weight=0)
 
         header = ctk.CTkFrame(container, fg_color="transparent")
-        header.grid(row=0, column=1, sticky="n", padx=10, pady=(20, 28))
+        header.grid(row=0, column=1, sticky="n", padx=10, pady=(26, 18))
         header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             header,
-            text="Selecciona un modo de envío",
-            font=('Inter', 32, 'bold'),
+            text="Gestor de Mensajería",
+            font=('Inter', 30, 'bold'),
             text_color=self.colors['text'],
             justify="center"
         ).grid(row=0, column=0, sticky="n")
 
         cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=1, column=1, sticky="n", padx=28, pady=(14, 28))
-        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
-        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
+        cards.grid(row=1, column=1, sticky="n", padx=28, pady=(10, 18))
+        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=320)
+        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=320)
         cards.grid_rowconfigure(0, weight=1)
 
         self.menu_card_images = []
@@ -637,7 +637,6 @@ class Hermes:
             cards,
             column=0,
             title="Whatsapp",
-            description="Campañas de WhatsApp con herramientas avanzadas y modo Fidelizado integrado.",
             image_filename="WSP.png",
             command=self.show_traditional_view
         )
@@ -646,55 +645,43 @@ class Hermes:
             cards,
             column=1,
             title="SMS",
-            description="Envía mensajes de texto directos usando tu configuración de SMS.",
             image_filename="SMS.png",
             command=self.show_sms_view
         )
 
-        actions = ctk.CTkFrame(container, fg_color="transparent")
-        actions.grid(row=2, column=1, sticky="ew", padx=40, pady=(0, 26))
-        actions.grid_columnconfigure(0, weight=1)
-        actions.grid_columnconfigure(1, weight=1)
-
-        btn_kwargs = dict(
-            fg_color=self.colors['action_mode'],
-            hover_color=self.hover_colors['action_mode'],
-            text_color=self.colors['text_header_buttons'],
-            font=self.fonts['button'],
-            corner_radius=22,
-            height=48
-        )
-
-        ctk.CTkButton(
-            actions,
-            text="Abrir WhatsApp",
-            command=self.show_traditional_view,
-            **btn_kwargs
-        ).grid(row=0, column=0, sticky="ew", padx=(0, 10))
-
-        ctk.CTkButton(
-            actions,
-            text="Abrir SMS",
-            command=self.show_sms_view,
-            **btn_kwargs
-        ).grid(row=0, column=1, sticky="ew", padx=(10, 0))
-
-    def _build_menu_card(self, parent, column, title, description, command, image_filename=None):
+    def _build_menu_card(self, parent, column, title, command, image_filename=None):
         card = ctk.CTkFrame(
             parent,
             fg_color=self.colors['bg_card'],
-            corner_radius=8,
+            corner_radius=18,
             border_width=1,
             border_color=self._section_border_color()
         )
-        card.grid(row=0, column=column, sticky="nsew", padx=28, pady=18)
+        card.grid(row=0, column=column, sticky="nsew", padx=18, pady=14)
         card.grid_propagate(False)
-        card.configure(height=340)
-        card.grid_rowconfigure(2, weight=1)
+        card.configure(height=320)
+        card.grid_rowconfigure(0, weight=1)
         card.grid_columnconfigure(0, weight=1)
 
+        hover_color = lighten_color(self.colors['bg_card'], 0.06)
+
+        def on_enter(event=None):
+            card.configure(fg_color=hover_color)
+
+        def on_leave(event=None):
+            card.configure(fg_color=self.colors['bg_card'])
+
+        def on_click(event=None):
+            command()
+
+        for widget in (card,):
+            widget.bind("<Enter>", on_enter)
+            widget.bind("<Leave>", on_leave)
+            widget.bind("<Button-1>", on_click)
+            widget.configure(cursor="hand2")
+
         body = ctk.CTkFrame(card, fg_color="transparent")
-        body.grid(row=0, column=0, sticky="nsew", padx=36, pady=30)
+        body.grid(row=0, column=0, sticky="nsew", padx=36, pady=(34, 28))
         body.grid_columnconfigure(0, weight=1)
 
         if image_filename:
@@ -707,37 +694,25 @@ class Hermes:
                     size=(140, 140)
                 )
                 self.menu_card_images.append(logo_ctk_image)
-                ctk.CTkLabel(body, image=logo_ctk_image, text="").grid(row=0, column=0, pady=(0, 20))
+                image_label = ctk.CTkLabel(body, image=logo_ctk_image, text="")
+                image_label.grid(row=0, column=0, pady=(0, 18))
+                image_label.bind("<Button-1>", on_click)
+                image_label.bind("<Enter>", on_enter)
+                image_label.bind("<Leave>", on_leave)
             except Exception as e:
                 print(f"Error cargando {image_filename}: {e}")
 
-        ctk.CTkLabel(
+        title_label = ctk.CTkLabel(
             body,
             text=title,
-            font=('Inter', 30, 'bold'),
-            text_color=self.colors['text']
-        ).grid(row=1, column=0, sticky="w")
-
-        ctk.CTkLabel(
-            body,
-            text=description,
-            font=self.fonts['subtitle'],
-            text_color=self.colors['text_light'],
-            wraplength=520,
-            justify="left"
-        ).grid(row=2, column=0, sticky="w", pady=(12, 26))
-
-        ctk.CTkButton(
-            body,
-            text=f"Abrir {title}",
-            command=command,
-            fg_color=self.colors['action_mode'],
-            hover_color=self.hover_colors['action_mode'],
-            text_color=self.colors['text_header_buttons'],
-            font=self.fonts['button'],
-            corner_radius=22,
-            height=48
-        ).grid(row=3, column=0, sticky="ew")
+            font=('Inter', 26, 'bold'),
+            text_color=self.colors['text'],
+            justify="center"
+        )
+        title_label.grid(row=1, column=0, pady=(10, 6))
+        title_label.bind("<Button-1>", on_click)
+        title_label.bind("<Enter>", on_enter)
+        title_label.bind("<Leave>", on_leave)
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
