@@ -498,6 +498,20 @@ class Hermes:
     def _on_main_configure(self, event):
         self._update_main_layout(self.root.winfo_width())
 
+    def _show_right_panel(self):
+        """Garantiza que el panel derecho esté visible y posicionado correctamente."""
+        if not hasattr(self, 'right_panel'):
+            return
+
+        # Forzar reconfiguración para que grid() vuelva a colocarlo si estaba oculto
+        self._current_main_layout = None
+        self._update_main_layout()
+
+    def _hide_right_panel(self):
+        """Oculta el panel derecho en el menú principal."""
+        if hasattr(self, 'right_panel'):
+            self.right_panel.grid_remove()
+
     def _update_main_layout(self, width=None):
         """Cambia entre vista de 2 columnas o 1 columna (apilada) si la ventana es muy angosta."""
         if not hasattr(self, 'left_panel') or not hasattr(self, 'right_panel'):
@@ -632,7 +646,7 @@ class Hermes:
         self._build_menu_card(
             cards,
             column=0,
-            title="Modo Masivo",
+            title="Whatsapp",
             description="Campañas de WhatsApp con herramientas avanzadas y modo Fidelizado integrado.",
             icon="🚀",
             command=self.show_traditional_view
@@ -641,7 +655,7 @@ class Hermes:
         self._build_menu_card(
             cards,
             column=1,
-            title="Modo SMS",
+            title="SMS",
             description="Envía mensajes de texto directos usando tu configuración de SMS.",
             icon="📨",
             command=self.show_sms_view
@@ -706,6 +720,7 @@ class Hermes:
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
+        self._show_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
 
@@ -717,6 +732,7 @@ class Hermes:
         self.traditional_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self.fidelizado_view_frame.pack(fill=tk.X, expand=False, anchor="n")
+        self._show_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(True)
 
@@ -735,6 +751,7 @@ class Hermes:
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
+        self._show_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
 
@@ -745,6 +762,7 @@ class Hermes:
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
+        self._hide_right_panel()
         self._apply_fidelizado_layout_styles(False)
 
     def _apply_fidelizado_layout_styles(self, active):
