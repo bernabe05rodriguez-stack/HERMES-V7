@@ -609,10 +609,11 @@ class Hermes:
         container = ctk.CTkFrame(parent, fg_color="transparent")
         container.grid(row=0, column=0, sticky="nsew")
         container.grid_columnconfigure(0, weight=1)
+        container.grid_columnconfigure(2, weight=1)
         container.grid_rowconfigure(1, weight=1)
 
         header = ctk.CTkFrame(container, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="n", padx=10, pady=(20, 28))
+        header.grid(row=0, column=1, sticky="n", padx=10, pady=(20, 28))
         header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -624,7 +625,7 @@ class Hermes:
         ).grid(row=0, column=0, sticky="n")
 
         cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=1, column=0, sticky="nsew", padx=28, pady=(14, 28))
+        cards.grid(row=1, column=1, sticky="n", padx=28, pady=(14, 28))
         cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
         cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
         cards.grid_rowconfigure(0, weight=1)
