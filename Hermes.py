@@ -241,7 +241,7 @@ class Tooltip:
 
 # --- Clase principal de la aplicación ---
 class Hermes:
-    def __init__(self, root, start_view="traditional"):
+    def __init__(self, root, start_view="menu"):
         self.root = root
         self.root.title("HΞЯMΞS V1")
         self.root.state('zoomed')
@@ -697,8 +697,10 @@ class Hermes:
         # Mostrar la vista inicial solicitada
         if self.start_view == "sms":
             self.show_sms_view()
-        else:
+        elif self.start_view == "traditional":
             self.show_traditional_view()
+        else:
+            self.show_menu_view()
 
     def setup_menu_view(self, parent):
         menu_container = ctk.CTkFrame(parent, fg_color="transparent")
@@ -821,14 +823,15 @@ class Hermes:
         self._apply_fidelizado_layout_styles(False)
 
     def show_menu_view(self):
-        """Regresa al menú principal externo y reinicia la aplicación."""
-        self.root.after(0, self._launch_external_menu)
-
-    def _launch_external_menu(self):
-        try:
-            self.root.destroy()
-        finally:
-            launch_main_menu()
+        """Muestra el menú principal dentro de la misma ventana."""
+        self.sms_mode_active = False
+        self.is_main_menu_active = True
+        self.traditional_view_frame.pack_forget()
+        self.fidelizado_view_frame.pack_forget()
+        self.sms_view_frame.pack_forget()
+        self._set_right_panel_contents_visibility(False)
+        self._configure_main_menu_layout()
+        self.menu_view_frame.pack(fill=tk.BOTH, expand=True, anchor="center")
 
     def _apply_fidelizado_layout_styles(self, active):
         """Ajusta bordes y altura de tarjetas cuando se activa el modo Fidelizado."""
@@ -6408,65 +6411,18 @@ class Hermes:
             self._run_adb_command(close_args, timeout=5) # Usar la función helper, ignorar resultado
 
 # --- Lanzador principal ---
-def launch_app(start_view):
+def launch_app(start_view="menu"):
     """Crea la ventana principal de la aplicación en el modo solicitado."""
+    ctk.set_appearance_mode("Light")
+    ctk.set_default_color_theme("blue")
+
     app_root = ctk.CTk()
     Hermes(app_root, start_view=start_view)
     app_root.mainloop()
 
 
-def launch_main_menu():
-    """Muestra un menú externo minimalista para elegir el modo de inicio."""
-    ctk.set_appearance_mode("Light")
-    ctk.set_default_color_theme("blue")
-
-    menu_root = ctk.CTk()
-    menu_root.title("")
-    menu_root.resizable(False, False)
-
-    def open_mode(view):
-        menu_root.destroy()
-        launch_app(view)
-
-    def center_window(window, width, height):
-        window.update_idletasks()
-        sw = window.winfo_screenwidth()
-        sh = window.winfo_screenheight()
-        x = (sw // 2) - (width // 2)
-        y = (sh // 2) - (height // 2)
-        window.geometry(f"{width}x{height}+{x}+{y}")
-
-    center_window(menu_root, 460, 200)
-    menu_root.configure(fg_color="#f2f2f2")
-
-    container = ctk.CTkFrame(menu_root, fg_color="transparent")
-    container.pack(expand=True, fill=tk.BOTH, padx=30, pady=30)
-    container.grid_columnconfigure((0, 1), weight=1)
-    container.grid_rowconfigure(0, weight=1)
-
-    button_kwargs = dict(font=('Inter', 18, 'bold'), height=64, width=180, corner_radius=18)
-
-    whatsapp_btn = ctk.CTkButton(
-        container,
-        text="WhatsApp",
-        command=lambda: open_mode("traditional"),
-        **button_kwargs
-    )
-    whatsapp_btn.grid(row=0, column=0, padx=12, pady=12, sticky="nsew")
-
-    sms_btn = ctk.CTkButton(
-        container,
-        text="SMS",
-        command=lambda: open_mode("sms"),
-        **button_kwargs
-    )
-    sms_btn.grid(row=0, column=1, padx=12, pady=12, sticky="nsew")
-
-    menu_root.mainloop()
-
-
 def main():
-    launch_main_menu()
+    launch_app(start_view="menu")
 
 
 if __name__ == "__main__":
