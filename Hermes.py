@@ -14,6 +14,7 @@ Código limpiado y optimizado.
 import subprocess
 import time
 import random
+import math
 import tkinter as tk
 import customtkinter as ctk
 import tkinter.font as tkfont
@@ -244,6 +245,36 @@ class Tooltip:
             self.tooltip_window = None
 
 # --- Clase principal de la aplicación ---
+# --- Clase auxiliar para las estrellas ---
+class Star:
+    def __init__(self, w, h):
+        self.w = w
+        self.h = h
+        # Inicializa una estrella en una posición aleatoria (coordenadas polares)
+        self.r = random.uniform(0, w/2)  # Radio (distancia al centro)
+        self.a = random.uniform(0, 2*math.pi)  # Ángulo
+        # Tasa de cambio de radio (velocidad) - Ajustado para pixels/frame visibles
+        self.rs = random.uniform(0.2, 1.0)
+        # Tasa de cambio de ángulo (rotación)
+        self.ar = random.uniform(0.002, 0.006)
+        self.sz = random.randint(1, 2)  # Tamaño
+
+    def move(self):
+        # Mueve la estrella, aumentando su radio y ángulo
+        self.r += self.rs
+        self.a += self.ar
+        # Si la estrella sale del límite, la reinicia al centro
+        if self.r > self.w/2:
+            self.r = 0
+            self.a = random.uniform(0, 2*math.pi)
+
+    def get_coords(self):
+        # Convierte coordenadas polares (r, a) a cartesianas (x, y)
+        x = self.w/2 + math.cos(self.a) * self.r
+        y = self.h/2 + math.sin(self.a) * self.r
+        return x, y, self.sz
+
+# --- Clase principal de la aplicación ---
 class Hermes:
     def __init__(self, root):
         self.root = root
@@ -252,6 +283,12 @@ class Hermes:
         self.root.state('zoomed')
         self.root.resizable(True, True)
         self.root.minsize(1500, 900)
+
+        # Variables para la animación de estrellas
+        self.stars = []
+        self.starfield_running = False
+        self.starfield_canvas = None
+        self.starfield_after_id = None
 
         # Aplicar estilos de Windows 11 si está disponible
         if pywinstyles:
@@ -502,14 +539,70 @@ class Hermes:
         # INICIAR EN EL MENÚ DE INICIO
         self.setup_start_menu()
 
+    def init_starfield(self, width, height):
+        """Inicializa las estrellas para la animación."""
+        self.stars = [Star(width, height) for _ in range(500)]
+
+    def animate_starfield(self):
+        """Actualiza y dibuja el campo de estrellas."""
+        if not self.starfield_running or not self.starfield_canvas or not self.starfield_canvas.winfo_exists():
+            return
+
+        # Obtener dimensiones actuales (por si redimensionan la ventana)
+        w = self.starfield_canvas.winfo_width()
+        h = self.starfield_canvas.winfo_height()
+
+        # Si el canvas es muy pequeño (al iniciar), usar dimensiones por defecto
+        if w < 10 or h < 10:
+            w, h = 1500, 900
+
+        # Limpiar canvas
+        self.starfield_canvas.delete("all")
+
+        # Mover y dibujar estrellas
+        for star in self.stars:
+            star.w = w  # Actualizar límites por si cambia el tamaño
+            star.h = h
+            star.move()
+            x, y, sz = star.get_coords()
+            self.starfield_canvas.create_oval(x, y, x+sz, y+sz, fill="white", outline="white")
+
+        # Programar siguiente frame (aprox 60 FPS -> 16ms)
+        self.starfield_after_id = self.root.after(20, self.animate_starfield)
+
+    def stop_starfield(self):
+        """Detiene la animación de estrellas."""
+        self.starfield_running = False
+        if self.starfield_after_id:
+            self.root.after_cancel(self.starfield_after_id)
+            self.starfield_after_id = None
+
     def setup_start_menu(self):
         """Crea y muestra el menú de inicio con diseño de tarjetas modernas."""
         if hasattr(self, 'start_menu_frame') and self.start_menu_frame.winfo_exists():
             self.start_menu_frame.pack(fill=tk.BOTH, expand=True)
+            self.starfield_running = True
+            self.animate_starfield()
             return
 
-        self.start_menu_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+        # Forzar fondo negro para el frame principal del menú
+        self.start_menu_frame = ctk.CTkFrame(self.root, fg_color="black")
         self.start_menu_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Crear Canvas para el fondo de estrellas
+        self.starfield_canvas = tk.Canvas(self.start_menu_frame, bg="black", highlightthickness=0)
+        self.starfield_canvas.place(relwidth=1, relheight=1) # Llenar todo el fondo
+
+        # Inicializar estrellas con dimensiones fijas iniciales (para evitar que se amontonen en 1x1)
+        # Si luego la ventana es más grande, las estrellas se redibujarán/moverán pero empezarán bien distribuidas.
+        init_w = self.root.winfo_width()
+        init_h = self.root.winfo_height()
+        if init_w < 100: init_w = 1500
+        if init_h < 100: init_h = 900
+
+        self.init_starfield(init_w, init_h)
+        self.starfield_running = True
+        self.animate_starfield()
 
         # Header del menú de inicio para el botón de Dark Mode
         start_header = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
@@ -524,17 +617,17 @@ class Hermes:
         controls_frame = ctk.CTkFrame(start_header, fg_color="transparent")
         controls_frame.pack(side=tk.RIGHT)
 
-        # Título principal HHERMES (Agrandado)
+        # Título principal HHERMES (Agrandado) - SIEMPRE BLANCO
         header_font = list(self.fonts.get('header', ('Big Russian', 76, 'bold')))
         header_font[1] = 100 # Aumentar tamaño de fuente
 
-        ctk.CTkLabel(title_frame, text="HΞЯMΞS", font=tuple(header_font), text_color=self.colors.get('text_header', '#000000')).pack()
+        ctk.CTkLabel(title_frame, text="HΞЯMΞS", font=tuple(header_font), text_color="#ffffff").pack()
 
         self.dark_mode_btn_start = ctk.CTkLabel(
             controls_frame,
             text="🌙" if getattr(self, 'dark_mode', False) else "☀️",
             font=('Inter', 34),
-            text_color=self.colors.get('text', '#000000'),
+            text_color="#ffffff", # Siempre blanco
             cursor='hand2'
         )
         self.dark_mode_btn_start.pack(pady=15) # Padding vertical para dar altura al header
@@ -674,6 +767,7 @@ class Hermes:
 
     def enter_app_mode(self, mode):
         """Transición del menú de inicio a la aplicación principal."""
+        self.stop_starfield()
         self.start_menu_frame.pack_forget()
 
         # Mostrar UI principal
