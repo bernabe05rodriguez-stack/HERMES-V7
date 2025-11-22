@@ -531,15 +531,23 @@ class Hermes:
     def _set_right_panel_contents_visibility(self, visible):
         """Muestra u oculta el contenido del panel derecho sin alterar su estado de grid."""
         if visible:
-            if hasattr(self, 'state_progress_card') and hasattr(self, 'state_progress_pack_defaults'):
-                self.state_progress_card.pack(**self.state_progress_pack_defaults)
-            if hasattr(self, 'log_card') and hasattr(self, 'log_card_pack_defaults'):
-                self.log_card.pack(**self.log_card_pack_defaults)
+            self._arrange_right_panel_cards()
         else:
             if hasattr(self, 'state_progress_card'):
                 self.state_progress_card.pack_forget()
             if hasattr(self, 'log_card'):
                 self.log_card.pack_forget()
+
+    def _arrange_right_panel_cards(self):
+        """Garantiza que Estado y Progreso quede arriba de Registro de actividad en todos los modos."""
+        if not hasattr(self, 'state_progress_card') or not hasattr(self, 'log_card'):
+            return
+
+        if hasattr(self, 'state_progress_pack_defaults') and hasattr(self, 'log_card_pack_defaults'):
+            self.state_progress_card.pack_forget()
+            self.log_card.pack_forget()
+            self.state_progress_card.pack(**self.state_progress_pack_defaults)
+            self.log_card.pack(**self.log_card_pack_defaults)
 
     def _configure_main_menu_layout(self):
         """Expande el menú principal para ocupar la pantalla y centra las tarjetas."""
@@ -1348,6 +1356,8 @@ class Hermes:
             self.log("ADB detectado correctamente", 'success')
         else:
             self.log("ADB no detectado automáticamente. Asegúrate de que esté en la carpeta o ejecuta INSTALAR.bat", 'warning')
+
+        self._arrange_right_panel_cards()
 
         if self.log_view_mode == "table":
             self.show_activity_table()
