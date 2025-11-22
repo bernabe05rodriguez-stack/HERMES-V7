@@ -659,15 +659,8 @@ class Hermes:
         container.grid_columnconfigure(0, weight=1)
         container.grid_rowconfigure(0, weight=1)
 
-        cards_wrapper = ctk.CTkFrame(container, fg_color="transparent")
-        cards_wrapper.grid(row=0, column=0, sticky="nsew", padx=40, pady=40)
-        cards_wrapper.grid_columnconfigure(0, weight=1)
-        cards_wrapper.grid_columnconfigure(2, weight=1)
-        cards_wrapper.grid_rowconfigure(0, weight=1)
-        cards_wrapper.grid_rowconfigure(2, weight=1)
-
-        cards = ctk.CTkFrame(cards_wrapper, fg_color="transparent")
-        cards.grid(row=1, column=1)
+        cards = ctk.CTkFrame(container, fg_color="transparent")
+        cards.grid(row=0, column=0)
         cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
         cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
         cards.grid_rowconfigure(0, weight=1)
