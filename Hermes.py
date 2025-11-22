@@ -500,25 +500,36 @@ class Hermes:
         self.start_menu_frame = ctk.CTkFrame(self.root, fg_color="transparent")
         self.start_menu_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Header del menú de inicio para el botón de Dark Mode
+        # Header del menú de inicio (Título Centrado + Dark Mode Derecha)
         start_header = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
-        start_header.pack(fill=tk.X, padx=40, pady=(20, 0))
+        start_header.place(relx=0, rely=0, relwidth=1)
+
+        # Usamos place para centrar el título absolutamente
+        title_frame = ctk.CTkFrame(start_header, fg_color="transparent")
+        title_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Usamos pack para alinear el botón de modo oscuro a la derecha con margen
+        controls_frame = ctk.CTkFrame(start_header, fg_color="transparent")
+        controls_frame.pack(side=tk.RIGHT, padx=40, pady=25)
+
+        # Título principal HHERMES (Movido al header y agrandado)
+        header_font = list(self.fonts.get('header', ('Big Russian', 76, 'bold')))
+        header_font[1] = 100 # Aumentar tamaño de fuente
+
+        ctk.CTkLabel(title_frame, text="HΞЯMΞS", font=tuple(header_font), text_color=self.colors.get('text_header', '#000000')).pack()
 
         self.dark_mode_btn_start = ctk.CTkLabel(
-            start_header,
+            controls_frame,
             text="🌙" if getattr(self, 'dark_mode', False) else "☀️",
             font=('Inter', 34),
             text_color=self.colors.get('text', '#000000'),
             cursor='hand2'
         )
-        self.dark_mode_btn_start.pack(side=tk.RIGHT)
+        self.dark_mode_btn_start.pack()
         self.dark_mode_btn_start.bind("<Button-1>", lambda _event: self.toggle_dark_mode())
 
         center_frame = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
         center_frame.place(relx=0.5, rely=0.5, anchor="center")
-
-        # Título principal HHERMES arriba
-        ctk.CTkLabel(center_frame, text="HΞЯMΞS", font=self.fonts.get('header', ('Arial', 40, 'bold')), text_color=self.colors.get('text_header', '#000000')).pack(pady=(0, 40))
 
         # Contenedor horizontal para las tarjetas
         cards_container = ctk.CTkFrame(center_frame, fg_color="transparent")
@@ -553,15 +564,16 @@ class Hermes:
 
         # --- Función auxiliar para crear tarjeta con sombra difuminada ---
         def create_card_with_shadow(parent, img_filename, text, command):
-            # Configuración de sombra (Ajustada para que se vea mejor)
-            shadow_blur_radius = 15
+            # Configuración de sombra (Ajustada para "relieve 3d" y más difuminada)
+            shadow_blur_radius = 40  # Aumentado significativamente
             shadow_offset_x = 0
-            shadow_offset_y = 8
+            shadow_offset_y = 12
 
-            # Tamaño total del canvas para la sombra (carta + blur padding + offset)
-            # Se añade espacio extra para evitar que la sombra se corte
-            canvas_width = card_width + (shadow_blur_radius * 2) + abs(shadow_offset_x)
-            canvas_height = card_height + (shadow_blur_radius * 2) + abs(shadow_offset_y)
+            # Tamaño total del canvas para la sombra (carta + blur padding generoso)
+            # Se usa un padding de 4x el radio para evitar cortes en los bordes
+            padding = shadow_blur_radius * 4
+            canvas_width = card_width + padding
+            canvas_height = card_height + padding
 
             container = ctk.CTkFrame(parent, width=canvas_width, height=canvas_height, fg_color="transparent")
 
@@ -569,10 +581,19 @@ class Hermes:
             shadow_pil = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(shadow_pil)
 
-            # Coordenadas del rectángulo de la sombra (centrado + offset)
-            # El "origen" de la tarjeta es (shadow_blur_radius, shadow_blur_radius) para dejar espacio al blur en top/left.
-            rect_x0 = shadow_blur_radius + shadow_offset_x
-            rect_y0 = shadow_blur_radius + shadow_offset_y
+            # Coordenadas del rectángulo de la sombra (centrado en el canvas grande)
+            # El centro del canvas es (canvas_width/2, canvas_height/2)
+            # La tarjeta debe estar centrada, así que calculamos sus coordenadas
+            center_x = canvas_width // 2
+            center_y = canvas_height // 2
+
+            # Coordenadas de la tarjeta base (sin offset)
+            card_x0 = center_x - (card_width // 2)
+            card_y0 = center_y - (card_height // 2)
+
+            # Coordenadas de la sombra (con offset)
+            rect_x0 = card_x0 + shadow_offset_x
+            rect_y0 = card_y0 + shadow_offset_y
             rect_x1 = rect_x0 + card_width
             rect_y1 = rect_y0 + card_height
 
@@ -605,7 +626,7 @@ class Hermes:
                 ctk_img = None
 
             # Botón grande estilo tarjeta (Frente)
-            # Posicionado para centrarse sobre la sombra
+            # Posicionado exactamente sobre donde calculamos la "tarjeta base"
             btn = ctk.CTkButton(
                 container,
                 text=text,
@@ -623,8 +644,7 @@ class Hermes:
                 border_color=border_col,
                 bg_color="transparent"
             )
-            # El botón debe estar desplazado por el radio del blur para alinearse con el "cuerpo" de la sombra
-            btn.place(x=shadow_blur_radius, y=shadow_blur_radius)
+            btn.place(x=card_x0, y=card_y0)
 
             return container
 
