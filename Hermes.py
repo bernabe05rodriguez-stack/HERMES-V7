@@ -509,21 +509,35 @@ class Hermes:
         self.start_menu_frame = ctk.CTkFrame(self.root, fg_color="transparent")
         self.start_menu_frame.pack(fill=tk.BOTH, expand=True)
 
+        # Header del menú de inicio para el botón de Dark Mode
+        start_header = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
+        start_header.pack(fill=tk.X, padx=40, pady=(20, 0))
+
+        self.dark_mode_btn_start = ctk.CTkLabel(
+            start_header,
+            text="🌙" if getattr(self, 'dark_mode', False) else "☀️",
+            font=('Inter', 34),
+            text_color=self.colors.get('text', '#000000'),
+            cursor='hand2'
+        )
+        self.dark_mode_btn_start.pack(side=tk.RIGHT)
+        self.dark_mode_btn_start.bind("<Button-1>", lambda _event: self.toggle_dark_mode())
+
         center_frame = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
         center_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        # Título principal
-        ctk.CTkLabel(center_frame, text="Seleccione un modo", font=('Inter', 32, 'bold'), text_color=self.colors['text']).pack(pady=(0, 50))
+        # Título principal HHERMES arriba
+        ctk.CTkLabel(center_frame, text="HHERMES", font=self.fonts.get('header', ('Arial', 40, 'bold')), text_color=self.colors.get('text_header', '#000000')).pack(pady=(0, 40))
 
         # Contenedor horizontal para las tarjetas
         cards_container = ctk.CTkFrame(center_frame, fg_color="transparent")
         cards_container.pack()
 
-        # Configuración de estilo
-        card_width = 280
-        card_height = 340
-        img_size = (200, 200)
-        font_card = ('Inter', 24, 'bold')
+        # Configuración de estilo (Más grandes)
+        card_width = 320
+        card_height = 400
+        img_size = (220, 220)
+        font_card = ('Inter', 26, 'bold')
 
         # Colores de tarjeta (usando colores definidos en el init con fallback por seguridad)
         card_bg = self.colors.get('bg_card', '#ffffff')
@@ -543,8 +557,20 @@ class Hermes:
         except AttributeError:
             border_col = "#cccccc"
 
-        # --- Función auxiliar para crear tarjeta ---
-        def create_card(parent, img_filename, text, command):
+        # Sombra (color oscuro semitransparente simulado con color sólido oscuro del tema o gris)
+        shadow_color = "#1a1a1a" if not is_dark else "#000000"
+
+        # --- Función auxiliar para crear tarjeta con sombra ---
+        def create_card_with_shadow(parent, img_filename, text, command):
+            # Contenedor para la sombra y el botón
+            # Tamaño contenedor = tamaño carta + offset sombra
+            offset = 8
+            container = ctk.CTkFrame(parent, width=card_width + offset, height=card_height + offset, fg_color="transparent")
+
+            # Sombra (Frame detrás)
+            shadow = ctk.CTkFrame(container, width=card_width, height=card_height, corner_radius=35, fg_color=shadow_color, bg_color="transparent")
+            shadow.place(x=offset, y=offset)
+
             try:
                 img_path = os.path.join(BASE_DIR, img_filename)
                 if os.path.exists(img_path):
@@ -557,9 +583,9 @@ class Hermes:
                 print(f"Error cargando {img_filename}: {e}")
                 ctk_img = None
 
-            # Botón grande estilo tarjeta
+            # Botón grande estilo tarjeta (Frente)
             btn = ctk.CTkButton(
-                parent,
+                container,
                 text=text,
                 image=ctk_img,
                 compound="top",
@@ -572,30 +598,30 @@ class Hermes:
                 font=font_card,
                 hover_color=card_hover,
                 border_width=2,
-                border_color=border_col
+                border_color=border_col,
+                bg_color="transparent"
             )
-            return btn
+            btn.place(x=0, y=0)
+
+            return container
 
         # Tarjeta WhatsApp (Izquierda)
-        btn_wsp = create_card(
+        card_wsp = create_card_with_shadow(
             cards_container,
             "WSP alas.png",
             "Whatsapp",
             lambda: self.enter_app_mode("whatsapp")
         )
-        btn_wsp.grid(row=0, column=0, padx=30, pady=20)
+        card_wsp.grid(row=0, column=0, padx=35, pady=20)
 
         # Tarjeta SMS (Derecha)
-        btn_sms = create_card(
+        card_sms = create_card_with_shadow(
             cards_container,
             "SMS alas.png",
             "SMS",
             lambda: self.enter_app_mode("sms")
         )
-        btn_sms.grid(row=0, column=1, padx=30, pady=20)
-
-        # Footer simple
-        ctk.CTkLabel(center_frame, text="HΞЯMΞS V1", font=('Inter', 12), text_color=self.colors['text_light']).pack(pady=(50, 0))
+        card_sms.grid(row=0, column=1, padx=35, pady=20)
 
     def enter_app_mode(self, mode):
         """Transición del menú de inicio a la aplicación principal."""
@@ -875,15 +901,7 @@ class Hermes:
         )
         self.fidelizado_unlock_btn.grid(row=0, column=0, sticky="e", padx=(0, 12))
 
-        self.dark_mode_btn = ctk.CTkLabel(
-            header_actions,
-            text="🌙" if self.dark_mode else "☀️",
-            font=('Inter', 34),
-            text_color=self.colors['text'],
-            cursor='hand2'
-        )
-        self.dark_mode_btn.grid(row=0, column=1, padx=(12, 0))
-        self.dark_mode_btn.bind("<Button-1>", lambda _event: self.toggle_dark_mode())
+        # Dark mode button moved to Start Menu
 
         self.adb_injector_btn = ctk.CTkButton(
             self.additional_actions_frame,
@@ -1761,9 +1779,9 @@ class Hermes:
         # Recrear la interfaz
         self.setup_ui()
         
-        # Actualizar icono del botón
-        if hasattr(self, 'dark_mode_btn') and self.dark_mode_btn:
-            self.dark_mode_btn.configure(text="🌙" if self.dark_mode else "☀️")
+        # Actualizar icono del botón en Start Menu
+        if hasattr(self, 'dark_mode_btn_start') and self.dark_mode_btn_start:
+            self.dark_mode_btn_start.configure(text="🌙" if self.dark_mode else "☀️")
         
         self.log(f"Modo {'Oscuro' if self.dark_mode else 'Claro'} activado", 'info')
 
