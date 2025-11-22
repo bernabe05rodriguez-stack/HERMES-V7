@@ -592,8 +592,8 @@ class Hermes:
             rect_y1 = rect_y0 + card_height
 
             # Dibujar rectángulo redondeado oscuro
-            # Reducir opacidad para que sea más sutil (40/255 en lugar de 60)
-            shadow_color_rgba = (0, 0, 0, 50) if not is_dark else (0, 0, 0, 120)
+            # Aumentar opacidad para restaurar efecto 3D (80 en light, 180 en dark)
+            shadow_color_rgba = (0, 0, 0, 80) if not is_dark else (0, 0, 0, 180)
             # Aumentar radio para más curva
             draw.rounded_rectangle((rect_x0, rect_y0, rect_x1, rect_y1), radius=40, fill=shadow_color_rgba)
 
@@ -636,7 +636,7 @@ class Hermes:
                 hover_color=card_hover,
                 border_width=1,
                 border_color=border_col,
-                bg_color="transparent"
+                bg_color=self.colors.get('bg', '#e8e8e8') # Color de fondo para tapar "dirty corners"
             )
             # El botón debe estar desplazado por el radio del blur para alinearse con el "cuerpo" de la sombra
             btn.place(x=padding, y=padding)
