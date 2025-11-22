@@ -504,6 +504,7 @@ class Hermes:
         if not hasattr(self, 'right_panel'):
             return
 
+        self._set_right_panel_contents_visibility(True)
         # Forzar reconfiguración para que grid() vuelva a colocarlo si estaba oculto
         self._current_main_layout = None
         self._update_main_layout()
@@ -512,6 +513,20 @@ class Hermes:
         """Oculta el panel derecho en el menú principal."""
         if hasattr(self, 'right_panel'):
             self.right_panel.grid_remove()
+        self._set_right_panel_contents_visibility(False)
+
+    def _set_right_panel_contents_visibility(self, visible):
+        """Muestra u oculta el contenido del panel derecho sin alterar su estado de grid."""
+        if visible:
+            if hasattr(self, 'state_progress_card') and hasattr(self, 'state_progress_pack_defaults'):
+                self.state_progress_card.pack(**self.state_progress_pack_defaults)
+            if hasattr(self, 'log_card') and hasattr(self, 'log_card_pack_defaults'):
+                self.log_card.pack(**self.log_card_pack_defaults)
+        else:
+            if hasattr(self, 'state_progress_card'):
+                self.state_progress_card.pack_forget()
+            if hasattr(self, 'log_card'):
+                self.log_card.pack_forget()
 
     def _configure_main_menu_layout(self):
         """Expande el menú principal para ocupar la pantalla y centra las tarjetas."""
@@ -647,10 +662,12 @@ class Hermes:
         cards_wrapper = ctk.CTkFrame(container, fg_color="transparent")
         cards_wrapper.grid(row=0, column=0, sticky="nsew", padx=40, pady=40)
         cards_wrapper.grid_columnconfigure(0, weight=1)
+        cards_wrapper.grid_columnconfigure(2, weight=1)
         cards_wrapper.grid_rowconfigure(0, weight=1)
+        cards_wrapper.grid_rowconfigure(2, weight=1)
 
         cards = ctk.CTkFrame(cards_wrapper, fg_color="transparent")
-        cards.grid(row=0, column=0)
+        cards.grid(row=1, column=1)
         cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
         cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
         cards.grid_rowconfigure(0, weight=1)
@@ -1239,7 +1256,8 @@ class Hermes:
     def setup_right(self, parent):
         # Bloque 1: Estado y Progreso
         sc = ctk.CTkFrame(parent, fg_color=self.colors['bg_card'], corner_radius=30)
-        sc.pack(fill=tk.X, pady=(0, 20), padx=10)
+        self.state_progress_pack_defaults = {'fill': tk.X, 'pady': (0, 20), 'padx': 10}
+        sc.pack(**self.state_progress_pack_defaults)
         self.state_progress_card = sc
 
         t = ctk.CTkFrame(sc, fg_color="transparent")
@@ -1278,8 +1296,8 @@ class Hermes:
 
         # Bloque 2: Registro de actividad
         lc = ctk.CTkFrame(parent, fg_color=self.colors['bg_log'], corner_radius=30)
-        lc.pack(fill=tk.BOTH, expand=True, pady=0, padx=10)
         self.log_card_pack_defaults = {'fill': tk.BOTH, 'expand': True, 'pady': 0, 'padx': 10}
+        lc.pack(**self.log_card_pack_defaults)
         lc.grid_columnconfigure(0, weight=1)
         lc.grid_rowconfigure(1, weight=1)
         self.log_card = lc
