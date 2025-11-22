@@ -32,7 +32,7 @@ import shutil
 import adbutils
 import uiautomator2 as u2
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 import re
 import xml.etree.ElementTree as ET
 
@@ -560,16 +560,42 @@ class Hermes:
         # Sombra (color oscuro semitransparente simulado con color sólido oscuro del tema o gris)
         shadow_color = "#1a1a1a" if not is_dark else "#000000"
 
-        # --- Función auxiliar para crear tarjeta con sombra ---
+        # --- Función auxiliar para crear tarjeta con sombra difuminada ---
         def create_card_with_shadow(parent, img_filename, text, command):
-            # Contenedor para la sombra y el botón
-            # Tamaño contenedor = tamaño carta + offset sombra
-            offset = 8
-            container = ctk.CTkFrame(parent, width=card_width + offset, height=card_height + offset, fg_color="transparent")
+            # Configuración de sombra
+            shadow_blur_radius = 20
+            shadow_offset_x = 0
+            shadow_offset_y = 10
 
-            # Sombra (Frame detrás)
-            shadow = ctk.CTkFrame(container, width=card_width, height=card_height, corner_radius=35, fg_color=shadow_color, bg_color="transparent")
-            shadow.place(x=offset, y=offset)
+            # Tamaño total del canvas para la sombra (carta + blur padding)
+            canvas_width = card_width + shadow_blur_radius * 2
+            canvas_height = card_height + shadow_blur_radius * 2
+
+            container = ctk.CTkFrame(parent, width=canvas_width, height=canvas_height, fg_color="transparent")
+
+            # Generar imagen de sombra difuminada
+            shadow_pil = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(shadow_pil)
+
+            # Coordenadas del rectángulo de la sombra (centrado + offset)
+            rect_x0 = shadow_blur_radius + shadow_offset_x
+            rect_y0 = shadow_blur_radius + shadow_offset_y
+            rect_x1 = rect_x0 + card_width
+            rect_y1 = rect_y0 + card_height
+
+            # Dibujar rectángulo redondeado oscuro
+            shadow_color_rgba = (0, 0, 0, 60) if not is_dark else (0, 0, 0, 120)
+            draw.rounded_rectangle((rect_x0, rect_y0, rect_x1, rect_y1), radius=35, fill=shadow_color_rgba)
+
+            # Aplicar desenfoque gaussiano
+            shadow_pil = shadow_pil.filter(ImageFilter.GaussianBlur(shadow_blur_radius))
+
+            # Crear CTkImage
+            shadow_image = ctk.CTkImage(light_image=shadow_pil, dark_image=shadow_pil, size=(canvas_width, canvas_height))
+
+            # Label para la sombra
+            shadow_label = ctk.CTkLabel(container, text="", image=shadow_image)
+            shadow_label.place(x=0, y=0)
 
             try:
                 img_path = os.path.join(BASE_DIR, img_filename)
@@ -584,6 +610,7 @@ class Hermes:
                 ctk_img = None
 
             # Botón grande estilo tarjeta (Frente)
+            # Posicionado para centrarse sobre la sombra
             btn = ctk.CTkButton(
                 container,
                 text=text,
@@ -597,11 +624,12 @@ class Hermes:
                 text_color=self.colors.get('text', '#000000'),
                 font=font_card,
                 hover_color=card_hover,
-                border_width=2,
+                border_width=1,
                 border_color=border_col,
                 bg_color="transparent"
             )
-            btn.place(x=0, y=0)
+            # El botón debe estar desplazado por el radio del blur para alinearse con el "cuerpo" de la sombra
+            btn.place(x=shadow_blur_radius, y=shadow_blur_radius)
 
             return container
 
