@@ -396,7 +396,7 @@ class Hermes:
         self.numbers_editor_closed_event = threading.Event()
         self.numbers_editor_closed_event.set()
         self.numbers_editor_start_requested = False
-        self.dark_mode = False  # Estado del modo oscuro
+        self.dark_mode = True  # Estado del modo oscuro (Predeterminado: True)
 
         # Paleta de colores
         self.colors_light = {
@@ -423,7 +423,7 @@ class Hermes:
             'action_pause': '#FFA45C', 'action_cancel': '#EF4444'
         }
         
-        self.colors = self.colors_light.copy()
+        self.colors = self.colors_dark.copy()
 
         self.hover_colors = {k: darken_color(v, 0.18) for k, v in self.colors.items() if k.startswith('action_')}
 
@@ -6472,7 +6472,7 @@ class Hermes:
 # --- Main ---
 def main():
     """Función principal: Configura CTk y abre la app principal."""
-    ctk.set_appearance_mode("Light")
+    ctk.set_appearance_mode("Dark")
     ctk.set_default_color_theme("blue")
     root = ctk.CTk()
 
