@@ -540,11 +540,21 @@ class Hermes:
         self.setup_start_menu()
 
     def init_starfield(self, width, height):
-        """Inicializa las estrellas para la animación."""
-        self.stars = [Star(width, height) for _ in range(500)]
+        """Inicializa las estrellas para la animación y crea sus items en el canvas."""
+        self.stars = []
+        # Limpiar canvas solo de estrellas, por si acaso se llama de nuevo
+        if hasattr(self, 'starfield_canvas') and self.starfield_canvas.winfo_exists():
+            self.starfield_canvas.delete("star")
+
+            for _ in range(500):
+                star = Star(width, height)
+                x, y, sz = star.get_coords()
+                # Crear item en canvas y guardar ID en el objeto Star
+                star.item_id = self.starfield_canvas.create_oval(x, y, x+sz, y+sz, fill="white", outline="white", tags="star")
+                self.stars.append(star)
 
     def animate_starfield(self):
-        """Actualiza y dibuja el campo de estrellas."""
+        """Actualiza y dibuja el campo de estrellas moviendo los items existentes."""
         if not self.starfield_running or not self.starfield_canvas or not self.starfield_canvas.winfo_exists():
             return
 
@@ -556,16 +566,15 @@ class Hermes:
         if w < 10 or h < 10:
             w, h = 1500, 900
 
-        # Limpiar canvas
-        self.starfield_canvas.delete("all")
-
-        # Mover y dibujar estrellas
+        # Mover estrellas existentes (Optimizado: sin delete/create)
         for star in self.stars:
             star.w = w  # Actualizar límites por si cambia el tamaño
             star.h = h
             star.move()
             x, y, sz = star.get_coords()
-            self.starfield_canvas.create_oval(x, y, x+sz, y+sz, fill="white", outline="white")
+
+            if hasattr(star, 'item_id'):
+                self.starfield_canvas.coords(star.item_id, x, y, x+sz, y+sz)
 
         # Programar siguiente frame (aprox 60 FPS -> 16ms)
         self.starfield_after_id = self.root.after(20, self.animate_starfield)
