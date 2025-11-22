@@ -651,19 +651,14 @@ class Hermes:
         self.show_main_menu()
 
     def setup_main_menu(self, parent):
-        parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(0, weight=1)
-
-        container = ctk.CTkFrame(parent, fg_color="transparent")
-        container.grid(row=0, column=0, sticky="nsew")
-        container.grid_columnconfigure(0, weight=1)
-        container.grid_rowconfigure(0, weight=1)
-
-        cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=0, column=0)
-        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
-        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
-        cards.grid_rowconfigure(0, weight=1)
+        # Usar place para centrado absoluto en lugar de grid
+        cards = ctk.CTkFrame(parent, fg_color="transparent")
+        cards.place(relx=0.5, rely=0.5, anchor="center")
+        
+        # No usar weight para evitar que se expandan
+        cards.grid_columnconfigure(0, weight=0)
+        cards.grid_columnconfigure(1, weight=0)
+        cards.grid_rowconfigure(0, weight=0)
 
         self.menu_card_images = []
 
@@ -708,7 +703,9 @@ class Hermes:
         if image_filename:
             try:
                 logo_path = os.path.join(BASE_DIR, image_filename)
-                logo_image = Image.open(logo_path).resize((170, 170), Image.Resampling.LANCZOS)
+                logo_image = Image.open(logo_path)
+                # Mantener proporción de aspecto usando thumbnail
+                logo_image.thumbnail((170, 170), Image.Resampling.LANCZOS)
                 logo_ctk_image = ctk.CTkImage(
                     light_image=logo_image,
                     dark_image=logo_image,
