@@ -671,10 +671,10 @@ class Hermes:
         cards.pack(fill=tk.X, expand=False, pady=(10, 0))
         cards.grid_columnconfigure((0, 1), weight=1)
 
-        wa_path = resource_path("Whatspp Alas.png")
-        sms_path = resource_path("SMS Alas.png")
-        wa_img = Image.open(wa_path).resize((220, 220), Image.Resampling.LANCZOS)
-        sms_img = Image.open(sms_path).resize((220, 220), Image.Resampling.LANCZOS)
+        wa_path = resource_path("WSP.png")
+        sms_path = resource_path("SMS.png")
+        wa_img = self._load_menu_image(wa_path, (220, 220), "WhatsApp")
+        sms_img = self._load_menu_image(sms_path, (220, 220), "SMS")
         self.menu_wa_image = ctk.CTkImage(light_image=wa_img, dark_image=wa_img, size=(220, 220))
         self.menu_sms_image = ctk.CTkImage(light_image=sms_img, dark_image=sms_img, size=(220, 220))
 
@@ -707,6 +707,18 @@ class Hermes:
             **menu_btn_kwargs
         )
         sms_btn.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=10)
+
+    def _load_menu_image(self, path, size, label):
+        """Carga una imagen del menú de forma segura evitando que la app se cierre."""
+        if not os.path.exists(path):
+            self.log(f"Imagen de {label} no encontrada: {path}", "warning")
+            return Image.new("RGBA", size, (0, 0, 0, 0))
+
+        try:
+            return Image.open(path).resize(size, Image.Resampling.LANCZOS)
+        except Exception as exc:
+            self.log(f"No se pudo cargar la imagen de {label}: {exc}", "warning")
+            return Image.new("RGBA", size, (0, 0, 0, 0))
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
