@@ -694,8 +694,9 @@ class Hermes:
 
         body = ctk.CTkFrame(card, fg_color="transparent")
         body.grid(row=0, column=0, sticky="nsew", padx=46, pady=44)
-        body.grid_columnconfigure(0, weight=1)
-        body.grid_rowconfigure(0, weight=1)
+        body.grid_columnconfigure(0, weight=0)
+        body.grid_rowconfigure(0, weight=0)
+        body.grid_rowconfigure(1, weight=0)
 
         def on_click(event=None):
             command()
