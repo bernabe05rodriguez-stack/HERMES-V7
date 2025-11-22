@@ -655,10 +655,10 @@ class Hermes:
         cards = ctk.CTkFrame(parent, fg_color="transparent")
         cards.place(relx=0.5, rely=0.5, anchor="center")
         
-        # Configurar columnas sin weight pero con minsize para mantener el tamaño
-        cards.grid_columnconfigure(0, weight=0, minsize=440)
-        cards.grid_columnconfigure(1, weight=0, minsize=440)
-        cards.grid_rowconfigure(0, weight=0, minsize=440)
+        # Configurar columnas con tamaños más grandes para bloques grandes
+        cards.grid_columnconfigure(0, weight=0, minsize=480)
+        cards.grid_columnconfigure(1, weight=0, minsize=480)
+        cards.grid_rowconfigure(0, weight=0, minsize=520)
 
         self.menu_card_images = []
 
@@ -686,14 +686,14 @@ class Hermes:
             border_width=1,
             border_color=self._section_border_color()
         )
-        card.grid(row=0, column=column, sticky="", padx=28, pady=18)
+        card.grid(row=0, column=column, sticky="", padx=30, pady=20)
         card.grid_propagate(False)
-        card.configure(height=440, width=440)
+        card.configure(height=520, width=480)
         card.grid_rowconfigure(0, weight=1)
         card.grid_columnconfigure(0, weight=1)
 
         body = ctk.CTkFrame(card, fg_color="transparent")
-        body.grid(row=0, column=0, sticky="nsew", padx=46, pady=44)
+        body.place(relx=0.5, rely=0.5, anchor="center")
         body.grid_columnconfigure(0, weight=0)
         body.grid_rowconfigure(0, weight=0)
         body.grid_rowconfigure(1, weight=0)
@@ -706,15 +706,15 @@ class Hermes:
                 logo_path = os.path.join(BASE_DIR, image_filename)
                 logo_image = Image.open(logo_path)
                 # Mantener proporción de aspecto usando thumbnail
-                logo_image.thumbnail((170, 170), Image.Resampling.LANCZOS)
+                logo_image.thumbnail((200, 200), Image.Resampling.LANCZOS)
                 logo_ctk_image = ctk.CTkImage(
                     light_image=logo_image,
                     dark_image=logo_image,
-                    size=(170, 170)
+                    size=(200, 200)
                 )
                 self.menu_card_images.append(logo_ctk_image)
                 logo_label = ctk.CTkLabel(body, image=logo_ctk_image, text="")
-                logo_label.grid(row=0, column=0, pady=(0, 20))
+                logo_label.grid(row=0, column=0, pady=(0, 30))
                 logo_label.bind("<Button-1>", on_click)
             except Exception as e:
                 print(f"Error cargando {image_filename}: {e}")
