@@ -539,7 +539,7 @@ class Hermes:
         # INICIAR EN EL MENÚ DE INICIO
         self.setup_start_menu()
 
-    def init_starfield(self, width, height):
+    def init_starfield(self, width, height, color="white"):
         """Inicializa las estrellas para la animación y crea sus items en el canvas."""
         self.stars = []
         # Limpiar canvas solo de estrellas, por si acaso se llama de nuevo
@@ -550,7 +550,7 @@ class Hermes:
                 star = Star(width, height)
                 x, y, sz = star.get_coords()
                 # Crear item en canvas y guardar ID en el objeto Star
-                star.item_id = self.starfield_canvas.create_oval(x, y, x+sz, y+sz, fill="white", outline="white", tags="star")
+                star.item_id = self.starfield_canvas.create_oval(x, y, x+sz, y+sz, fill=color, outline=color, tags="star")
                 self.stars.append(star)
 
     def animate_starfield(self):
@@ -594,12 +594,17 @@ class Hermes:
             self.animate_starfield()
             return
 
-        # Forzar fondo negro para el frame principal del menú
-        self.start_menu_frame = ctk.CTkFrame(self.root, fg_color="black")
+        # Determinar colores según el modo
+        is_dark = getattr(self, 'dark_mode', False)
+        bg_color = "black" if is_dark else "white"
+        fg_color = "white" if is_dark else "black"
+
+        # Configurar frame principal
+        self.start_menu_frame = ctk.CTkFrame(self.root, fg_color=bg_color)
         self.start_menu_frame.pack(fill=tk.BOTH, expand=True)
 
         # Crear Canvas para el fondo de estrellas
-        self.starfield_canvas = tk.Canvas(self.start_menu_frame, bg="black", highlightthickness=0)
+        self.starfield_canvas = tk.Canvas(self.start_menu_frame, bg=bg_color, highlightthickness=0)
         self.starfield_canvas.place(relwidth=1, relheight=1) # Llenar todo el fondo
 
         # Inicializar estrellas con dimensiones fijas iniciales
@@ -608,7 +613,7 @@ class Hermes:
         if init_w < 100: init_w = 1500
         if init_h < 100: init_h = 900
 
-        self.init_starfield(init_w, init_h)
+        self.init_starfield(init_w, init_h, color=fg_color)
         self.starfield_running = True
         self.animate_starfield()
 
@@ -625,17 +630,17 @@ class Hermes:
         controls_frame = ctk.CTkFrame(start_header, fg_color="transparent")
         controls_frame.pack(side=tk.RIGHT)
 
-        # Título principal HHERMES (Agrandado) - SIEMPRE BLANCO
+        # Título principal HHERMES (Agrandado)
         header_font = list(self.fonts.get('header', ('Big Russian', 76, 'bold')))
         header_font[1] = 100 # Aumentar tamaño de fuente
 
-        ctk.CTkLabel(title_frame, text="HΞЯMΞS", font=tuple(header_font), text_color="#ffffff").pack()
+        ctk.CTkLabel(title_frame, text="HΞЯMΞS", font=tuple(header_font), text_color=fg_color).pack()
 
         self.dark_mode_btn_start = ctk.CTkLabel(
             controls_frame,
-            text="🌙" if getattr(self, 'dark_mode', False) else "☀️",
+            text="🌙" if is_dark else "☀️",
             font=('Inter', 34),
-            text_color="#ffffff", # Siempre blanco
+            text_color=fg_color,
             cursor='hand2'
         )
         self.dark_mode_btn_start.pack(pady=15) # Padding vertical para dar altura al header
