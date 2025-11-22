@@ -1243,7 +1243,7 @@ class Hermes:
         title = ctk.CTkLabel(header_frame, text="SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
         title.pack(side=tk.LEFT)
 
-        actions_section, _ = self._build_section(content, 1, "Flujo SMS",
+        actions_section, _ = self._build_section(content, 1, None,
                                                  "Sigue los pasos para preparar y lanzar la campaña.", icon="📨")
 
         sms_steps_wrapper = ctk.CTkFrame(actions_section, fg_color="transparent")
@@ -1291,7 +1291,7 @@ class Hermes:
         step3_row.grid_columnconfigure(0, weight=0)
         step3_row.grid_columnconfigure(1, weight=1)
 
-        self._create_step_badge(step3_row, 3).grid(row=0, column=0, padx=(0, 12), sticky="n", pady=(4,0))
+        self._create_step_badge(step3_row, 3).grid(row=0, column=0, padx=(0, 12), sticky="n", pady=(4, 0))
 
         sms_time_card = ctk.CTkFrame(
             step3_row,
@@ -1303,11 +1303,44 @@ class Hermes:
         sms_time_card.grid(row=0, column=1, sticky="ew")
         sms_time_card.grid_columnconfigure(0, weight=1)
 
-        sms_settings = ctk.CTkFrame(sms_time_card, fg_color="transparent")
-        sms_settings.grid(row=0, column=0, sticky="ew", padx=20, pady=(10, 12))
-        self.create_setting(sms_settings, "Delay (seg):", self.sms_delay_min, self.sms_delay_max, 0)
-        self.create_setting(sms_settings, "Espera Abrir (seg):", self.wait_after_open, None, 1)
-        self.create_setting(sms_settings, "Espera Enter (seg):", self.wait_after_first_enter, None, 2)
+        # Header del apartado de tiempo SMS
+        sms_time_header = ctk.CTkFrame(sms_time_card, fg_color="transparent")
+        sms_time_header.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 8))
+        sms_time_header.grid_columnconfigure(0, weight=1)
+        sms_time_header.grid_columnconfigure(1, weight=0)
+
+        ctk.CTkLabel(sms_time_header, text="Tiempo de envío", font=self.fonts['card_title'],
+                     text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
+
+        self.sms_time_advanced_toggle_btn = ctk.CTkButton(
+            sms_time_header,
+            text="Opciones avanzadas ▾",
+            command=self.toggle_sms_time_settings,
+            fg_color=self._section_bg_color(),
+            hover_color=lighten_color(self._section_bg_color(), 0.12),
+            text_color=self.colors['text_light'],
+            font=self.fonts['button_small'],
+            cursor='hand2',
+            height=30,
+            corner_radius=10,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        self.sms_time_advanced_toggle_btn.grid(row=0, column=1, sticky="e")
+
+        # Configuración principal (Delay)
+        sms_time_main_settings = ctk.CTkFrame(sms_time_card, fg_color="transparent")
+        sms_time_main_settings.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
+        self.create_setting(sms_time_main_settings, "Delay (seg):", self.sms_delay_min, self.sms_delay_max, 0)
+
+        # Configuración avanzada (Oculta por defecto)
+        self.sms_time_advanced_frame = ctk.CTkFrame(sms_time_card, fg_color="transparent")
+        self.sms_time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
+        self.create_setting(self.sms_time_advanced_frame, "Espera Abrir (seg):", self.wait_after_open, None, 0)
+        self.create_setting(self.sms_time_advanced_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 1)
+
+        self.sms_time_advanced_visible = False
+        self.sms_time_advanced_frame.grid_remove()
 
         current_row += 1
 
@@ -1921,6 +1954,17 @@ class Hermes:
         else:
             self.time_advanced_frame.grid_remove()
             self.time_advanced_toggle_btn.configure(text="Opciones avanzadas ▾")
+
+    def toggle_sms_time_settings(self):
+        """Muestra u oculta los ajustes de espera secundarios para SMS."""
+        self.sms_time_advanced_visible = not self.sms_time_advanced_visible
+
+        if self.sms_time_advanced_visible:
+            self.sms_time_advanced_frame.grid()
+            self.sms_time_advanced_toggle_btn.configure(text="Opciones avanzadas ▴")
+        else:
+            self.sms_time_advanced_frame.grid_remove()
+            self.sms_time_advanced_toggle_btn.configure(text="Opciones avanzadas ▾")
 
     def update_per_whatsapp_stat(self, *args):
         """Calcula y actualiza la estadística de mensajes por cuenta de WhatsApp."""
