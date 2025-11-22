@@ -645,8 +645,8 @@ class Hermes:
         self.views_container.pack(fill=tk.BOTH, expand=True, anchor="center")
 
         # --- Menú principal ---
-        self.main_menu_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
-        self.setup_main_menu(self.main_menu_frame)
+        self.menu_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+        self.setup_menu_view(self.menu_view_frame)
 
         # --- Vista Tradicional ---
         self.traditional_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
@@ -661,114 +661,52 @@ class Hermes:
         self.setup_sms_view(self.sms_view_frame)
 
         # Mostrar el menú principal por defecto
-        self.show_main_menu()
+        self.show_menu_view()
 
-    def setup_main_menu(self, parent):
-        cards = ctk.CTkFrame(parent, fg_color="transparent")
-        cards.pack(anchor="n", pady=(10, 0))
+    def setup_menu_view(self, parent):
+        menu_container = ctk.CTkFrame(parent, fg_color="transparent")
+        menu_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        cards.grid_columnconfigure((0, 1), weight=1, uniform='menu_cards')
-        cards.grid_rowconfigure(0, weight=1)
+        cards = ctk.CTkFrame(menu_container, fg_color="transparent")
+        cards.pack(fill=tk.X, expand=False, pady=(10, 0))
+        cards.grid_columnconfigure((0, 1), weight=1)
 
-        self.menu_card_images = []
+        wa_path = resource_path("Whatspp Alas.png")
+        sms_path = resource_path("SMS Alas.png")
+        wa_img = Image.open(wa_path).resize((220, 220), Image.Resampling.LANCZOS)
+        sms_img = Image.open(sms_path).resize((220, 220), Image.Resampling.LANCZOS)
+        self.menu_wa_image = ctk.CTkImage(light_image=wa_img, dark_image=wa_img, size=(220, 220))
+        self.menu_sms_image = ctk.CTkImage(light_image=sms_img, dark_image=sms_img, size=(220, 220))
 
-        self._build_menu_card(
-            cards,
-            column=0,
-            title="Whatsapp",
-            image_filename="WSP.png",
-            command=self.show_traditional_view
-        )
-
-        self._build_menu_card(
-            cards,
-            column=1,
-            title="SMS",
-            image_filename="SMS.png",
-            command=self.show_sms_view
-        )
-
-    def _build_menu_card(self, parent, column, title, command, image_filename=None):
-        card_container = ctk.CTkFrame(parent, fg_color="transparent")
-        card_container.grid(row=0, column=column, sticky="n", padx=30, pady=20)
-        card_container.configure(width=320, height=320)
-        card_container.grid_propagate(False)
-
-        shadow = ctk.CTkFrame(
-            card_container,
-            fg_color=self.colors.get('shadow', '#dcdcdc'),
-            corner_radius=18
-        )
-        shadow.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=1, y=6)
-
-        card = ctk.CTkFrame(
-            card_container,
+        menu_btn_kwargs = dict(
             fg_color=self.colors['bg_card'],
-            corner_radius=18
+            hover_color=lighten_color(self.colors['bg_card'], 0.04),
+            text_color=self.colors['text'],
+            font=self.fonts['card_title'],
+            height=320,
+            corner_radius=24,
+            compound="top",
+            border_width=0,
+            width=320
         )
-        card.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=1)
-        card.grid_propagate(False)
 
-        body = ctk.CTkFrame(card, fg_color="transparent")
-        body.pack(expand=True, fill=tk.BOTH, padx=26, pady=26)
-        body.grid_columnconfigure(0, weight=1)
-        body.grid_rowconfigure(0, weight=1)
-        body.grid_rowconfigure(1, weight=1)
-
-        def on_click(event=None):
-            command()
-
-        def on_enter(event=None):
-            card.configure(fg_color=lighten_color(self.colors['bg_card'], 0.02))
-            shadow.place_configure(y=3)
-
-        def on_leave(event=None):
-            card.configure(fg_color=self.colors['bg_card'])
-            shadow.place_configure(y=6)
-
-        if image_filename:
-            try:
-                logo_path = os.path.join(BASE_DIR, image_filename)
-                logo_image = Image.open(logo_path)
-                # Mantener proporción de aspecto usando thumbnail
-                logo_image.thumbnail((160, 160), Image.Resampling.LANCZOS)
-                logo_ctk_image = ctk.CTkImage(
-                    light_image=logo_image,
-                    dark_image=logo_image,
-                    size=(160, 160)
-                )
-                self.menu_card_images.append(logo_ctk_image)
-                logo_label = ctk.CTkLabel(body, image=logo_ctk_image, text="")
-                logo_label.grid(row=0, column=0, pady=(0, 18))
-                logo_label.bind("<Button-1>", on_click)
-                logo_label.bind("<Enter>", on_enter)
-                logo_label.bind("<Leave>", on_leave)
-            except Exception as e:
-                print(f"Error cargando {image_filename}: {e}")
-
-        title_label = ctk.CTkLabel(
-            body,
-            text=title,
-            font=(self.fonts['card_title'][0], 18, 'bold'),
-            text_color=self.colors['text']
+        whatsapp_btn = ctk.CTkButton(
+            cards,
+            text="WhatsApp",
+            image=self.menu_wa_image,
+            command=self.show_traditional_view,
+            **menu_btn_kwargs
         )
-        title_label.grid(row=1, column=0)
-        title_label.bind("<Button-1>", on_click)
-        title_label.bind("<Enter>", on_enter)
-        title_label.bind("<Leave>", on_leave)
+        whatsapp_btn.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=10)
 
-        card.bind("<Button-1>", on_click)
-        body.bind("<Button-1>", on_click)
-        card_container.bind("<Button-1>", on_click)
-        card_container.bind("<Enter>", on_enter)
-        card_container.bind("<Leave>", on_leave)
-        card.bind("<Enter>", on_enter)
-        card.bind("<Leave>", on_leave)
-        body.bind("<Enter>", on_enter)
-        body.bind("<Leave>", on_leave)
-        card.configure(cursor="hand2")
-        body.configure(cursor="hand2")
-        card_container.configure(cursor="hand2")
+        sms_btn = ctk.CTkButton(
+            cards,
+            text="SMS",
+            image=self.menu_sms_image,
+            command=self.show_sms_view,
+            **menu_btn_kwargs
+        )
+        sms_btn.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=10)
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
@@ -783,7 +721,7 @@ class Hermes:
 
         self.sms_mode_active = False
         self.is_main_menu_active = False
-        self.main_menu_frame.pack_forget()
+        self.menu_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
@@ -796,7 +734,7 @@ class Hermes:
         self._populate_fidelizado_inputs() # Repoblar datos al mostrar la vista
         self.sms_mode_active = False
         self.is_main_menu_active = False
-        self.main_menu_frame.pack_forget()
+        self.menu_view_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self.fidelizado_view_frame.pack(fill=tk.X, expand=False, anchor="n")
@@ -816,7 +754,7 @@ class Hermes:
             self.update_stats()
             self.log("Modo SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
         self.is_main_menu_active = False
-        self.main_menu_frame.pack_forget()
+        self.menu_view_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
@@ -824,15 +762,16 @@ class Hermes:
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
 
-    def show_main_menu(self):
-        """Muestra el menú principal y oculta las vistas de modo."""
+    def show_menu_view(self):
         self.sms_mode_active = False
+        self.is_main_menu_active = True
         self._configure_main_menu_layout()
-        self.main_menu_frame.pack(fill=tk.BOTH, expand=True, anchor="center")
+        self.menu_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
         self._hide_right_panel()
+        self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
 
     def _apply_fidelizado_layout_styles(self, active):
@@ -876,8 +815,8 @@ class Hermes:
 
         ctk.CTkButton(
             header,
-            text="← Menú principal",
-            command=self.show_main_menu,
+            text="Volver al menú",
+            command=self.show_menu_view,
             fg_color=self.colors['action_mode'],
             hover_color=self.hover_colors['action_mode'],
             text_color=self.colors['text_header_buttons'],
@@ -1167,7 +1106,7 @@ class Hermes:
         ctk.CTkButton(
             header_frame,
             text="← Menú principal",
-            command=self.show_main_menu,
+            command=self.show_menu_view,
             fg_color=self.colors['action_mode'],
             hover_color=self.hover_colors['action_mode'],
             text_color=self.colors['text_header_buttons'],
@@ -2207,15 +2146,18 @@ class Hermes:
         header_frame = ctk.CTkFrame(content, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(15, 10))
 
-        self.back_to_traditional_btn = ctk.CTkButton(
+        self.fidelizado_back_to_masivos_btn = ctk.CTkButton(
             header_frame,
-            text="← Menú principal",
-            command=self.show_main_menu,
-            fg_color="transparent",
-            text_color=self.colors['text_light'],
-            hover_color=self.colors['bg']
+            text="Volver a Masivos",
+            command=self.show_traditional_view,
+            fg_color=self.colors['action_mode'],
+            hover_color=self.hover_colors['action_mode'],
+            text_color=self.colors['text_header_buttons'],
+            font=self.fonts['button_small'],
+            corner_radius=18,
+            height=36
         )
-        self.back_to_traditional_btn.pack(side=tk.LEFT)
+        self.fidelizado_back_to_masivos_btn.pack(side=tk.LEFT)
 
         ctk.CTkLabel(header_frame, text="Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT, padx=20)
 
