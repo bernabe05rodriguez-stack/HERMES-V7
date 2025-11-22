@@ -821,14 +821,6 @@ class Hermes:
         )
         self.fidelizado_unlock_btn.grid(row=0, column=0, sticky="e", padx=(0, 12))
 
-        self.sms_mode_btn = ctk.CTkButton(
-            header_actions,
-            text="SMS",
-            command=self.handle_sms_mode_access,
-            **tool_btn_kwargs
-        )
-        self.sms_mode_btn.grid(row=0, column=1, sticky="e", padx=(0, 12))
-
         self.dark_mode_btn = ctk.CTkLabel(
             header_actions,
             text="🌙" if self.dark_mode else "☀️",
@@ -836,7 +828,7 @@ class Hermes:
             text_color=self.colors['text'],
             cursor='hand2'
         )
-        self.dark_mode_btn.grid(row=0, column=2, padx=(12, 0))
+        self.dark_mode_btn.grid(row=0, column=1, padx=(12, 0))
         self.dark_mode_btn.bind("<Button-1>", lambda _event: self.toggle_dark_mode())
 
         self.adb_injector_btn = ctk.CTkButton(
