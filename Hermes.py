@@ -655,15 +655,14 @@ class Hermes:
         parent.grid_rowconfigure(0, weight=1)
 
         container = ctk.CTkFrame(parent, fg_color="transparent")
-        container.grid(row=0, column=0, sticky="nsew")
-        container.grid_columnconfigure(0, weight=1)
-        container.grid_rowconfigure(0, weight=1)
+        container.grid(row=0, column=0, sticky="")
+        container.place(relx=0.5, rely=0.5, anchor="center")
 
         cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=0, column=0)
-        cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
-        cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
-        cards.grid_rowconfigure(0, weight=1)
+        cards.pack()
+        cards.grid_columnconfigure(0, weight=0)
+        cards.grid_columnconfigure(1, weight=0)
+        cards.grid_rowconfigure(0, weight=0)
 
         self.menu_card_images = []
 
@@ -708,7 +707,9 @@ class Hermes:
         if image_filename:
             try:
                 logo_path = os.path.join(BASE_DIR, image_filename)
-                logo_image = Image.open(logo_path).resize((170, 170), Image.Resampling.LANCZOS)
+                logo_image = Image.open(logo_path)
+                # Mantener la proporción de aspecto de la imagen original
+                logo_image.thumbnail((170, 170), Image.Resampling.LANCZOS)
                 logo_ctk_image = ctk.CTkImage(
                     light_image=logo_image,
                     dark_image=logo_image,
