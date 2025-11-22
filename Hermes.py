@@ -500,6 +500,7 @@ class Hermes:
         right = ctk.CTkFrame(self.main_layout, fg_color="transparent")
         self.left_panel = left
         self.right_panel = right
+        self.right_panel_attached = True
         self._current_main_layout = None
         self.is_main_menu_active = False
 
@@ -510,23 +511,44 @@ class Hermes:
         self._update_main_layout(self.root.winfo_width())
 
     def _on_main_configure(self, event):
+        if getattr(self, 'is_main_menu_active', False):
+            # En el menú el panel derecho se elimina por completo
+            self._detach_right_panel()
+            return
+
         self._update_main_layout(self.root.winfo_width())
 
     def _show_right_panel(self):
         """Garantiza que el panel derecho esté visible y posicionado correctamente."""
+        if getattr(self, 'is_main_menu_active', False):
+            return
         if not hasattr(self, 'right_panel'):
             return
 
+        self._attach_right_panel()
         self._set_right_panel_contents_visibility(True)
         # Forzar reconfiguración para que grid() vuelva a colocarlo si estaba oculto
         self._current_main_layout = None
         self._update_main_layout()
 
-    def _hide_right_panel(self):
-        """Oculta el panel derecho en el menú principal."""
+    def _attach_right_panel(self):
+        """Reinserta el panel derecho en el grid principal si fue removido."""
+        if getattr(self, 'is_main_menu_active', False):
+            return
+        if not hasattr(self, 'right_panel'):
+            return
+        if getattr(self, 'right_panel_attached', True):
+            return
+
+        self.right_panel_attached = True
+        self._current_main_layout = None
+        self._update_main_layout()
+
+    def _detach_right_panel(self):
+        """Remueve completamente el panel derecho del layout del menú."""
         if hasattr(self, 'right_panel'):
-            self.right_panel.grid_remove()
-        self._set_right_panel_contents_visibility(False)
+            self.right_panel.grid_forget()
+        self.right_panel_attached = False
 
     def _set_right_panel_contents_visibility(self, visible):
         """Muestra u oculta el contenido del panel derecho sin alterar su estado de grid."""
@@ -553,7 +575,7 @@ class Hermes:
         """Expande el menú principal para ocupar la pantalla y centra las tarjetas."""
         self.is_main_menu_active = True
         self._current_main_layout = 'menu'
-        self._hide_right_panel()
+        self._detach_right_panel()
         self.main_layout.grid_columnconfigure(0, weight=1, uniform='main_panels', minsize=0)
         self.main_layout.grid_columnconfigure(1, weight=0, minsize=0)
         self.main_layout.grid_rowconfigure(1, weight=0)
@@ -564,6 +586,8 @@ class Hermes:
     def _update_main_layout(self, width=None):
         """Cambia entre vista de 2 columnas o 1 columna (apilada) si la ventana es muy angosta."""
         if getattr(self, 'is_main_menu_active', False):
+            return
+        if not getattr(self, 'right_panel_attached', True):
             return
         if not hasattr(self, 'left_panel') or not hasattr(self, 'right_panel'):
             return
@@ -790,7 +814,7 @@ class Hermes:
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
-        self._hide_right_panel()
+        self._detach_right_panel()
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
 
