@@ -527,7 +527,7 @@ class Hermes:
         center_frame.place(relx=0.5, rely=0.5, anchor="center")
 
         # Título principal HHERMES arriba
-        ctk.CTkLabel(center_frame, text="HHERMES", font=self.fonts.get('header', ('Arial', 40, 'bold')), text_color=self.colors.get('text_header', '#000000')).pack(pady=(0, 40))
+        ctk.CTkLabel(center_frame, text="HΞЯMΞS", font=self.fonts.get('header', ('Arial', 40, 'bold')), text_color=self.colors.get('text_header', '#000000')).pack(pady=(0, 40))
 
         # Contenedor horizontal para las tarjetas
         cards_container = ctk.CTkFrame(center_frame, fg_color="transparent")
@@ -562,14 +562,15 @@ class Hermes:
 
         # --- Función auxiliar para crear tarjeta con sombra difuminada ---
         def create_card_with_shadow(parent, img_filename, text, command):
-            # Configuración de sombra
-            shadow_blur_radius = 20
+            # Configuración de sombra (Ajustada para que se vea mejor)
+            shadow_blur_radius = 15
             shadow_offset_x = 0
-            shadow_offset_y = 10
+            shadow_offset_y = 8
 
-            # Tamaño total del canvas para la sombra (carta + blur padding)
-            canvas_width = card_width + shadow_blur_radius * 2
-            canvas_height = card_height + shadow_blur_radius * 2
+            # Tamaño total del canvas para la sombra (carta + blur padding + offset)
+            # Se añade espacio extra para evitar que la sombra se corte
+            canvas_width = card_width + (shadow_blur_radius * 2) + abs(shadow_offset_x)
+            canvas_height = card_height + (shadow_blur_radius * 2) + abs(shadow_offset_y)
 
             container = ctk.CTkFrame(parent, width=canvas_width, height=canvas_height, fg_color="transparent")
 
@@ -578,14 +579,17 @@ class Hermes:
             draw = ImageDraw.Draw(shadow_pil)
 
             # Coordenadas del rectángulo de la sombra (centrado + offset)
+            # El "origen" de la tarjeta es (shadow_blur_radius, shadow_blur_radius) para dejar espacio al blur en top/left.
             rect_x0 = shadow_blur_radius + shadow_offset_x
             rect_y0 = shadow_blur_radius + shadow_offset_y
             rect_x1 = rect_x0 + card_width
             rect_y1 = rect_y0 + card_height
 
             # Dibujar rectángulo redondeado oscuro
-            shadow_color_rgba = (0, 0, 0, 60) if not is_dark else (0, 0, 0, 120)
-            draw.rounded_rectangle((rect_x0, rect_y0, rect_x1, rect_y1), radius=35, fill=shadow_color_rgba)
+            # Reducir opacidad para que sea más sutil (40/255 en lugar de 60)
+            shadow_color_rgba = (0, 0, 0, 50) if not is_dark else (0, 0, 0, 120)
+            # Aumentar radio para más curva
+            draw.rounded_rectangle((rect_x0, rect_y0, rect_x1, rect_y1), radius=40, fill=shadow_color_rgba)
 
             # Aplicar desenfoque gaussiano
             shadow_pil = shadow_pil.filter(ImageFilter.GaussianBlur(shadow_blur_radius))
@@ -619,7 +623,7 @@ class Hermes:
                 command=command,
                 width=card_width,
                 height=card_height,
-                corner_radius=35,
+                corner_radius=40,
                 fg_color=card_bg,
                 text_color=self.colors.get('text', '#000000'),
                 font=font_card,
