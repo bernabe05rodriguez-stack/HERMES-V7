@@ -707,6 +707,7 @@ class Hermes:
         cards.grid_columnconfigure(1, weight=0)
         cards.grid_columnconfigure(2, weight=0)
         cards.grid_columnconfigure(3, weight=1)
+        cards.grid_rowconfigure(0, weight=1)
 
         wa_path = resource_path("WSP.png")
         sms_path = resource_path("SMS.png")
@@ -734,7 +735,7 @@ class Hermes:
             command=self.show_traditional_view,
             **menu_btn_kwargs
         )
-        whatsapp_btn.grid(row=0, column=1, sticky="n", padx=(0, 10), pady=10)
+        whatsapp_btn.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
 
         sms_btn = ctk.CTkButton(
             cards,
@@ -743,7 +744,7 @@ class Hermes:
             command=self.show_sms_view,
             **menu_btn_kwargs
         )
-        sms_btn.grid(row=0, column=2, sticky="n", padx=(10, 0), pady=10)
+        sms_btn.grid(row=0, column=2, sticky="nsew", padx=(10, 0), pady=10)
 
     def _load_menu_image(self, path, size, label):
         """Carga una imagen del menú de forma segura evitando que la app se cierre."""
@@ -815,7 +816,7 @@ class Hermes:
         self.sms_mode_active = False
         self.is_main_menu_active = True
         self._configure_main_menu_layout()
-        self.menu_view_frame.pack(fill=tk.X, expand=False, anchor="n")
+        self.menu_view_frame.pack(fill=tk.BOTH, expand=True)
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
