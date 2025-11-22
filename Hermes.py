@@ -705,68 +705,40 @@ class Hermes:
     def setup_menu_view(self, parent):
         menu_container = ctk.CTkFrame(parent, fg_color="transparent")
         menu_container.pack(fill=tk.BOTH, expand=True)
-        # Espaciadores arriba/abajo y a los lados para centrar el menú
         menu_container.grid_rowconfigure(0, weight=1)
-        menu_container.grid_rowconfigure(1, weight=0)
-        menu_container.grid_rowconfigure(2, weight=1)
         menu_container.grid_columnconfigure(0, weight=1)
-        menu_container.grid_columnconfigure(1, weight=0)
-        menu_container.grid_columnconfigure(2, weight=1)
 
-        cards = ctk.CTkFrame(menu_container, fg_color="transparent")
-        cards.grid(row=1, column=1, sticky="nsew")
-        cards.grid_columnconfigure(0, weight=1)
-        cards.grid_columnconfigure(1, weight=1)
-        cards.grid_rowconfigure(0, weight=1)
+        buttons_frame = ctk.CTkFrame(menu_container, fg_color="transparent")
+        buttons_frame.grid(row=0, column=0, sticky="nsew")
+        buttons_frame.grid_rowconfigure(0, weight=1)
+        buttons_frame.grid_columnconfigure(0, weight=1)
+        buttons_frame.grid_columnconfigure(1, weight=1)
 
-        wa_path = resource_path("WSP.png")
-        sms_path = resource_path("SMS.png")
-        wa_img = self._load_menu_image(wa_path, (220, 220), "WhatsApp")
-        sms_img = self._load_menu_image(sms_path, (220, 220), "SMS")
-        self.menu_wa_image = ctk.CTkImage(light_image=wa_img, dark_image=wa_img, size=(220, 220))
-        self.menu_sms_image = ctk.CTkImage(light_image=sms_img, dark_image=sms_img, size=(220, 220))
-
-        menu_btn_kwargs = dict(
-            fg_color=self.colors['bg_card'],
-            hover_color=lighten_color(self.colors['bg_card'], 0.04),
-            text_color=self.colors['text'],
-            font=self.fonts['card_title'],
-            height=320,
-            corner_radius=24,
-            compound="top",
-            border_width=0,
-            width=320
+        button_style = dict(
+            fg_color=self.colors['action_mode'],
+            hover_color=self.hover_colors['action_mode'],
+            text_color=self.colors['text_on_action'],
+            font=self.fonts['button'],
+            height=60,
+            corner_radius=16,
+            width=220
         )
 
         whatsapp_btn = ctk.CTkButton(
-            cards,
+            buttons_frame,
             text="WhatsApp",
-            image=self.menu_wa_image,
-            command=self.show_traditional_view,
-            **menu_btn_kwargs
+            command=self.show_fidelizado_view,
+            **button_style
         )
-        whatsapp_btn.grid(row=0, column=0, sticky="nsew", padx=(0, 20), pady=10)
+        whatsapp_btn.grid(row=0, column=0, padx=20, pady=20, sticky="e")
 
         sms_btn = ctk.CTkButton(
-            cards,
+            buttons_frame,
             text="SMS",
-            image=self.menu_sms_image,
             command=self.show_sms_view,
-            **menu_btn_kwargs
+            **button_style
         )
-        sms_btn.grid(row=0, column=1, sticky="nsew", padx=(20, 0), pady=10)
-
-    def _load_menu_image(self, path, size, label):
-        """Carga una imagen del menú de forma segura evitando que la app se cierre."""
-        if not os.path.exists(path):
-            self.log(f"Imagen de {label} no encontrada: {path}", "warning")
-            return Image.new("RGBA", size, (0, 0, 0, 0))
-
-        try:
-            return Image.open(path).resize(size, Image.Resampling.LANCZOS)
-        except Exception as exc:
-            self.log(f"No se pudo cargar la imagen de {label}: {exc}", "warning")
-            return Image.new("RGBA", size, (0, 0, 0, 0))
+        sms_btn.grid(row=0, column=1, padx=20, pady=20, sticky="w")
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
