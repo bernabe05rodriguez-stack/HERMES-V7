@@ -253,10 +253,10 @@ class Star:
         # Inicializa una estrella en una posición aleatoria (coordenadas polares)
         self.r = random.uniform(0, w/2)  # Radio (distancia al centro)
         self.a = random.uniform(0, 2*math.pi)  # Ángulo
-        # Tasa de cambio de radio (velocidad) - Ajustado para pixels/frame visibles
-        self.rs = random.uniform(0.2, 1.0)
-        # Tasa de cambio de ángulo (rotación)
-        self.ar = random.uniform(0.002, 0.006)
+        # Tasa de cambio de radio (velocidad) - Ajustado para pixels/frame visibles (0.5x speed)
+        self.rs = random.uniform(0.1, 0.5)
+        # Tasa de cambio de ángulo (rotación) (0.5x speed)
+        self.ar = random.uniform(0.001, 0.003)
         self.sz = random.randint(1, 2)  # Tamaño
 
     def move(self):
