@@ -432,12 +432,6 @@ class Hermes:
         hc = ctk.CTkFrame(self.header_frame, fg_color=self.colors['bg_header'])
         hc.pack(expand=True, fill=tk.X, padx=40)
 
-        # Botón HOME (NUEVO)
-        self.home_btn = ctk.CTkButton(hc, text="🏠 Inicio", command=self.return_to_start_menu,
-                                      fg_color=self.colors['bg_card'], text_color=self.colors['text'],
-                                      font=('Inter', 12, 'bold'), width=80, height=32, corner_radius=16,
-                                      hover_color=darken_color(self.colors['bg_card'], 0.1))
-        self.home_btn.place(relx=0.0, rely=0.0, anchor="nw") # Posicionamiento absoluto relativo al header content
 
         # Logo Izquierdo
         try:
@@ -765,8 +759,22 @@ class Hermes:
         header.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 15))
         header.grid_columnconfigure(0, weight=1)
 
+        # Botón Volver al Menú (Izquierda)
+        self.whatsapp_back_btn = ctk.CTkButton(
+            header,
+            text="←",
+            width=40,
+            command=self.return_to_start_menu,
+            fg_color=self._section_bg_color(),
+            hover_color=lighten_color(self._section_bg_color(), 0.08),
+            text_color=self.colors['text'],
+            font=('Inter', 16, 'bold'),
+            corner_radius=20
+        )
+        self.whatsapp_back_btn.pack(side=tk.LEFT, padx=(0, 15))
+
         ctk.CTkLabel(header, text="Whastapp", font=('Inter', 26, 'bold'),
-                     text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
+                     text_color=self.colors['text']).pack(side=tk.LEFT)
 
         actions_section, actions_header = self._build_section(
             content,
@@ -1049,21 +1057,23 @@ class Hermes:
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 10))
         header_frame.grid_columnconfigure(0, weight=1)
 
-        title = ctk.CTkLabel(header_frame, text="SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
-        title.grid(row=0, column=0, sticky="w")
-
+        # Botón Volver (Flecha izquierda)
         self.sms_back_btn = ctk.CTkButton(
             header_frame,
-            text="Volver al Whastapps",
-            command=self.show_traditional_view,
-            fg_color=self.colors['action_mode'],
-            hover_color=self.hover_colors['action_mode'],
-            text_color=self.colors['text_header_buttons'],
-            font=self.fonts['button'],
+            text="←",
+            width=40,
+            command=self.return_to_start_menu,
+            fg_color=self._section_bg_color(), # Usar color de fondo para que parezca botón simple
+            hover_color=lighten_color(self._section_bg_color(), 0.08),
+            text_color=self.colors['text'],
+            font=('Inter', 16, 'bold'),
             corner_radius=20,
             height=40
         )
-        self.sms_back_btn.grid(row=0, column=1, sticky="e")
+        self.sms_back_btn.pack(side=tk.LEFT, padx=(0, 15))
+
+        title = ctk.CTkLabel(header_frame, text="SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
+        title.pack(side=tk.LEFT)
 
         time_section, _ = self._build_section(content, 1, "Configuración de tiempos (SMS)",
                                               "Define los intervalos y esperas para los mensajes de texto.", icon="🕒")
@@ -2091,14 +2101,17 @@ class Hermes:
         header_frame = ctk.CTkFrame(content, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(15, 10))
 
-        self.back_to_traditional_btn = ctk.CTkButton(header_frame, text="Volver al Whastapps",
+        self.back_to_traditional_btn = ctk.CTkButton(header_frame, text="←",
+                                      width=40,
                                       command=self.show_traditional_view,
-                                      fg_color="transparent",
-                                      text_color=self.colors['text_light'],
-                                      hover_color=self.colors['bg'])
-        self.back_to_traditional_btn.pack(side=tk.LEFT)
+                                      fg_color=self.colors['bg'], # Fondo sutil
+                                      text_color=self.colors['text'],
+                                      font=('Inter', 16, 'bold'),
+                                      corner_radius=20,
+                                      hover_color=darken_color(self.colors['bg'], 0.1))
+        self.back_to_traditional_btn.pack(side=tk.LEFT, padx=(0, 15))
 
-        ctk.CTkLabel(header_frame, text="Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT, padx=20)
+        ctk.CTkLabel(header_frame, text="Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
 
 
         # --- Fila 1: Contenido Principal ---
