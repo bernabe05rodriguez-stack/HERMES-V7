@@ -701,8 +701,12 @@ class Hermes:
         menu_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         cards = ctk.CTkFrame(menu_container, fg_color="transparent")
-        cards.pack(fill=tk.X, expand=False, pady=(10, 0))
-        cards.grid_columnconfigure((0, 1), weight=1)
+        cards.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+        # Distribuir columnas con pesos que centren las dos tarjetas disponibles
+        cards.grid_columnconfigure(0, weight=1)
+        cards.grid_columnconfigure(1, weight=0)
+        cards.grid_columnconfigure(2, weight=0)
+        cards.grid_columnconfigure(3, weight=1)
 
         wa_path = resource_path("WSP.png")
         sms_path = resource_path("SMS.png")
@@ -730,7 +734,7 @@ class Hermes:
             command=self.show_traditional_view,
             **menu_btn_kwargs
         )
-        whatsapp_btn.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=10)
+        whatsapp_btn.grid(row=0, column=1, sticky="n", padx=(0, 10), pady=10)
 
         sms_btn = ctk.CTkButton(
             cards,
@@ -739,7 +743,7 @@ class Hermes:
             command=self.show_sms_view,
             **menu_btn_kwargs
         )
-        sms_btn.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=10)
+        sms_btn.grid(row=0, column=2, sticky="n", padx=(10, 0), pady=10)
 
     def _load_menu_image(self, path, size, label):
         """Carga una imagen del menú de forma segura evitando que la app se cierre."""
