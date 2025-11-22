@@ -241,13 +241,14 @@ class Tooltip:
 
 # --- Clase principal de la aplicación ---
 class Hermes:
-    def __init__(self, root):
+    def __init__(self, root, start_view="traditional"):
         self.root = root
         self.root.title("HΞЯMΞS V1")
         self.root.state('zoomed')
         self.root.resizable(True, True)
         self.root.minsize(1500, 900)
         self.center_window(1500, 900)
+        self.start_view = start_view
 
         # Variables de estado
         self.adb_path = tk.StringVar(value="")
@@ -693,8 +694,11 @@ class Hermes:
         self.sms_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
         self.setup_sms_view(self.sms_view_frame)
 
-        # Mostrar el menú principal por defecto
-        self.show_menu_view()
+        # Mostrar la vista inicial solicitada
+        if self.start_view == "sms":
+            self.show_sms_view()
+        else:
+            self.show_traditional_view()
 
     def setup_menu_view(self, parent):
         menu_container = ctk.CTkFrame(parent, fg_color="transparent")
@@ -817,16 +821,14 @@ class Hermes:
         self._apply_fidelizado_layout_styles(False)
 
     def show_menu_view(self):
-        self.sms_mode_active = False
-        self.is_main_menu_active = True
-        self._configure_main_menu_layout()
-        self.menu_view_frame.pack(fill=tk.BOTH, expand=True)
-        self.traditional_view_frame.pack_forget()
-        self.fidelizado_view_frame.pack_forget()
-        self.sms_view_frame.pack_forget()
-        self._detach_right_panel()
-        self.update_per_whatsapp_stat()
-        self._apply_fidelizado_layout_styles(False)
+        """Regresa al menú principal externo y reinicia la aplicación."""
+        self.root.after(0, self._launch_external_menu)
+
+    def _launch_external_menu(self):
+        try:
+            self.root.destroy()
+        finally:
+            launch_main_menu()
 
     def _apply_fidelizado_layout_styles(self, active):
         """Ajusta bordes y altura de tarjetas cuando se activa el modo Fidelizado."""
@@ -6405,16 +6407,67 @@ class Hermes:
             close_args = ['-s', device, 'shell', 'am', 'force-stop', package]
             self._run_adb_command(close_args, timeout=5) # Usar la función helper, ignorar resultado
 
-# --- Main y Login ---
-def main():
-    """Función principal: Configura CTk y muestra la aplicación principal."""
+# --- Lanzador principal ---
+def launch_app(start_view):
+    """Crea la ventana principal de la aplicación en el modo solicitado."""
+    app_root = ctk.CTk()
+    Hermes(app_root, start_view=start_view)
+    app_root.mainloop()
+
+
+def launch_main_menu():
+    """Muestra un menú externo minimalista para elegir el modo de inicio."""
     ctk.set_appearance_mode("Light")
     ctk.set_default_color_theme("blue")
-    root = ctk.CTk()
-    root.title("HΞЯMΞS")
 
-    Hermes(root)
-    root.mainloop()
+    menu_root = ctk.CTk()
+    menu_root.title("")
+    menu_root.resizable(False, False)
+
+    def open_mode(view):
+        menu_root.destroy()
+        launch_app(view)
+
+    def center_window(window, width, height):
+        window.update_idletasks()
+        sw = window.winfo_screenwidth()
+        sh = window.winfo_screenheight()
+        x = (sw // 2) - (width // 2)
+        y = (sh // 2) - (height // 2)
+        window.geometry(f"{width}x{height}+{x}+{y}")
+
+    center_window(menu_root, 460, 200)
+    menu_root.configure(fg_color="#f2f2f2")
+
+    container = ctk.CTkFrame(menu_root, fg_color="transparent")
+    container.pack(expand=True, fill=tk.BOTH, padx=30, pady=30)
+    container.grid_columnconfigure((0, 1), weight=1)
+    container.grid_rowconfigure(0, weight=1)
+
+    button_kwargs = dict(font=('Inter', 18, 'bold'), height=64, width=180, corner_radius=18)
+
+    whatsapp_btn = ctk.CTkButton(
+        container,
+        text="WhatsApp",
+        command=lambda: open_mode("traditional"),
+        **button_kwargs
+    )
+    whatsapp_btn.grid(row=0, column=0, padx=12, pady=12, sticky="nsew")
+
+    sms_btn = ctk.CTkButton(
+        container,
+        text="SMS",
+        command=lambda: open_mode("sms"),
+        **button_kwargs
+    )
+    sms_btn.grid(row=0, column=1, padx=12, pady=12, sticky="nsew")
+
+    menu_root.mainloop()
+
+
+def main():
+    launch_main_menu()
+
 
 if __name__ == "__main__":
     main()
