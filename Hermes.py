@@ -514,6 +514,7 @@ class Hermes:
         if getattr(self, 'is_main_menu_active', False):
             # En el menú el panel derecho se elimina por completo
             self._detach_right_panel()
+ 
             return
 
         self._update_main_layout(self.root.winfo_width())
