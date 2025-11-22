@@ -567,12 +567,12 @@ class Hermes:
         except AttributeError:
             border_col = "#cccccc"
 
-        # --- Función auxiliar para crear tarjeta con sombra difuminada y animación ---
+        # --- Función auxiliar para crear tarjeta con sombra difuminada (Estática y Sutil) ---
         def create_card_with_shadow(parent, img_filename, text, command):
             # Configuración de dimensiones y padding
-            shadow_blur_radius = 20
-            shadow_offset_y = 12
-            padding = 60  # Espacio generoso para evitar cortes
+            shadow_blur_radius = 8  # Sombra sutil
+            shadow_offset_y = 4     # Sombra sutil
+            padding = 60            # Espacio generoso para evitar cortes
 
             # Dimensiones del canvas total
             canvas_width = card_width + (padding * 2)
@@ -582,31 +582,27 @@ class Hermes:
             container = ctk.CTkFrame(parent, width=canvas_width, height=canvas_height, fg_color="transparent")
 
             # --- 1. Generar Imagen Compuesta (Sombra + Fondo de Tarjeta) ---
-            # Esto elimina el problema de los "bordes cuadrados" al hornear la tarjeta sobre la sombra
-            # en una imagen con transparencia perfecta.
-
             composite_pil = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(composite_pil)
 
             # A. Dibujar Sombra
-            # Coordenadas relativas al canvas (centrado)
             rect_x0 = padding
             rect_y0 = padding + shadow_offset_y
             rect_x1 = rect_x0 + card_width
             rect_y1 = rect_y0 + card_height
 
-            shadow_color_rgba = (0, 0, 0, 100) if not is_dark else (0, 0, 0, 180)
+            # Sombra mucho más clara (subtle)
+            shadow_color_rgba = (0, 0, 0, 40) if not is_dark else (0, 0, 0, 100)
 
-            # Dibujar rectángulo de sombra y difuminar
             shadow_layer = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
             draw_shadow = ImageDraw.Draw(shadow_layer)
-            draw_shadow.rounded_rectangle((rect_x0, rect_y0, rect_x1, rect_y1), radius=40, fill=shadow_color_rgba)
+            draw_shadow.rounded_rectangle((rect_x0, rect_y0, rect_x1, rect_y1), radius=30, fill=shadow_color_rgba)
             shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(shadow_blur_radius))
 
             # B. Dibujar Cuerpo de la Tarjeta (Blanco/Oscuro)
-            # Se dibuja en la posición "normal" (sin lift) sobre la capa de sombra
             card_layer = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
             draw_card = ImageDraw.Draw(card_layer)
+
             # Posición del cuerpo de la tarjeta (centrado, sin offset de sombra)
             card_y0 = padding
             card_y1 = card_y0 + card_height
@@ -614,30 +610,19 @@ class Hermes:
             # Convertir color hex a RGB para PIL
             card_bg_rgb = tuple(int(card_bg.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (255,)
 
-            draw_card.rounded_rectangle((rect_x0, card_y0, rect_x1, card_y1), radius=40, fill=card_bg_rgb)
+            draw_card.rounded_rectangle((rect_x0, card_y0, rect_x1, card_y1), radius=30, fill=card_bg_rgb)
 
             # C. Componer
             composite_pil.alpha_composite(shadow_layer)
             composite_pil.alpha_composite(card_layer)
 
-            # Crear CTkImage para el fondo
             bg_image = ctk.CTkImage(light_image=composite_pil, dark_image=composite_pil, size=(canvas_width, canvas_height))
 
-            # Widget de Fondo (Label con la imagen compuesta)
-            # Este widget se moverá durante la animación
+            # Widget de Fondo Estático
             bg_label = ctk.CTkLabel(container, text="", image=bg_image)
-
-            # Posiciones de animación (Y relativo dentro del container)
-            # La imagen se generó centrada en el canvas, así que su posición inicial es 0,0 si el container coincide.
-            # Sin embargo, para animar "subir", la posición Y inicial debe ser 0 (o un offset base) y la final negativa.
-            # Dado que la sombra y la tarjeta están baked en la imagen con padding, posicionamos la imagen en 0,0 inicialmente.
-            y_base = 0
-            y_lift = -12
-
-            bg_label.place(x=0, y=y_base)
+            bg_label.place(x=0, y=0)
 
             # --- 2. Botón de Contenido (Transparente) ---
-            # Cargar Icono
             try:
                 img_path = os.path.join(BASE_DIR, img_filename)
                 if os.path.exists(img_path):
@@ -648,7 +633,6 @@ class Hermes:
             except Exception:
                 ctk_img = None
 
-            # El botón es transparente y solo muestra Texto e Icono
             content_btn = ctk.CTkButton(
                 container,
                 text=text,
@@ -658,58 +642,15 @@ class Hermes:
                 width=card_width,
                 height=card_height,
                 fg_color="transparent",
-                hover_color=None, # Sin efecto hover de color, ya que animamos posición
+                hover_color=None,
                 text_color=self.colors.get('text', '#000000'),
                 font=font_card,
-                border_width=0, # Sin bordes dibujados por CTk
+                border_width=0,
                 anchor="center"
             )
 
-            # Posicionar botón para que coincida con el cuerpo de la tarjeta en la imagen
-            # La tarjeta en la imagen empieza en Y=padding.
-            btn_y_base = padding
-            btn_y_lift = padding + y_lift # Mismo delta
-
-            content_btn.place(x=padding, y=btn_y_base)
-
-            # --- Animación ---
-            def animate_lift(target_y_bg, target_y_btn, steps=6, delay=10):
-                # Obtener posiciones actuales seguras
-                try:
-                    start_y_bg = int(bg_label.place_info()['y'])
-                    start_y_btn = int(content_btn.place_info()['y'])
-                except (ValueError, KeyError):
-                    start_y_bg = y_base
-                    start_y_btn = btn_y_base
-
-                delta_bg = (target_y_bg - start_y_bg) / steps
-                delta_btn = (target_y_btn - start_y_btn) / steps
-
-                def step(current_step):
-                    if current_step > steps:
-                        bg_label.place_configure(y=target_y_bg)
-                        content_btn.place_configure(y=target_y_btn)
-                        return
-
-                    new_bg = start_y_bg + (delta_bg * current_step)
-                    new_btn = start_y_btn + (delta_btn * current_step)
-
-                    bg_label.place_configure(y=new_bg)
-                    content_btn.place_configure(y=new_btn)
-
-                    container.after(delay, lambda: step(current_step + 1))
-
-                step(1)
-
-            def on_enter(e):
-                animate_lift(y_lift, btn_y_lift)
-
-            def on_leave(e):
-                animate_lift(y_base, btn_y_base)
-
-            # Bindear eventos al botón (que está arriba y captura el mouse)
-            content_btn.bind("<Enter>", on_enter)
-            content_btn.bind("<Leave>", on_leave)
+            # Posicionar botón estáticamente sobre la tarjeta
+            content_btn.place(x=padding, y=padding)
 
             return container
 
