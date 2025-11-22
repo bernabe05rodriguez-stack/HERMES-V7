@@ -501,7 +501,7 @@ class Hermes:
         self.setup_start_menu()
 
     def setup_start_menu(self):
-        """Crea y muestra el menú de inicio simple con 2 botones."""
+        """Crea y muestra el menú de inicio con diseño de tarjetas modernas."""
         if hasattr(self, 'start_menu_frame') and self.start_menu_frame.winfo_exists():
             self.start_menu_frame.pack(fill=tk.BOTH, expand=True)
             return
@@ -512,36 +512,90 @@ class Hermes:
         center_frame = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
         center_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        # Logo en el menú de inicio (Opcional, pero queda bien)
+        # Título principal
+        ctk.CTkLabel(center_frame, text="Seleccione un modo", font=('Inter', 32, 'bold'), text_color=self.colors['text']).pack(pady=(0, 50))
+
+        # Contenedor horizontal para las tarjetas
+        cards_container = ctk.CTkFrame(center_frame, fg_color="transparent")
+        cards_container.pack()
+
+        # Configuración de estilo
+        card_width = 280
+        card_height = 340
+        img_size = (200, 200)
+        font_card = ('Inter', 24, 'bold')
+
+        # Colores de tarjeta (usando colores definidos en el init con fallback por seguridad)
+        card_bg = self.colors.get('bg_card', '#ffffff')
+
+        # Acceso seguro a dark_mode
+        is_dark = getattr(self, 'dark_mode', False)
+
+        # Acceso seguro a lighten/darken o fallback
         try:
-            logo_p = os.path.join(BASE_DIR, 'logo_left.png')
-            if os.path.exists(logo_p):
-                logo_i = Image.open(logo_p).resize((180, 180), Image.Resampling.LANCZOS)
-                logo_img = ctk.CTkImage(light_image=logo_i, dark_image=logo_i, size=(180, 180))
-                ctk.CTkLabel(center_frame, image=logo_img, text="").pack(pady=(0, 30))
-            else:
-                 ctk.CTkLabel(center_frame, text="HΞЯMΞS", font=('Big Russian', 60), text_color=self.colors['text']).pack(pady=(0, 30))
-        except:
-            pass
+            card_hover = lighten_color(card_bg, 0.05) if is_dark else darken_color(card_bg, 0.05)
+        except NameError:
+            card_hover = "#e0e0e0" # Fallback gris claro
 
-        ctk.CTkLabel(center_frame, text="Seleccione un modo", font=('Inter', 24, 'bold'), text_color=self.colors['text']).pack(pady=(0, 40))
+        # Acceso seguro a border color
+        try:
+            border_col = self._section_border_color()
+        except AttributeError:
+            border_col = "#cccccc"
 
-        btn_font = ('Inter', 18, 'bold')
+        # --- Función auxiliar para crear tarjeta ---
+        def create_card(parent, img_filename, text, command):
+            try:
+                img_path = os.path.join(BASE_DIR, img_filename)
+                if os.path.exists(img_path):
+                    pil_img = Image.open(img_path).resize(img_size, Image.Resampling.LANCZOS)
+                    ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=img_size)
+                else:
+                    print(f"Imagen no encontrada: {img_filename}")
+                    ctk_img = None
+            except Exception as e:
+                print(f"Error cargando {img_filename}: {e}")
+                ctk_img = None
 
-        btn_whatsapp = ctk.CTkButton(center_frame, text="Abrir Whatsapp",
-                                     command=lambda: self.enter_app_mode("whatsapp"),
-                                     fg_color=self.colors['green'], hover_color=darken_color(self.colors['green'], 0.1),
-                                     width=280, height=60, corner_radius=30, font=btn_font)
-        btn_whatsapp.pack(pady=15)
+            # Botón grande estilo tarjeta
+            btn = ctk.CTkButton(
+                parent,
+                text=text,
+                image=ctk_img,
+                compound="top",
+                command=command,
+                width=card_width,
+                height=card_height,
+                corner_radius=35,
+                fg_color=card_bg,
+                text_color=self.colors.get('text', '#000000'),
+                font=font_card,
+                hover_color=card_hover,
+                border_width=2,
+                border_color=border_col
+            )
+            return btn
 
-        btn_sms = ctk.CTkButton(center_frame, text="Abrir SMS",
-                                command=lambda: self.enter_app_mode("sms"),
-                                fg_color=self.colors['blue'], hover_color=darken_color(self.colors['blue'], 0.1),
-                                width=280, height=60, corner_radius=30, font=btn_font)
-        btn_sms.pack(pady=15)
+        # Tarjeta WhatsApp (Izquierda)
+        btn_wsp = create_card(
+            cards_container,
+            "WSP alas.png",
+            "Whatsapp",
+            lambda: self.enter_app_mode("whatsapp")
+        )
+        btn_wsp.grid(row=0, column=0, padx=30, pady=20)
+
+        # Tarjeta SMS (Derecha)
+        btn_sms = create_card(
+            cards_container,
+            "SMS alas.png",
+            "SMS",
+            lambda: self.enter_app_mode("sms")
+        )
+        btn_sms.grid(row=0, column=1, padx=30, pady=20)
 
         # Footer simple
-        ctk.CTkLabel(center_frame, text="HΞЯMΞS V1", font=('Inter', 12), text_color=self.colors['text_light']).pack(pady=(40, 0))
+        ctk.CTkLabel(center_frame, text="HΞЯMΞS V1", font=('Inter', 12), text_color=self.colors['text_light']).pack(pady=(50, 0))
 
     def enter_app_mode(self, mode):
         """Transición del menú de inicio a la aplicación principal."""
