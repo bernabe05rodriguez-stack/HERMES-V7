@@ -488,6 +488,7 @@ class Hermes:
         self.left_panel = left
         self.right_panel = right
         self._current_main_layout = None
+        self.is_main_menu_active = False
 
         self.root.bind("<Configure>", self._on_main_configure)
         self.setup_right(right) # FIX: Inicializar el panel derecho primero para que exista el log_text
@@ -512,8 +513,22 @@ class Hermes:
         if hasattr(self, 'right_panel'):
             self.right_panel.grid_remove()
 
+    def _configure_main_menu_layout(self):
+        """Expande el menú principal para ocupar la pantalla y centra las tarjetas."""
+        self.is_main_menu_active = True
+        self._current_main_layout = 'menu'
+        self._hide_right_panel()
+        self.main_layout.grid_columnconfigure(0, weight=1, uniform='main_panels', minsize=0)
+        self.main_layout.grid_columnconfigure(1, weight=0, minsize=0)
+        self.main_layout.grid_rowconfigure(1, weight=0)
+        self.left_panel.grid(row=0, column=0, sticky='nsew', padx=0, pady=0)
+        if hasattr(self, 'views_container'):
+            self.views_container.pack_configure(fill=tk.BOTH, expand=True)
+
     def _update_main_layout(self, width=None):
         """Cambia entre vista de 2 columnas o 1 columna (apilada) si la ventana es muy angosta."""
+        if getattr(self, 'is_main_menu_active', False):
+            return
         if not hasattr(self, 'left_panel') or not hasattr(self, 'right_panel'):
             return
         if not width:
@@ -599,7 +614,7 @@ class Hermes:
     def setup_left(self, parent):
         # Contenedor principal para las vistas
         self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
-        self.views_container.pack(fill=tk.X, expand=False, anchor="n")
+        self.views_container.pack(fill=tk.BOTH, expand=True, anchor="center")
 
         # --- Menú principal ---
         self.main_menu_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
@@ -629,8 +644,13 @@ class Hermes:
         container.grid_columnconfigure(0, weight=1)
         container.grid_rowconfigure(0, weight=1)
 
-        cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=0, column=0, sticky="nsew", padx=40, pady=(20, 30))
+        cards_wrapper = ctk.CTkFrame(container, fg_color="transparent")
+        cards_wrapper.grid(row=0, column=0, sticky="nsew", padx=40, pady=40)
+        cards_wrapper.grid_columnconfigure(0, weight=1)
+        cards_wrapper.grid_rowconfigure(0, weight=1)
+
+        cards = ctk.CTkFrame(cards_wrapper, fg_color="transparent")
+        cards.grid(row=0, column=0)
         cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
         cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
         cards.grid_rowconfigure(0, weight=1)
@@ -717,6 +737,7 @@ class Hermes:
             self.manual_messages_groups = self.manual_messages_numbers
 
         self.sms_mode_active = False
+        self.is_main_menu_active = False
         self.main_menu_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
@@ -729,6 +750,7 @@ class Hermes:
         """Muestra la vista de Fidelizado, repoblando los datos, y oculta las demás."""
         self._populate_fidelizado_inputs() # Repoblar datos al mostrar la vista
         self.sms_mode_active = False
+        self.is_main_menu_active = False
         self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
@@ -748,6 +770,7 @@ class Hermes:
             self.total_messages = 0
             self.update_stats()
             self.log("Modo SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
+        self.is_main_menu_active = False
         self.main_menu_frame.pack_forget()
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
@@ -759,7 +782,8 @@ class Hermes:
     def show_main_menu(self):
         """Muestra el menú principal y oculta las vistas de modo."""
         self.sms_mode_active = False
-        self.main_menu_frame.pack(fill=tk.BOTH, expand=True, anchor="n")
+        self._configure_main_menu_layout()
+        self.main_menu_frame.pack(fill=tk.BOTH, expand=True, anchor="center")
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack_forget()
