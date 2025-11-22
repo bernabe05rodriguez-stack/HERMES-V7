@@ -510,10 +510,17 @@ class Hermes:
         self._update_main_layout(self.root.winfo_width())
 
     def _on_main_configure(self, event):
+        if getattr(self, 'is_main_menu_active', False):
+            # En el menú el panel derecho debe permanecer oculto
+            self._hide_right_panel()
+            return
+
         self._update_main_layout(self.root.winfo_width())
 
     def _show_right_panel(self):
         """Garantiza que el panel derecho esté visible y posicionado correctamente."""
+        if getattr(self, 'is_main_menu_active', False):
+            return
         if not hasattr(self, 'right_panel'):
             return
 
