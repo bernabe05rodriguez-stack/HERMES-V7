@@ -32,6 +32,10 @@ import shutil
 import adbutils
 import uiautomator2 as u2
 import pytesseract
+try:
+    import pywinstyles
+except ImportError:
+    pywinstyles = None
 from PIL import Image, ImageDraw, ImageFilter
 import re
 import xml.etree.ElementTree as ET
@@ -248,6 +252,13 @@ class Hermes:
         self.root.state('zoomed')
         self.root.resizable(True, True)
         self.root.minsize(1500, 900)
+
+        # Aplicar estilos de Windows 11 si está disponible
+        if pywinstyles:
+            try:
+                pywinstyles.apply_style(self.root, "mica")
+            except Exception as e:
+                print(f"Error aplicando estilo Windows: {e}")
 
         # Variables de estado
         self.adb_path = tk.StringVar(value="")
@@ -542,41 +553,34 @@ class Hermes:
         img_size = (220, 220)
         font_card = ('Inter', 26, 'bold')
 
-        # Colores de tarjeta (usando colores definidos en el init con fallback por seguridad)
+        # Colores de tarjeta
         card_bg = self.colors.get('bg_card', '#ffffff')
-
-        # Acceso seguro a dark_mode
         is_dark = getattr(self, 'dark_mode', False)
 
-        # Acceso seguro a lighten/darken o fallback
         try:
             card_hover = lighten_color(card_bg, 0.05) if is_dark else darken_color(card_bg, 0.05)
         except NameError:
-            card_hover = "#e0e0e0" # Fallback gris claro
+            card_hover = "#e0e0e0"
 
-        # Acceso seguro a border color
         try:
             border_col = self._section_border_color()
         except AttributeError:
             border_col = "#cccccc"
 
-        # Sombra (color oscuro semitransparente simulado con color sólido oscuro del tema o gris)
-        shadow_color = "#1a1a1a" if not is_dark else "#000000"
-
-        # --- Función auxiliar para crear tarjeta con sombra difuminada ---
+        # --- Función auxiliar para crear tarjeta con sombra difuminada y animación ---
         def create_card_with_shadow(parent, img_filename, text, command):
-            # Configuración de sombra (Restaurada a valores originales)
-            shadow_blur_radius = 15
-            shadow_offset_x = 0
-            shadow_offset_y = 8
+            # Aumentar padding significativamente para evitar cortes en la sombra
+            shadow_blur_radius = 20
+            shadow_offset_y = 12
+            padding = 60  # Espacio generoso alrededor del botón
 
-            # Aumentar el margen para que el difuminado no se corte
-            padding = shadow_blur_radius * 3
+            # Posiciones para la animación
+            y_normal = padding
+            y_hover = padding - 12  # El botón sube 12px al hacer hover
 
-            # Tamaño total del canvas para la sombra (carta + blur padding + offset)
-            # Se añade espacio extra para evitar que la sombra se corte
-            canvas_width = card_width + (padding * 2) + abs(shadow_offset_x)
-            canvas_height = card_height + (padding * 2) + abs(shadow_offset_y)
+            # Tamaño total del canvas para la sombra (carta + padding extra)
+            canvas_width = card_width + (padding * 2)
+            canvas_height = card_height + (padding * 2)
 
             container = ctk.CTkFrame(parent, width=canvas_width, height=canvas_height, fg_color="transparent")
 
@@ -584,29 +588,26 @@ class Hermes:
             shadow_pil = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(shadow_pil)
 
-            # Coordenadas del rectángulo de la sombra (centrado + offset)
-            # El "origen" de la tarjeta es (padding, padding) para dejar espacio al blur en top/left.
-            rect_x0 = padding + shadow_offset_x
+            # Coordenadas del rectángulo de la sombra
+            # La sombra se dibuja estática en su posición "normal"
+            rect_x0 = padding
             rect_y0 = padding + shadow_offset_y
             rect_x1 = rect_x0 + card_width
             rect_y1 = rect_y0 + card_height
 
             # Dibujar rectángulo redondeado oscuro
-            # Aumentar opacidad para restaurar efecto 3D (80 en light, 180 en dark)
-            shadow_color_rgba = (0, 0, 0, 80) if not is_dark else (0, 0, 0, 180)
-            # Aumentar radio para más curva
+            shadow_color_rgba = (0, 0, 0, 100) if not is_dark else (0, 0, 0, 180)
             draw.rounded_rectangle((rect_x0, rect_y0, rect_x1, rect_y1), radius=40, fill=shadow_color_rgba)
 
             # Aplicar desenfoque gaussiano
             shadow_pil = shadow_pil.filter(ImageFilter.GaussianBlur(shadow_blur_radius))
-
-            # Crear CTkImage
             shadow_image = ctk.CTkImage(light_image=shadow_pil, dark_image=shadow_pil, size=(canvas_width, canvas_height))
 
-            # Label para la sombra
+            # Label para la sombra (Fondo)
             shadow_label = ctk.CTkLabel(container, text="", image=shadow_image)
             shadow_label.place(x=0, y=0)
 
+            # Cargar imagen del botón
             try:
                 img_path = os.path.join(BASE_DIR, img_filename)
                 if os.path.exists(img_path):
@@ -620,7 +621,6 @@ class Hermes:
                 ctk_img = None
 
             # Botón grande estilo tarjeta (Frente)
-            # Posicionado para centrarse sobre la sombra
             btn = ctk.CTkButton(
                 container,
                 text=text,
@@ -636,10 +636,44 @@ class Hermes:
                 hover_color=card_hover,
                 border_width=1,
                 border_color=border_col,
-                bg_color=self.colors.get('bg', '#e8e8e8') # Color de fondo para tapar "dirty corners"
+                bg_color=self.colors.get('bg', '#e8e8e8') # Importante para tapar las esquinas si es necesario
             )
-            # El botón debe estar desplazado por el radio del blur para alinearse con el "cuerpo" de la sombra
-            btn.place(x=padding, y=padding)
+            # Posición inicial
+            btn.place(x=padding, y=y_normal)
+
+            # --- Animación simple ---
+            def animate_y(widget, start, end, steps=6, delay=10):
+                """Anima la propiedad Y de un widget usando place."""
+                delta = (end - start) / steps
+
+                def step(current_step):
+                    if current_step > steps:
+                        # Asegurar posición final exacta
+                        widget.place_configure(y=end)
+                        return
+
+                    new_y = start + (delta * current_step)
+                    widget.place_configure(y=new_y)
+                    widget.after(delay, lambda: step(current_step + 1))
+
+                step(1)
+
+            def on_enter(e):
+                try:
+                    current_y = int(btn.place_info()['y'])
+                except (ValueError, KeyError):
+                    current_y = y_normal
+                animate_y(btn, current_y, y_hover)
+
+            def on_leave(e):
+                try:
+                    current_y = int(btn.place_info()['y'])
+                except (ValueError, KeyError):
+                    current_y = y_hover
+                animate_y(btn, current_y, y_normal)
+
+            btn.bind("<Enter>", on_enter)
+            btn.bind("<Leave>", on_leave)
 
             return container
 

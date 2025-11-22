@@ -4,3 +4,4 @@ adbutils
 uiautomator2
 pytesseract
 Pillow
+pywinstyles
