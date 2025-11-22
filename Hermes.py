@@ -244,10 +244,10 @@ class Hermes:
     def __init__(self, root):
         self.root = root
         self.root.title("HΞЯMΞS V1")
+        self.root.geometry("1500x900")
         self.root.state('zoomed')
         self.root.resizable(True, True)
         self.root.minsize(1500, 900)
-        self.center_window(1500, 900)
 
         # Variables de estado
         self.adb_path = tk.StringVar(value="")
@@ -400,14 +400,6 @@ class Hermes:
         self.auto_detect_adb()
         self.setup_ui()
 
-    def center_window(self, width, height):
-        self.root.update_idletasks()
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        x = (sw // 2) - (width // 2)
-        y = (sh // 2) - (height // 2)
-        self.root.geometry(f'{width}x{height}+{x}+{y}')
-
     def _center_toplevel(self, window, width, height):
         """Centrar una ventana toplevel en la pantalla."""
         try:
@@ -492,7 +484,6 @@ class Hermes:
         self.root.bind("<Configure>", self._on_main_configure)
         self.setup_right(right) # FIX: Inicializar el panel derecho primero para que exista el log_text
         self.setup_left(left)
-        self.root.update_idletasks()
 
         # NO llamar a _update_main_layout todavía porque los widgets no están packeados
         # self._update_main_layout(self.root.winfo_width())
