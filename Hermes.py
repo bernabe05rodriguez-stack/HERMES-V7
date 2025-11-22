@@ -691,6 +691,15 @@ class Hermes:
             except Exception as e:
                 print(f"Error cargando {image_filename}: {e}")
 
+        title_label = ctk.CTkLabel(
+            body,
+            text=title,
+            font=self.fonts['card_title'],
+            text_color=self.colors['text']
+        )
+        title_label.grid(row=1, column=0)
+        title_label.bind("<Button-1>", on_click)
+
         card.bind("<Button-1>", on_click)
         body.bind("<Button-1>", on_click)
         card.configure(cursor="hand2")
