@@ -957,7 +957,7 @@ class Hermes:
         )
         self.whatsapp_back_btn.pack(side=tk.LEFT, padx=(0, 15))
 
-        ctk.CTkLabel(header, text="Whastapp", font=('Inter', 26, 'bold'),
+        ctk.CTkLabel(header, text="Whatsapp", font=('Inter', 26, 'bold'),
                      text_color=self.colors['text']).pack(side=tk.LEFT)
 
         actions_section, actions_header = self._build_section(
@@ -1243,30 +1243,23 @@ class Hermes:
         title = ctk.CTkLabel(header_frame, text="SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
         title.pack(side=tk.LEFT)
 
-        time_section, _ = self._build_section(content, 1, "Configuración de tiempos (SMS)",
-                                              "Define los intervalos y esperas para los mensajes de texto.", icon="🕒")
-
-        sms_settings = ctk.CTkFrame(time_section, fg_color="transparent")
-        sms_settings.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
-        self.create_setting(sms_settings, "Delay (seg):", self.sms_delay_min, self.sms_delay_max, 0)
-        self.create_setting(sms_settings, "Espera Abrir (seg):", self.wait_after_open, None, 1)
-        self.create_setting(sms_settings, "Espera Enter (seg):", self.wait_after_first_enter, None, 2)
-
-        actions_section, _ = self._build_section(content, 2, "Flujo SMS",
+        actions_section, _ = self._build_section(content, 1, "Flujo SMS",
                                                  "Sigue los pasos para preparar y lanzar la campaña.", icon="📨")
 
         sms_steps_wrapper = ctk.CTkFrame(actions_section, fg_color="transparent")
         sms_steps_wrapper.grid(row=1, column=0, sticky="ew", padx=20, pady=(12, 10))
         sms_steps_wrapper.grid_columnconfigure(0, weight=1)
 
+        # Paso 1 y 2: Botones
         sms_step_buttons = [
             ("Detectar dispositivos", self.detect_devices, 'action_detect'),
             ("Cargar y procesar Excel", self.load_and_process_excel_sms, 'action_excel'),
         ]
 
+        current_row = 0
         for index, (text, command, color_key) in enumerate(sms_step_buttons, start=1):
             row_frame = ctk.CTkFrame(sms_steps_wrapper, fg_color="transparent")
-            row_frame.grid(row=index - 1, column=0, sticky="ew", pady=6)
+            row_frame.grid(row=current_row, column=0, sticky="ew", pady=6)
             row_frame.grid_columnconfigure(1, weight=1)
 
             badge = self._create_step_badge(row_frame, index)
@@ -1290,11 +1283,40 @@ class Hermes:
             elif index == 2:
                 self.sms_btn_load = btn
 
+            current_row += 1
+
+        # Paso 3: Configuración de tiempos (integrado)
+        step3_row = ctk.CTkFrame(sms_steps_wrapper, fg_color="transparent")
+        step3_row.grid(row=current_row, column=0, sticky="ew", pady=(4, 8))
+        step3_row.grid_columnconfigure(0, weight=0)
+        step3_row.grid_columnconfigure(1, weight=1)
+
+        self._create_step_badge(step3_row, 3).grid(row=0, column=0, padx=(0, 12), sticky="n", pady=(4,0))
+
+        sms_time_card = ctk.CTkFrame(
+            step3_row,
+            fg_color=self._section_bg_color(),
+            corner_radius=16,
+            border_width=1,
+            border_color=self._section_border_color()
+        )
+        sms_time_card.grid(row=0, column=1, sticky="ew")
+        sms_time_card.grid_columnconfigure(0, weight=1)
+
+        sms_settings = ctk.CTkFrame(sms_time_card, fg_color="transparent")
+        sms_settings.grid(row=0, column=0, sticky="ew", padx=20, pady=(10, 12))
+        self.create_setting(sms_settings, "Delay (seg):", self.sms_delay_min, self.sms_delay_max, 0)
+        self.create_setting(sms_settings, "Espera Abrir (seg):", self.wait_after_open, None, 1)
+        self.create_setting(sms_settings, "Espera Enter (seg):", self.wait_after_first_enter, None, 2)
+
+        current_row += 1
+
+        # Paso 4: Iniciar envío
         start_row = ctk.CTkFrame(sms_steps_wrapper, fg_color="transparent")
-        start_row.grid(row=len(sms_step_buttons), column=0, sticky="ew", pady=(16, 0))
+        start_row.grid(row=current_row, column=0, sticky="ew", pady=(16, 0))
         start_row.grid_columnconfigure(1, weight=1)
 
-        self._create_step_badge(start_row, len(sms_step_buttons) + 1).grid(row=0, column=0, padx=(0, 12))
+        self._create_step_badge(start_row, 4).grid(row=0, column=0, padx=(0, 12))
 
         self.sms_btn_start = ctk.CTkButton(
             start_row,
