@@ -627,22 +627,10 @@ class Hermes:
         container = ctk.CTkFrame(parent, fg_color="transparent")
         container.grid(row=0, column=0, sticky="nsew")
         container.grid_columnconfigure(0, weight=1)
-        container.grid_rowconfigure(1, weight=1)
-
-        header = ctk.CTkFrame(container, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="n", padx=10, pady=(20, 28))
-        header.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(
-            header,
-            text="Selecciona un modo de envío",
-            font=('Inter', 32, 'bold'),
-            text_color=self.colors['text'],
-            justify="center"
-        ).grid(row=0, column=0, sticky="n")
+        container.grid_rowconfigure(0, weight=1)
 
         cards = ctk.CTkFrame(container, fg_color="transparent")
-        cards.grid(row=1, column=0, sticky="nsew", padx=40, pady=(10, 30))
+        cards.grid(row=0, column=0, sticky="nsew", padx=40, pady=(20, 30))
         cards.grid_columnconfigure(0, weight=1, uniform="cards", minsize=440)
         cards.grid_columnconfigure(1, weight=1, uniform="cards", minsize=440)
         cards.grid_rowconfigure(0, weight=1)
