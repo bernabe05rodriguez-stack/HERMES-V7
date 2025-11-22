@@ -353,11 +353,12 @@ class Hermes:
         # Paleta de colores
         self.colors_light = {
             'blue': '#4285F4', 'green': '#1DB954', 'orange': '#FB923C',
-            'bg': '#e8e8e8', 'bg_card': '#ffffff', 'bg_header': '#ffffff',
+            'bg': '#f2f2f2', 'bg_card': '#ffffff', 'bg_header': '#ffffff',
             'bg_log': '#282c34',
             'log_text': '#abb2bf', 'log_success': '#98c379', 'log_error': '#e06c75',
             'log_warning': '#d19a66', 'log_info': '#61afef',
             'text': '#202124', 'text_light': '#5f6368', 'text_header_buttons': '#ffffff', 'text_header': '#000000', 'log_title_color': '#ffffff',
+            'shadow': '#dcdcdc',
             'action_detect': '#2563EB', 'action_excel': '#FB923C',
             'action_mode': '#0EA5E9', 'action_fidelizador': '#111827', 'action_start': '#16A34A',
             'action_pause': '#FB923C', 'action_cancel': '#DC2626'
@@ -370,6 +371,7 @@ class Hermes:
             'log_text': '#ffffff', 'log_success': '#98c379', 'log_error': '#e06c75',
             'log_warning': '#d19a66', 'log_info': '#61afef',
             'text': '#ffffff', 'text_light': '#cccccc', 'text_header_buttons': '#ffffff', 'text_header': '#ffffff', 'log_title_color': '#ffffff',
+            'shadow': '#0f1115',
             'action_detect': '#5B9FFF', 'action_excel': '#FFA45C',
             'action_mode': '#38BDF8', 'action_fidelizador': '#e4e6eb', 'action_start': '#22C55E',
             'action_pause': '#FFA45C', 'action_cancel': '#EF4444'
@@ -425,13 +427,24 @@ class Hermes:
         # Configurar fondo de la ventana principal
         self.root.configure(fg_color=self.colors['bg'])
         
-        # 1. Header
-        header = ctk.CTkFrame(self.root, fg_color=self.colors['bg_header'], height=140, corner_radius=30)
-        header.pack(fill=tk.X, pady=(10, 10), padx=10)
+        # 1. Header con sombra suave
+        header_container = ctk.CTkFrame(self.root, fg_color="transparent", height=140)
+        header_container.pack(fill=tk.X, pady=(14, 18), padx=14)
+        header_container.pack_propagate(False)
+
+        header_shadow = ctk.CTkFrame(
+            header_container,
+            fg_color=self.colors.get('shadow', '#dcdcdc'),
+            corner_radius=26
+        )
+        header_shadow.place(relx=0.5, rely=0, anchor='n', relwidth=1, relheight=1, y=6)
+
+        header = ctk.CTkFrame(header_container, fg_color=self.colors['bg_header'], height=140, corner_radius=26)
+        header.place(relx=0.5, rely=0, anchor='n', relwidth=1, relheight=1)
         header.pack_propagate(False)
 
         hc = ctk.CTkFrame(header, fg_color=self.colors['bg_header'])
-        hc.pack(expand=True, fill=tk.X, padx=40)
+        hc.pack(expand=True, fill=tk.X, padx=32, pady=8)
 
         # Logo Izquierdo
         try:
@@ -454,7 +467,7 @@ class Hermes:
             ctk.CTkLabel(hc, text="🦶", font=('Inter', 60), fg_color="transparent").pack(side=tk.RIGHT, padx=(20, 0))
 
         # Título
-        title_label = ctk.CTkLabel(hc, text="HΞЯMΞS", font=self.fonts['header'],
+        title_label = ctk.CTkLabel(hc, text="HERMES", font=self.fonts['header'],
                                    fg_color="transparent",
                                    text_color=self.colors['text_header'],
                                    cursor="hand2") # Añadir cursor para indicar que es interactivo
@@ -651,14 +664,11 @@ class Hermes:
         self.show_main_menu()
 
     def setup_main_menu(self, parent):
-        # Usar place para centrado absoluto en lugar de grid
         cards = ctk.CTkFrame(parent, fg_color="transparent")
-        cards.place(relx=0.5, rely=0.5, anchor="center")
-        
-        # Configurar columnas con tamaños más grandes para bloques grandes
-        cards.grid_columnconfigure(0, weight=0, minsize=480)
-        cards.grid_columnconfigure(1, weight=0, minsize=480)
-        cards.grid_rowconfigure(0, weight=0, minsize=520)
+        cards.pack(anchor="n", pady=(10, 0))
+
+        cards.grid_columnconfigure((0, 1), weight=1, uniform='menu_cards')
+        cards.grid_rowconfigure(0, weight=1)
 
         self.menu_card_images = []
 
@@ -679,59 +689,86 @@ class Hermes:
         )
 
     def _build_menu_card(self, parent, column, title, command, image_filename=None):
-        card = ctk.CTkFrame(
-            parent,
-            fg_color=self.colors['bg_card'],
-            corner_radius=8,
-            border_width=1,
-            border_color=self._section_border_color()
+        card_container = ctk.CTkFrame(parent, fg_color="transparent")
+        card_container.grid(row=0, column=column, sticky="n", padx=30, pady=20)
+        card_container.configure(width=320, height=320)
+        card_container.grid_propagate(False)
+
+        shadow = ctk.CTkFrame(
+            card_container,
+            fg_color=self.colors.get('shadow', '#dcdcdc'),
+            corner_radius=18
         )
-        card.grid(row=0, column=column, sticky="", padx=30, pady=20)
+        shadow.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=1, y=6)
+
+        card = ctk.CTkFrame(
+            card_container,
+            fg_color=self.colors['bg_card'],
+            corner_radius=18
+        )
+        card.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=1)
         card.grid_propagate(False)
-        card.configure(height=520, width=480)
-        card.grid_rowconfigure(0, weight=1)
-        card.grid_columnconfigure(0, weight=1)
 
         body = ctk.CTkFrame(card, fg_color="transparent")
-        body.place(relx=0.5, rely=0.5, anchor="center")
-        body.grid_columnconfigure(0, weight=0)
-        body.grid_rowconfigure(0, weight=0)
-        body.grid_rowconfigure(1, weight=0)
+        body.pack(expand=True, fill=tk.BOTH, padx=26, pady=26)
+        body.grid_columnconfigure(0, weight=1)
+        body.grid_rowconfigure(0, weight=1)
+        body.grid_rowconfigure(1, weight=1)
 
         def on_click(event=None):
             command()
+
+        def on_enter(event=None):
+            card.configure(fg_color=lighten_color(self.colors['bg_card'], 0.02))
+            shadow.place_configure(y=3)
+
+        def on_leave(event=None):
+            card.configure(fg_color=self.colors['bg_card'])
+            shadow.place_configure(y=6)
 
         if image_filename:
             try:
                 logo_path = os.path.join(BASE_DIR, image_filename)
                 logo_image = Image.open(logo_path)
                 # Mantener proporción de aspecto usando thumbnail
-                logo_image.thumbnail((200, 200), Image.Resampling.LANCZOS)
+                logo_image.thumbnail((160, 160), Image.Resampling.LANCZOS)
                 logo_ctk_image = ctk.CTkImage(
                     light_image=logo_image,
                     dark_image=logo_image,
-                    size=(200, 200)
+                    size=(160, 160)
                 )
                 self.menu_card_images.append(logo_ctk_image)
                 logo_label = ctk.CTkLabel(body, image=logo_ctk_image, text="")
-                logo_label.grid(row=0, column=0, pady=(0, 30))
+                logo_label.grid(row=0, column=0, pady=(0, 18))
                 logo_label.bind("<Button-1>", on_click)
+                logo_label.bind("<Enter>", on_enter)
+                logo_label.bind("<Leave>", on_leave)
             except Exception as e:
                 print(f"Error cargando {image_filename}: {e}")
 
         title_label = ctk.CTkLabel(
             body,
             text=title,
-            font=self.fonts['card_title'],
+            font=(self.fonts['card_title'][0], 18, 'bold'),
             text_color=self.colors['text']
         )
         title_label.grid(row=1, column=0)
         title_label.bind("<Button-1>", on_click)
+        title_label.bind("<Enter>", on_enter)
+        title_label.bind("<Leave>", on_leave)
 
         card.bind("<Button-1>", on_click)
         body.bind("<Button-1>", on_click)
+        card_container.bind("<Button-1>", on_click)
+        card_container.bind("<Enter>", on_enter)
+        card_container.bind("<Leave>", on_leave)
+        card.bind("<Enter>", on_enter)
+        card.bind("<Leave>", on_leave)
+        body.bind("<Enter>", on_enter)
+        body.bind("<Leave>", on_leave)
         card.configure(cursor="hand2")
         body.configure(cursor="hand2")
+        card_container.configure(cursor="hand2")
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
