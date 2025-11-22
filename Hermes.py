@@ -578,7 +578,7 @@ class Hermes:
             self.starfield_after_id = None
 
     def setup_start_menu(self):
-        """Crea y muestra el menú de inicio con diseño de tarjetas modernas."""
+        """Crea y muestra el menú de inicio (Diseño Espacial/Minimalista)."""
         if hasattr(self, 'start_menu_frame') and self.start_menu_frame.winfo_exists():
             self.start_menu_frame.pack(fill=tk.BOTH, expand=True)
             self.starfield_running = True
@@ -593,8 +593,7 @@ class Hermes:
         self.starfield_canvas = tk.Canvas(self.start_menu_frame, bg="black", highlightthickness=0)
         self.starfield_canvas.place(relwidth=1, relheight=1) # Llenar todo el fondo
 
-        # Inicializar estrellas con dimensiones fijas iniciales (para evitar que se amontonen en 1x1)
-        # Si luego la ventana es más grande, las estrellas se redibujarán/moverán pero empezarán bien distribuidas.
+        # Inicializar estrellas con dimensiones fijas iniciales
         init_w = self.root.winfo_width()
         init_h = self.root.winfo_height()
         if init_w < 100: init_w = 1500
@@ -604,7 +603,7 @@ class Hermes:
         self.starfield_running = True
         self.animate_starfield()
 
-        # Header del menú de inicio para el botón de Dark Mode
+        # Header del menú de inicio (Dark Mode) - Flotando sobre el canvas
         start_header = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
         # Ajuste de posición: más abajo (pady 40) para que el título no quede tan pegado arriba
         start_header.pack(fill=tk.X, padx=40, pady=(40, 0))
@@ -633,137 +632,85 @@ class Hermes:
         self.dark_mode_btn_start.pack(pady=15) # Padding vertical para dar altura al header
         self.dark_mode_btn_start.bind("<Button-1>", lambda _event: self.toggle_dark_mode())
 
-        center_frame = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
-        center_frame.place(relx=0.5, rely=0.5, anchor="center")
+        # --- LOGOS EN CANVAS (Transparencia Real) ---
 
-        # Contenedor horizontal para las tarjetas
-        cards_container = ctk.CTkFrame(center_frame, fg_color="transparent")
-        cards_container.pack()
-
-        # Configuración de estilo (Más grandes)
-        card_width = 320
-        card_height = 400
-        img_size = (220, 220)
-        font_card = ('Inter', 26, 'bold')
-
-        # Colores de tarjeta
-        card_bg = self.colors.get('bg_card', '#ffffff')
-        is_dark = getattr(self, 'dark_mode', False)
-
+        # Cargar Imágenes
         try:
-            card_hover = lighten_color(card_bg, 0.05) if is_dark else darken_color(card_bg, 0.05)
-        except NameError:
-            card_hover = "#e0e0e0"
+            img_size_normal = (300, 300)
+            img_size_hover = (330, 330)
 
-        try:
-            border_col = self._section_border_color()
-        except AttributeError:
-            border_col = "#cccccc"
+            # WSP Images
+            wsp_path = os.path.join(BASE_DIR, "WSP alas.png")
+            if os.path.exists(wsp_path):
+                pil_wsp = Image.open(wsp_path)
+                self.img_wsp_normal = ImageTk.PhotoImage(pil_wsp.resize(img_size_normal, Image.Resampling.LANCZOS))
+                self.img_wsp_hover = ImageTk.PhotoImage(pil_wsp.resize(img_size_hover, Image.Resampling.LANCZOS))
+            else:
+                self.img_wsp_normal = None
 
-        # --- Función auxiliar para crear tarjeta con sombra difuminada (Estática y Sutil) ---
-        def create_card_with_shadow(parent, img_filename, text, command):
-            # Configuración de dimensiones y padding
-            shadow_blur_radius = 8  # Sombra sutil
-            shadow_offset_y = 4     # Sombra sutil
-            padding = 60            # Espacio generoso para evitar cortes
+            # SMS Images
+            sms_path = os.path.join(BASE_DIR, "SMS alas.png")
+            if os.path.exists(sms_path):
+                pil_sms = Image.open(sms_path)
+                self.img_sms_normal = ImageTk.PhotoImage(pil_sms.resize(img_size_normal, Image.Resampling.LANCZOS))
+                self.img_sms_hover = ImageTk.PhotoImage(pil_sms.resize(img_size_hover, Image.Resampling.LANCZOS))
+            else:
+                self.img_sms_normal = None
 
-            # Dimensiones del canvas total
-            canvas_width = card_width + (padding * 2)
-            canvas_height = card_height + (padding * 2)
+        except Exception as e:
+            print(f"Error cargando imágenes del menú: {e}")
+            self.img_wsp_normal = None
+            self.img_sms_normal = None
 
-            # Contenedor principal (transparente)
-            container = ctk.CTkFrame(parent, width=canvas_width, height=canvas_height, fg_color="transparent")
+        # Crear items en Canvas
+        self.canvas_item_wsp = None
+        self.canvas_item_sms = None
 
-            # --- 1. Generar Imagen Compuesta (Sombra + Fondo de Tarjeta) ---
-            composite_pil = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(composite_pil)
+        if self.img_wsp_normal:
+            self.canvas_item_wsp = self.starfield_canvas.create_image(0, 0, image=self.img_wsp_normal, anchor='center')
+            # Bindings WSP
+            self.starfield_canvas.tag_bind(self.canvas_item_wsp, '<Button-1>', lambda e: self.enter_app_mode("whatsapp"))
+            self.starfield_canvas.tag_bind(self.canvas_item_wsp, '<Enter>', lambda e: self._on_hover_start_logo(self.canvas_item_wsp, self.img_wsp_hover))
+            self.starfield_canvas.tag_bind(self.canvas_item_wsp, '<Leave>', lambda e: self._on_leave_start_logo(self.canvas_item_wsp, self.img_wsp_normal))
 
-            # A. Dibujar Sombra
-            rect_x0 = padding
-            rect_y0 = padding + shadow_offset_y
-            rect_x1 = rect_x0 + card_width
-            rect_y1 = rect_y0 + card_height
+        if self.img_sms_normal:
+            self.canvas_item_sms = self.starfield_canvas.create_image(0, 0, image=self.img_sms_normal, anchor='center')
+            # Bindings SMS
+            self.starfield_canvas.tag_bind(self.canvas_item_sms, '<Button-1>', lambda e: self.enter_app_mode("sms"))
+            self.starfield_canvas.tag_bind(self.canvas_item_sms, '<Enter>', lambda e: self._on_hover_start_logo(self.canvas_item_sms, self.img_sms_hover))
+            self.starfield_canvas.tag_bind(self.canvas_item_sms, '<Leave>', lambda e: self._on_leave_start_logo(self.canvas_item_sms, self.img_sms_normal))
 
-            # Sombra mucho más clara (subtle)
-            shadow_color_rgba = (0, 0, 0, 40) if not is_dark else (0, 0, 0, 100)
+        # Bind resize event to center logos
+        self.starfield_canvas.bind('<Configure>', self._update_start_menu_layout)
 
-            shadow_layer = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-            draw_shadow = ImageDraw.Draw(shadow_layer)
-            draw_shadow.rounded_rectangle((rect_x0, rect_y0, rect_x1, rect_y1), radius=30, fill=shadow_color_rgba)
-            shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(shadow_blur_radius))
+    def _on_hover_start_logo(self, tag, hover_img):
+        """Efecto Hover: Cambia imagen y cursor."""
+        self.starfield_canvas.itemconfig(tag, image=hover_img)
+        self.starfield_canvas.config(cursor="hand2")
 
-            # B. Dibujar Cuerpo de la Tarjeta (Blanco/Oscuro)
-            card_layer = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-            draw_card = ImageDraw.Draw(card_layer)
+    def _on_leave_start_logo(self, tag, normal_img):
+        """Efecto Leave: Restaura imagen y cursor."""
+        self.starfield_canvas.itemconfig(tag, image=normal_img)
+        self.starfield_canvas.config(cursor="")
 
-            # Posición del cuerpo de la tarjeta (centrado, sin offset de sombra)
-            card_y0 = padding
-            card_y1 = card_y0 + card_height
+    def _update_start_menu_layout(self, event=None):
+        """Centra los logos en el canvas cuando cambia el tamaño de la ventana."""
+        if not hasattr(self, 'starfield_canvas') or not self.starfield_canvas.winfo_exists():
+            return
 
-            # Convertir color hex a RGB para PIL
-            card_bg_rgb = tuple(int(card_bg.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (255,)
+        w = self.starfield_canvas.winfo_width()
+        h = self.starfield_canvas.winfo_height()
 
-            draw_card.rounded_rectangle((rect_x0, card_y0, rect_x1, card_y1), radius=30, fill=card_bg_rgb)
+        # Posiciones relativas
+        # WSP a la izquierda (35%), SMS a la derecha (65%)
+        # Centrados verticalmente (55% para dar espacio al titulo grande)
+        y_pos = h * 0.55
 
-            # C. Componer
-            composite_pil.alpha_composite(shadow_layer)
-            composite_pil.alpha_composite(card_layer)
+        if self.canvas_item_wsp:
+            self.starfield_canvas.coords(self.canvas_item_wsp, w * 0.35, y_pos)
 
-            bg_image = ctk.CTkImage(light_image=composite_pil, dark_image=composite_pil, size=(canvas_width, canvas_height))
-
-            # Widget de Fondo Estático
-            bg_label = ctk.CTkLabel(container, text="", image=bg_image)
-            bg_label.place(x=0, y=0)
-
-            # --- 2. Botón de Contenido (Transparente) ---
-            try:
-                img_path = os.path.join(BASE_DIR, img_filename)
-                if os.path.exists(img_path):
-                    pil_img = Image.open(img_path).resize(img_size, Image.Resampling.LANCZOS)
-                    ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=img_size)
-                else:
-                    ctk_img = None
-            except Exception:
-                ctk_img = None
-
-            content_btn = ctk.CTkButton(
-                container,
-                text=text,
-                image=ctk_img,
-                compound="top",
-                command=command,
-                width=card_width,
-                height=card_height,
-                fg_color="transparent",
-                hover_color=None,
-                text_color=self.colors.get('text', '#000000'),
-                font=font_card,
-                border_width=0,
-                anchor="center"
-            )
-
-            # Posicionar botón estáticamente sobre la tarjeta
-            content_btn.place(x=padding, y=padding)
-
-            return container
-
-        # Tarjeta WhatsApp (Izquierda)
-        card_wsp = create_card_with_shadow(
-            cards_container,
-            "WSP alas.png",
-            "Whatsapp",
-            lambda: self.enter_app_mode("whatsapp")
-        )
-        card_wsp.grid(row=0, column=0, padx=35, pady=20)
-
-        # Tarjeta SMS (Derecha)
-        card_sms = create_card_with_shadow(
-            cards_container,
-            "SMS alas.png",
-            "SMS",
-            lambda: self.enter_app_mode("sms")
-        )
-        card_sms.grid(row=0, column=1, padx=35, pady=20)
+        if self.canvas_item_sms:
+            self.starfield_canvas.coords(self.canvas_item_sms, w * 0.65, y_pos)
 
     def enter_app_mode(self, mode):
         """Transición del menú de inicio a la aplicación principal."""
