@@ -570,10 +570,13 @@ class Hermes:
             shadow_offset_x = 0
             shadow_offset_y = 8
 
+            # Aumentar el margen para que el difuminado no se corte
+            padding = shadow_blur_radius * 3
+
             # Tamaño total del canvas para la sombra (carta + blur padding + offset)
             # Se añade espacio extra para evitar que la sombra se corte
-            canvas_width = card_width + (shadow_blur_radius * 2) + abs(shadow_offset_x)
-            canvas_height = card_height + (shadow_blur_radius * 2) + abs(shadow_offset_y)
+            canvas_width = card_width + (padding * 2) + abs(shadow_offset_x)
+            canvas_height = card_height + (padding * 2) + abs(shadow_offset_y)
 
             container = ctk.CTkFrame(parent, width=canvas_width, height=canvas_height, fg_color="transparent")
 
@@ -582,9 +585,9 @@ class Hermes:
             draw = ImageDraw.Draw(shadow_pil)
 
             # Coordenadas del rectángulo de la sombra (centrado + offset)
-            # El "origen" de la tarjeta es (shadow_blur_radius, shadow_blur_radius) para dejar espacio al blur en top/left.
-            rect_x0 = shadow_blur_radius + shadow_offset_x
-            rect_y0 = shadow_blur_radius + shadow_offset_y
+            # El "origen" de la tarjeta es (padding, padding) para dejar espacio al blur en top/left.
+            rect_x0 = padding + shadow_offset_x
+            rect_y0 = padding + shadow_offset_y
             rect_x1 = rect_x0 + card_width
             rect_y1 = rect_y0 + card_height
 
@@ -636,7 +639,7 @@ class Hermes:
                 bg_color="transparent"
             )
             # El botón debe estar desplazado por el radio del blur para alinearse con el "cuerpo" de la sombra
-            btn.place(x=shadow_blur_radius, y=shadow_blur_radius)
+            btn.place(x=padding, y=padding)
 
             return container
 
