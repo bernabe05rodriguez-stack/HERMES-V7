@@ -256,7 +256,7 @@ class Hermes:
         self.wait_after_open = SafeIntVar(value=15)
         self.wait_after_first_enter = SafeIntVar(value=10)
 
-        # Variables para el nuevo modo SMS
+        # Variables para el nuevo SMS
         self.sms_mode_active = False
         self.sms_delay_min = SafeIntVar(value=10)
         self.sms_delay_max = SafeIntVar(value=15)
@@ -639,7 +639,7 @@ class Hermes:
             self.link_retry_map = {}
             self.total_messages = 0
             self.update_stats()
-            self.log("Modo SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
+            self.log("SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
         self.traditional_view_frame.pack_forget()
         self.fidelizado_view_frame.pack_forget()
         self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
@@ -683,7 +683,7 @@ class Hermes:
         header.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 15))
         header.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(header, text="Modo Masivo 🚀", font=('Inter', 26, 'bold'),
+        ctk.CTkLabel(header, text="Whastapp", font=('Inter', 26, 'bold'),
                      text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
 
         actions_section, actions_header = self._build_section(
@@ -733,7 +733,7 @@ class Hermes:
 
         self.sms_mode_btn = ctk.CTkButton(
             header_actions,
-            text="Modo SMS",
+            text="SMS",
             command=self.handle_sms_mode_access,
             **tool_btn_kwargs
         )
@@ -967,12 +967,12 @@ class Hermes:
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 10))
         header_frame.grid_columnconfigure(0, weight=1)
 
-        title = ctk.CTkLabel(header_frame, text="Modo SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
+        title = ctk.CTkLabel(header_frame, text="SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
         title.grid(row=0, column=0, sticky="w")
 
         self.sms_back_btn = ctk.CTkButton(
             header_frame,
-            text="Volver al modo Masivos",
+            text="Volver al Whastapps",
             command=self.show_traditional_view,
             fg_color=self.colors['action_mode'],
             hover_color=self.hover_colors['action_mode'],
@@ -1556,7 +1556,7 @@ class Hermes:
         """Actualiza todos los contadores y barras de progreso en la UI."""
         effective_total = self.total_messages
 
-        # En modo SMS, garantizar que el total refleje la cantidad de enlaces cargados
+        # En SMS, garantizar que el total refleje la cantidad de enlaces cargados
         if self.sms_mode_active and effective_total == 0 and self.links:
             effective_total = len(self.links)
             self.total_messages = effective_total
@@ -1878,7 +1878,7 @@ class Hermes:
                         self.links = sms_links
                         self.link_retry_map = {}
                         link_label = "links SMS"
-                        # Asegurar que el modo SMS quede activo cuando se cargan enlaces procesados de SMS
+                        # Asegurar que el SMS quede activo cuando se cargan enlaces procesados de SMS
                         self.sms_mode_active = True
                     else:
                         self.links = whatsapp_links
@@ -1912,7 +1912,7 @@ class Hermes:
             self.log(f"Error al leer archivo: {e}", 'error'); messagebox.showerror("Error", f"Error al leer el archivo:\n{e}")
 
     def load_and_process_excel_sms(self):
-        """Acceso auxiliar para el modo SMS."""
+        """Acceso auxiliar para el SMS."""
         self.sms_mode_active = True
         self.manual_mode = False
         self.load_and_process_excel()
@@ -1977,7 +1977,7 @@ class Hermes:
         self.show_fidelizado_view()
 
     def handle_sms_mode_access(self):
-        """Manejador del acceso directo al modo SMS."""
+        """Manejador del acceso directo al SMS."""
         self.show_sms_view()
 
     def setup_fidelizado_view(self, parent):
@@ -2009,7 +2009,7 @@ class Hermes:
         header_frame = ctk.CTkFrame(content, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(15, 10))
 
-        self.back_to_traditional_btn = ctk.CTkButton(header_frame, text="Volver al modo Masivos",
+        self.back_to_traditional_btn = ctk.CTkButton(header_frame, text="Volver al Whastapps",
                                       command=self.show_traditional_view,
                                       fg_color="transparent",
                                       text_color=self.colors['text_light'],
@@ -3055,7 +3055,7 @@ class Hermes:
 
         elif self.sms_mode_active:
             self.total_messages = len(self.links)
-            self.log(f"Modo SMS: {self.total_messages} envíos totales", 'info')
+            self.log(f"SMS: {self.total_messages} envíos totales", 'info')
 
         # (total_messages para otros modos ya está calculado)
         # --- Fin Validación ---
@@ -3441,17 +3441,17 @@ class Hermes:
                 time.sleep(1)
 
     def run_sms_thread(self):
-        """Lógica de envío para el modo SMS."""
+        """Lógica de envío para el SMS."""
         if not self.links:
             self.log("Error: No hay enlaces SMS para enviar.", 'error')
             return
 
-        self.log("Ejecutando Modo SMS...", 'info')
+        self.log("Ejecutando SMS...", 'info')
         idx = 0
 
         for i, link in enumerate(self.links):
             if self.should_stop:
-                self.log("Cancelado en Modo SMS", 'warning')
+                self.log("Cancelado en SMS", 'warning')
                 break
 
             device = self.devices[idx]
