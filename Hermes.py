@@ -201,7 +201,7 @@ class Tooltip:
             return
 
         # Crear la ventana Toplevel
-        self.tooltip_window = tk.Toplevel(self.widget)
+        self.tooltip_window = ctk.CTkToplevel(self.widget)
         self.tooltip_window.wm_overrideredirect(True) # Sin bordes/barra de título
 
         # --- INICIO DE LA CORRECCIÓN ---
