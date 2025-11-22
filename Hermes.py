@@ -434,6 +434,8 @@ class Hermes:
         header_container = ctk.CTkFrame(self.root, fg_color="transparent", height=140)
         header_container.pack(fill=tk.X, pady=(14, 18), padx=14)
         header_container.pack_propagate(False)
+        self.header_container = header_container
+        self._header_pack_params = dict(fill=tk.X, pady=(14, 18), padx=14)
 
         header_shadow = ctk.CTkFrame(
             header_container,
@@ -449,7 +451,7 @@ class Hermes:
         hc = ctk.CTkFrame(header, fg_color=self.colors['bg_header'])
         hc.pack(expand=True, fill=tk.X, padx=32, pady=8)
 
-        # Logo Izquierdo
+        # Contenido del header (logos y título)
         try:
             l_img_path = os.path.join(BASE_DIR, 'logo_left.png')
             l_img = Image.open(l_img_path).resize((150, 150), Image.Resampling.LANCZOS)
@@ -459,7 +461,6 @@ class Hermes:
             print(f"Error cargando logo_left: {e}")
             ctk.CTkLabel(hc, text="🦶", font=('Inter', 60), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 20))
 
-        # Logo Derecho
         try:
             r_img_path = os.path.join(BASE_DIR, 'logo_right.png')
             r_img = Image.open(r_img_path).resize((150, 150), Image.Resampling.LANCZOS)
@@ -469,14 +470,12 @@ class Hermes:
             print(f"Error cargando logo_right: {e}")
             ctk.CTkLabel(hc, text="🦶", font=('Inter', 60), fg_color="transparent").pack(side=tk.RIGHT, padx=(20, 0))
 
-        # Título
         title_label = ctk.CTkLabel(hc, text="HERMES", font=self.fonts['header'],
                                    fg_color="transparent",
                                    text_color=self.colors['text_header'],
                                    cursor="hand2") # Añadir cursor para indicar que es interactivo
         title_label.pack(side=tk.LEFT, fill=tk.X, expand=True, anchor='center')
 
-        # Tooltip para el título
         tooltip_text = (
             "Hermes fue el mensajero de los dioses en la mitología griega. \n"
             "Hijo de Zeus, simbolizaba la comunicación, la rapidez y el ingenio. \n"
@@ -517,10 +516,21 @@ class Hermes:
         if getattr(self, 'is_main_menu_active', False):
             # En el menú el panel derecho se elimina por completo
             self._detach_right_panel()
- 
+
             return
 
         self._update_main_layout(self.root.winfo_width())
+
+    def _set_header_visibility(self, visible):
+        """Muestra u oculta el header principal según la vista activa."""
+        if not hasattr(self, 'header_container'):
+            return
+
+        if visible:
+            if not self.header_container.winfo_ismapped():
+                self.header_container.pack(**getattr(self, '_header_pack_params', {}))
+        else:
+            self.header_container.pack_forget()
 
     def _show_right_panel(self):
         """Garantiza que el panel derecho esté visible y posicionado correctamente."""
@@ -707,14 +717,6 @@ class Hermes:
     def setup_menu_view(self, parent):
         menu_container = ctk.CTkFrame(parent, fg_color="transparent")
         menu_container.pack(fill=tk.BOTH, expand=True)
-        menu_container.grid_rowconfigure(0, weight=1)
-        menu_container.grid_columnconfigure(0, weight=1)
-
-        buttons_frame = ctk.CTkFrame(menu_container, fg_color="transparent")
-        buttons_frame.grid(row=0, column=0, sticky="nsew")
-        buttons_frame.grid_rowconfigure(0, weight=1)
-        buttons_frame.grid_columnconfigure(0, weight=1)
-        buttons_frame.grid_columnconfigure(1, weight=1)
 
         button_style = dict(
             fg_color=self.colors['action_mode'],
@@ -726,13 +728,19 @@ class Hermes:
             width=220
         )
 
+        center_frame = ctk.CTkFrame(menu_container, fg_color="transparent")
+        center_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        buttons_frame = ctk.CTkFrame(center_frame, fg_color="transparent")
+        buttons_frame.pack()
+
         whatsapp_btn = ctk.CTkButton(
             buttons_frame,
             text="WhatsApp",
             command=self.show_fidelizado_view,
             **button_style
         )
-        whatsapp_btn.grid(row=0, column=0, padx=20, pady=20, sticky="e")
+        whatsapp_btn.pack(side=tk.LEFT, padx=20, pady=10)
 
         sms_btn = ctk.CTkButton(
             buttons_frame,
@@ -740,7 +748,7 @@ class Hermes:
             command=self.show_sms_view,
             **button_style
         )
-        sms_btn.grid(row=0, column=1, padx=20, pady=20, sticky="w")
+        sms_btn.pack(side=tk.LEFT, padx=20, pady=10)
 
     def show_traditional_view(self):
         """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
@@ -753,6 +761,7 @@ class Hermes:
             # Asumir que los mensajes de grupo son los mismos
             self.manual_messages_groups = self.manual_messages_numbers
 
+        self._set_header_visibility(True)
         self.sms_mode_active = False
         self.is_main_menu_active = False
         self.menu_view_frame.pack_forget()
@@ -766,6 +775,7 @@ class Hermes:
     def show_fidelizado_view(self):
         """Muestra la vista de Fidelizado, repoblando los datos, y oculta las demás."""
         self._populate_fidelizado_inputs() # Repoblar datos al mostrar la vista
+        self._set_header_visibility(True)
         self.sms_mode_active = False
         self.is_main_menu_active = False
         self.menu_view_frame.pack_forget()
@@ -778,6 +788,7 @@ class Hermes:
 
     def show_sms_view(self):
         """Activa la vista de envío por SMS."""
+        self._set_header_visibility(True)
         self.sms_mode_active = True
         self.manual_mode = False
         self.fidelizado_mode = None
@@ -798,6 +809,7 @@ class Hermes:
 
     def show_menu_view(self):
         """Muestra el menú principal dentro de la misma ventana."""
+        self._set_header_visibility(False)
         self.sms_mode_active = False
         self.is_main_menu_active = True
         self.traditional_view_frame.pack_forget()
