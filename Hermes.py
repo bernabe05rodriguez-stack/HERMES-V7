@@ -655,10 +655,10 @@ class Hermes:
         cards = ctk.CTkFrame(parent, fg_color="transparent")
         cards.place(relx=0.5, rely=0.5, anchor="center")
         
-        # No usar weight para evitar que se expandan
-        cards.grid_columnconfigure(0, weight=0)
-        cards.grid_columnconfigure(1, weight=0)
-        cards.grid_rowconfigure(0, weight=0)
+        # Configurar columnas sin weight pero con minsize para mantener el tamaño
+        cards.grid_columnconfigure(0, weight=0, minsize=440)
+        cards.grid_columnconfigure(1, weight=0, minsize=440)
+        cards.grid_rowconfigure(0, weight=0, minsize=440)
 
         self.menu_card_images = []
 
@@ -686,9 +686,9 @@ class Hermes:
             border_width=1,
             border_color=self._section_border_color()
         )
-        card.grid(row=0, column=column, sticky="nsew", padx=28, pady=18)
+        card.grid(row=0, column=column, sticky="", padx=28, pady=18)
         card.grid_propagate(False)
-        card.configure(height=440)
+        card.configure(height=440, width=440)
         card.grid_rowconfigure(0, weight=1)
         card.grid_columnconfigure(0, weight=1)
 
