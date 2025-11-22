@@ -424,13 +424,20 @@ class Hermes:
         # Configurar fondo de la ventana principal
         self.root.configure(fg_color=self.colors['bg'])
         
-        # 1. Header
-        header = ctk.CTkFrame(self.root, fg_color=self.colors['bg_header'], height=140, corner_radius=30)
-        header.pack(fill=tk.X, pady=(10, 10), padx=10)
-        header.pack_propagate(False)
+        # 1. Header (Guardado en self.header_frame, NO SE EMPAQUETA AÚN)
+        self.header_frame = ctk.CTkFrame(self.root, fg_color=self.colors['bg_header'], height=140, corner_radius=30)
+        # self.header_frame.pack(fill=tk.X, pady=(10, 10), padx=10) # MOVIDO A enter_app_mode
+        self.header_frame.pack_propagate(False)
 
-        hc = ctk.CTkFrame(header, fg_color=self.colors['bg_header'])
+        hc = ctk.CTkFrame(self.header_frame, fg_color=self.colors['bg_header'])
         hc.pack(expand=True, fill=tk.X, padx=40)
+
+        # Botón HOME (NUEVO)
+        self.home_btn = ctk.CTkButton(hc, text="🏠 Inicio", command=self.return_to_start_menu,
+                                      fg_color=self.colors['bg_card'], text_color=self.colors['text'],
+                                      font=('Inter', 12, 'bold'), width=80, height=32, corner_radius=16,
+                                      hover_color=darken_color(self.colors['bg_card'], 0.1))
+        self.home_btn.place(relx=0.0, rely=0.0, anchor="nw") # Posicionamiento absoluto relativo al header content
 
         # Logo Izquierdo
         try:
@@ -470,11 +477,11 @@ class Hermes:
         tooltip_font = self.fonts.get('dialog_text', ('Inter', 12))
         self.hermes_tooltip = Tooltip(widget=title_label, text=tooltip_text, font_info=tooltip_font)
 
-        # 2. Contenedor principal scrollable
-        mc = ctk.CTkFrame(self.root, fg_color="transparent")
-        mc.pack(fill=tk.BOTH, expand=True, padx=40, pady=(0, 20))
+        # 2. Contenedor principal scrollable (Guardado en self.main_content_frame)
+        self.main_content_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+        # self.main_content_frame.pack(fill=tk.BOTH, expand=True, padx=40, pady=(0, 20)) # MOVIDO
 
-        self.scroll_frame = ctk.CTkScrollableFrame(mc, fg_color="transparent")
+        self.scroll_frame = ctk.CTkScrollableFrame(self.main_content_frame, fg_color="transparent")
         self.scroll_frame.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
         self.scroll_frame.grid_columnconfigure(0, weight=618, uniform='main_panels')
         self.scroll_frame.grid_columnconfigure(1, weight=382, uniform='main_panels')
@@ -492,10 +499,85 @@ class Hermes:
         self.setup_right(right) # FIX: Inicializar el panel derecho primero para que exista el log_text
         self.setup_left(left)
         self.root.update_idletasks()
+
+        # NO llamar a _update_main_layout todavía porque los widgets no están packeados
+        # self._update_main_layout(self.root.winfo_width())
+
+        # INICIAR EN EL MENÚ DE INICIO
+        self.setup_start_menu()
+
+    def setup_start_menu(self):
+        """Crea y muestra el menú de inicio simple con 2 botones."""
+        if hasattr(self, 'start_menu_frame') and self.start_menu_frame.winfo_exists():
+            self.start_menu_frame.pack(fill=tk.BOTH, expand=True)
+            return
+
+        self.start_menu_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+        self.start_menu_frame.pack(fill=tk.BOTH, expand=True)
+
+        center_frame = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
+        center_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Logo en el menú de inicio (Opcional, pero queda bien)
+        try:
+            logo_p = os.path.join(BASE_DIR, 'logo_left.png')
+            if os.path.exists(logo_p):
+                logo_i = Image.open(logo_p).resize((180, 180), Image.Resampling.LANCZOS)
+                logo_img = ctk.CTkImage(light_image=logo_i, dark_image=logo_i, size=(180, 180))
+                ctk.CTkLabel(center_frame, image=logo_img, text="").pack(pady=(0, 30))
+            else:
+                 ctk.CTkLabel(center_frame, text="HΞЯMΞS", font=('Big Russian', 60), text_color=self.colors['text']).pack(pady=(0, 30))
+        except:
+            pass
+
+        ctk.CTkLabel(center_frame, text="Seleccione un modo", font=('Inter', 24, 'bold'), text_color=self.colors['text']).pack(pady=(0, 40))
+
+        btn_font = ('Inter', 18, 'bold')
+
+        btn_whatsapp = ctk.CTkButton(center_frame, text="Abrir Whatsapp",
+                                     command=lambda: self.enter_app_mode("whatsapp"),
+                                     fg_color=self.colors['green'], hover_color=darken_color(self.colors['green'], 0.1),
+                                     width=280, height=60, corner_radius=30, font=btn_font)
+        btn_whatsapp.pack(pady=15)
+
+        btn_sms = ctk.CTkButton(center_frame, text="Abrir SMS",
+                                command=lambda: self.enter_app_mode("sms"),
+                                fg_color=self.colors['blue'], hover_color=darken_color(self.colors['blue'], 0.1),
+                                width=280, height=60, corner_radius=30, font=btn_font)
+        btn_sms.pack(pady=15)
+
+        # Footer simple
+        ctk.CTkLabel(center_frame, text="HΞЯMΞS V1", font=('Inter', 12), text_color=self.colors['text_light']).pack(pady=(40, 0))
+
+    def enter_app_mode(self, mode):
+        """Transición del menú de inicio a la aplicación principal."""
+        self.start_menu_frame.pack_forget()
+
+        # Mostrar UI principal
+        self.header_frame.pack(fill=tk.X, pady=(10, 10), padx=10)
+        self.main_content_frame.pack(fill=tk.BOTH, expand=True, padx=40, pady=(0, 20))
+
+        # Forzar actualización de layout
+        self.root.update_idletasks()
         self._update_main_layout(self.root.winfo_width())
 
+        if mode == "whatsapp":
+            self.show_traditional_view()
+            self.log("Modo WhatsApp activado", 'info')
+        elif mode == "sms":
+            self.show_sms_view()
+            self.log("Modo SMS activado", 'info')
+
+    def return_to_start_menu(self):
+        """Vuelve al menú de inicio ocultando la UI principal."""
+        self.header_frame.pack_forget()
+        self.main_content_frame.pack_forget()
+        self.setup_start_menu() # Recrear o repackear
+
     def _on_main_configure(self, event):
-        self._update_main_layout(self.root.winfo_width())
+        # Solo actualizar si la UI principal está visible
+        if hasattr(self, 'main_content_frame') and self.main_content_frame.winfo_ismapped():
+            self._update_main_layout(self.root.winfo_width())
 
     def _update_main_layout(self, width=None):
         """Cambia entre vista de 2 columnas o 1 columna (apilada) si la ventana es muy angosta."""
