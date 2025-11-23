@@ -652,15 +652,6 @@ class Hermes:
         self.starfield_running = True
         self.animate_starfield()
 
-        # Header del menú de inicio (Dark Mode) - Flotando sobre el canvas
-        start_header = ctk.CTkFrame(self.start_menu_frame, fg_color="transparent")
-        # Ajuste de posición: más abajo (pady 40) para que el título no quede tan pegado arriba
-        start_header.pack(fill=tk.X, padx=40, pady=(40, 0))
-
-        # Contenedor para los controles a la derecha (Dark Mode)
-        controls_frame = ctk.CTkFrame(start_header, fg_color="transparent")
-        controls_frame.pack(side=tk.RIGHT)
-
         # Título principal HHERMES (Agrandado) - Ahora en Canvas
         header_font = list(self.fonts.get('header', ('Big Russian', 76, 'bold')))
         header_font[1] = 100 # Aumentar tamaño de fuente
@@ -673,15 +664,17 @@ class Hermes:
             anchor='center'
         )
 
-        self.dark_mode_btn_start = ctk.CTkLabel(
-            controls_frame,
+        # Botón Modo Oscuro (Emoji en Canvas)
+        self.dark_mode_text_id = self.starfield_canvas.create_text(
+            0, 0, # Se posiciona en _update_start_menu_layout
             text="🌙" if is_dark else "☀️",
             font=('Inter', 34),
-            text_color=fg_color,
-            cursor='hand2'
+            fill=fg_color,
+            anchor='center'
         )
-        self.dark_mode_btn_start.pack(pady=15) # Padding vertical para dar altura al header
-        self.dark_mode_btn_start.bind("<Button-1>", lambda _event: self.toggle_dark_mode())
+        self.starfield_canvas.tag_bind(self.dark_mode_text_id, "<Button-1>", lambda _event: self.toggle_dark_mode())
+        self.starfield_canvas.tag_bind(self.dark_mode_text_id, "<Enter>", lambda _event: self.starfield_canvas.config(cursor="hand2"))
+        self.starfield_canvas.tag_bind(self.dark_mode_text_id, "<Leave>", lambda _event: self.starfield_canvas.config(cursor=""))
 
         # --- LOGOS EN CANVAS (Transparencia Real) ---
 
@@ -792,7 +785,11 @@ class Hermes:
 
         if hasattr(self, 'title_text_id') and self.title_text_id:
             # Posicionar título al 30% de la altura (aprox donde estaba el header)
-            self.starfield_canvas.coords(self.title_text_id, w * 0.5, 90)
+            self.starfield_canvas.coords(self.title_text_id, w * 0.5, 125)
+
+        if hasattr(self, 'dark_mode_text_id') and self.dark_mode_text_id:
+            # Posicionar botón dark mode alineado con el título, a la derecha
+            self.starfield_canvas.coords(self.dark_mode_text_id, w - 100, 125)
 
     def enter_app_mode(self, mode):
         """Transición del menú de inicio a la aplicación principal."""
