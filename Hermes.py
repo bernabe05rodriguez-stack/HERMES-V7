@@ -878,6 +878,7 @@ class Hermes:
         self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
+        self.set_activity_table_enabled(False)
 
     def show_fidelizado_view(self):
         """Muestra la vista de Fidelizado, repoblando los datos, y oculta las demás."""
@@ -888,6 +889,7 @@ class Hermes:
         self.fidelizado_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(True)
+        self.set_activity_table_enabled(self.fidelizado_mode == "NUMEROS")
 
     def show_sms_view(self):
         """Activa la vista de envío por SMS."""
@@ -905,6 +907,7 @@ class Hermes:
         self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
+        self.set_activity_table_enabled(False)
 
     def _apply_fidelizado_layout_styles(self, active):
         """Ajusta bordes y altura de tarjetas cuando se activa el modo Fidelizado."""
@@ -1573,8 +1576,13 @@ class Hermes:
         """Habilita o deshabilita el botón para mostrar la tabla de actividad."""
         if not hasattr(self, 'toggle_log_view_btn'):
             return
-        state = tk.NORMAL if enabled else tk.DISABLED
-        self.toggle_log_view_btn.configure(state=state)
+
+        if enabled:
+            self.toggle_log_view_btn.pack(side=tk.RIGHT, padx=(10, 0))
+            self.toggle_log_view_btn.configure(state=tk.NORMAL)
+        else:
+            self.toggle_log_view_btn.pack_forget()
+
         if not enabled and self.log_view_mode == "table":
             self.show_activity_log()
 
