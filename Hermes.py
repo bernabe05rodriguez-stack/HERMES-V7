@@ -314,6 +314,7 @@ class Hermes:
         self.starfield_after_id = None
         self.mouse_x = None
         self.mouse_y = None
+        self.mouse_pressed = False
 
         # Aplicar estilos de Windows 11 si está disponible
         if pywinstyles:
@@ -595,7 +596,13 @@ class Hermes:
         for star in self.stars:
             star.w = w  # Actualizar límites por si cambia el tamaño
             star.h = h
-            star.move(self.mouse_x, self.mouse_y)
+
+            # Solo aplicar atracción si el mouse está presionado
+            if self.mouse_pressed:
+                star.move(self.mouse_x, self.mouse_y)
+            else:
+                star.move(None, None)
+
             x, y, sz = star.get_coords()
 
             if hasattr(star, 'item_id'):
@@ -723,11 +730,19 @@ class Hermes:
         self.starfield_canvas.bind('<Configure>', self._update_start_menu_layout)
         # Bind mouse movement for star attraction
         self.starfield_canvas.bind('<Motion>', self._on_mouse_move)
+        self.starfield_canvas.bind('<Button-1>', self._on_mouse_down)
+        self.starfield_canvas.bind('<ButtonRelease-1>', self._on_mouse_up)
 
     def _on_mouse_move(self, event):
         """Actualiza las coordenadas del mouse para la animación de estrellas."""
         self.mouse_x = event.x
         self.mouse_y = event.y
+
+    def _on_mouse_down(self, event):
+        self.mouse_pressed = True
+
+    def _on_mouse_up(self, event):
+        self.mouse_pressed = False
 
     def _on_hover_start_logo(self, tag, hover_img):
         """Efecto Hover: Cambia imagen y cursor."""
