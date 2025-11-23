@@ -2384,73 +2384,16 @@ class Hermes:
                                                         justify='left')
         self.fidelizado_device_list_label.pack(anchor='w')
 
-        # --- STEP 2: CARGA ---
+        # --- STEP 2: CONFIGURACIÓN ---
         step2_frame = ctk.CTkFrame(content, fg_color="transparent")
         step2_frame.pack(fill=tk.X, padx=20, pady=(10, 0))
 
-        # Header Step 2
         s2_header = ctk.CTkFrame(step2_frame, fg_color="transparent")
         s2_header.pack(fill=tk.X, pady=(0, 5))
         self._create_step_badge(s2_header, 2).pack(side=tk.LEFT, padx=(0, 10))
-        ctk.CTkLabel(s2_header, text="Carga", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
+        ctk.CTkLabel(s2_header, text="Configuración", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
 
-        # Content Step 2
-        self.fidelizado_carga_section = ctk.CTkFrame(step2_frame, fg_color=self.colors['bg'], corner_radius=15)
-        self.fidelizado_carga_section.pack(fill=tk.X, pady=(5, 10))
-
-        # File Loader
-        self.fidelizado_messages_container = ctk.CTkFrame(self.fidelizado_carga_section, fg_color="transparent")
-        self.fidelizado_messages_container.pack(fill=tk.X, padx=15, pady=15)
-
-        load_msg_frame = ctk.CTkFrame(self.fidelizado_messages_container, fg_color="transparent")
-        load_msg_frame.pack(fill=tk.X, pady=(0, 10))
-
-        load_messages_btn = ctk.CTkButton(load_msg_frame, text="Cargar Archivo Mensajes",
-                                          command=self._load_fidelizado_messages_from_file,
-                                          font=self.fonts['button'],
-                                          fg_color=self.colors['blue'],
-                                          hover_color=darken_color(self.colors['blue'], 0.15),
-                                          height=35)
-        load_messages_btn.pack(side=tk.LEFT)
-
-        self.fidelizado_message_count_label = ctk.CTkLabel(load_msg_frame, text="", font=self.fonts['setting_label'], text_color=self.colors['text'])
-        self.fidelizado_message_count_label.pack(side=tk.LEFT, padx=15)
-
-        # Manual Inputs Frame (Holds Numbers and Groups boxes)
-        self.fidelizado_manual_inputs_frame = ctk.CTkFrame(self.fidelizado_messages_container, fg_color="transparent")
-        self.fidelizado_manual_inputs_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Numbers Box
-        self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_manual_inputs_frame, fg_color="transparent")
-        self.fidelizado_numbers_frame.pack(fill=tk.X, pady=(0, 5))
-        ctk.CTkLabel(self.fidelizado_numbers_frame, text="Números", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor='w')
-        self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 13), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=80)
-        self.fidelizado_numbers_text.pack(fill=tk.X, pady=(5,0))
-        self.fidelizado_numbers_text.bind("<<Modified>>", self._on_fidelizado_numbers_changed)
-
-        # Groups Box
-        self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_manual_inputs_frame, fg_color="transparent")
-        self.fidelizado_groups_frame.pack(fill=tk.X, pady=(5, 0))
-        ctk.CTkLabel(self.fidelizado_groups_frame, text="Links / Grupos", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor='w')
-        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 13), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=80)
-        self.fidelizado_groups_text.pack(fill=tk.X, pady=(5,0))
-
-        initial_message_count = len(self.manual_messages_numbers)
-        if initial_message_count > 0:
-            self.fidelizado_message_count_label.configure(text=f"✅ {initial_message_count} mensajes cargados")
-        else:
-            self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
-
-        # --- STEP 3: CONFIGURACIÓN ---
-        step3_frame = ctk.CTkFrame(content, fg_color="transparent")
-        step3_frame.pack(fill=tk.X, padx=20, pady=(10, 0))
-
-        s3_header = ctk.CTkFrame(step3_frame, fg_color="transparent")
-        s3_header.pack(fill=tk.X, pady=(0, 5))
-        self._create_step_badge(s3_header, 3).pack(side=tk.LEFT, padx=(0, 10))
-        ctk.CTkLabel(s3_header, text="Configuración", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
-
-        config_card = ctk.CTkFrame(step3_frame, fg_color=self.colors['bg'], corner_radius=15)
+        config_card = ctk.CTkFrame(step2_frame, fg_color=self.colors['bg'], corner_radius=15)
         config_card.pack(fill=tk.X, pady=(5, 10))
 
         config_grid = ctk.CTkFrame(config_card, fg_color="transparent")
@@ -2569,6 +2512,63 @@ class Hermes:
         ctk.CTkRadioButton(mixto_radio_frame, text="1G:1N", variable=self.mixto_variant, value=1, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 15))
         ctk.CTkRadioButton(mixto_radio_frame, text="2G:1N", variable=self.mixto_variant, value=2, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 15))
         ctk.CTkRadioButton(mixto_radio_frame, text="3G:1N", variable=self.mixto_variant, value=3, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
+
+        # --- STEP 3: CARGA ---
+        step3_frame = ctk.CTkFrame(content, fg_color="transparent")
+        step3_frame.pack(fill=tk.X, padx=20, pady=(10, 0))
+
+        # Header Step 3
+        s3_header = ctk.CTkFrame(step3_frame, fg_color="transparent")
+        s3_header.pack(fill=tk.X, pady=(0, 5))
+        self._create_step_badge(s3_header, 3).pack(side=tk.LEFT, padx=(0, 10))
+        ctk.CTkLabel(s3_header, text="Carga", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
+
+        # Content Step 3
+        self.fidelizado_carga_section = ctk.CTkFrame(step3_frame, fg_color=self.colors['bg'], corner_radius=15)
+        self.fidelizado_carga_section.pack(fill=tk.X, pady=(5, 10))
+
+        # File Loader
+        self.fidelizado_messages_container = ctk.CTkFrame(self.fidelizado_carga_section, fg_color="transparent")
+        self.fidelizado_messages_container.pack(fill=tk.X, padx=15, pady=15)
+
+        load_msg_frame = ctk.CTkFrame(self.fidelizado_messages_container, fg_color="transparent")
+        load_msg_frame.pack(fill=tk.X, pady=(0, 10))
+
+        load_messages_btn = ctk.CTkButton(load_msg_frame, text="Cargar Archivo Mensajes",
+                                          command=self._load_fidelizado_messages_from_file,
+                                          font=self.fonts['button'],
+                                          fg_color=self.colors['blue'],
+                                          hover_color=darken_color(self.colors['blue'], 0.15),
+                                          height=35)
+        load_messages_btn.pack(side=tk.LEFT)
+
+        self.fidelizado_message_count_label = ctk.CTkLabel(load_msg_frame, text="", font=self.fonts['setting_label'], text_color=self.colors['text'])
+        self.fidelizado_message_count_label.pack(side=tk.LEFT, padx=15)
+
+        # Manual Inputs Frame (Holds Numbers and Groups boxes)
+        self.fidelizado_manual_inputs_frame = ctk.CTkFrame(self.fidelizado_messages_container, fg_color="transparent")
+        self.fidelizado_manual_inputs_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Numbers Box
+        self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_manual_inputs_frame, fg_color="transparent")
+        self.fidelizado_numbers_frame.pack(fill=tk.X, pady=(0, 5))
+        ctk.CTkLabel(self.fidelizado_numbers_frame, text="Números", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor='w')
+        self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 13), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=80)
+        self.fidelizado_numbers_text.pack(fill=tk.X, pady=(5,0))
+        self.fidelizado_numbers_text.bind("<<Modified>>", self._on_fidelizado_numbers_changed)
+
+        # Groups Box
+        self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_manual_inputs_frame, fg_color="transparent")
+        self.fidelizado_groups_frame.pack(fill=tk.X, pady=(5, 0))
+        ctk.CTkLabel(self.fidelizado_groups_frame, text="Links / Grupos", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor='w')
+        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 13), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=80)
+        self.fidelizado_groups_text.pack(fill=tk.X, pady=(5,0))
+
+        initial_message_count = len(self.manual_messages_numbers)
+        if initial_message_count > 0:
+            self.fidelizado_message_count_label.configure(text=f"✅ {initial_message_count} mensajes cargados")
+        else:
+            self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
 
         # --- STEP 4: ACCIONES ---
         step4_frame = ctk.CTkFrame(content, fg_color="transparent")
