@@ -657,19 +657,21 @@ class Hermes:
         # Ajuste de posición: más abajo (pady 40) para que el título no quede tan pegado arriba
         start_header.pack(fill=tk.X, padx=40, pady=(40, 0))
 
-        # Contenedor para el título centrado absolutamente
-        title_frame = ctk.CTkFrame(start_header, fg_color="transparent")
-        title_frame.place(relx=0.5, rely=0.5, anchor="center")
-
         # Contenedor para los controles a la derecha (Dark Mode)
         controls_frame = ctk.CTkFrame(start_header, fg_color="transparent")
         controls_frame.pack(side=tk.RIGHT)
 
-        # Título principal HHERMES (Agrandado)
+        # Título principal HHERMES (Agrandado) - Ahora en Canvas
         header_font = list(self.fonts.get('header', ('Big Russian', 76, 'bold')))
         header_font[1] = 100 # Aumentar tamaño de fuente
 
-        ctk.CTkLabel(title_frame, text="HΞЯMΞS", font=tuple(header_font), text_color=fg_color).pack()
+        self.title_text_id = self.starfield_canvas.create_text(
+            0, 0, # Se posiciona en _update_start_menu_layout
+            text="HΞЯMΞS",
+            font=tuple(header_font),
+            fill=fg_color,
+            anchor='center'
+        )
 
         self.dark_mode_btn_start = ctk.CTkLabel(
             controls_frame,
@@ -732,8 +734,8 @@ class Hermes:
         # Copyright Text
         self.copyright_text_id = self.starfield_canvas.create_text(
             0, 0, # Se posiciona en _update_start_menu_layout
-            text="Copyright © 2025 Hermes Inc. Todos los derechos reservados.",
-            font=('Inter', 11),
+            text="Copyright © 2025 Hermes Inc.",
+            font=('Inter', 10),
             fill=fg_color,
             anchor='center'
         )
@@ -787,6 +789,10 @@ class Hermes:
 
         if hasattr(self, 'copyright_text_id') and self.copyright_text_id:
             self.starfield_canvas.coords(self.copyright_text_id, w * 0.5, h - 30)
+
+        if hasattr(self, 'title_text_id') and self.title_text_id:
+            # Posicionar título al 30% de la altura (aprox donde estaba el header)
+            self.starfield_canvas.coords(self.title_text_id, w * 0.5, h * 0.3)
 
     def enter_app_mode(self, mode):
         """Transición del menú de inicio a la aplicación principal."""
