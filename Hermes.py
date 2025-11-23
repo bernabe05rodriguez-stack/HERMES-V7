@@ -259,10 +259,33 @@ class Star:
         self.ar = random.uniform(0.001, 0.003)
         self.sz = random.randint(1, 2)  # Tamaño
 
-    def move(self):
+    def move(self, mx=None, my=None):
         # Mueve la estrella, aumentando su radio y ángulo
         self.r += self.rs
         self.a += self.ar
+
+        # Obtener coordenadas cartesianas actuales
+        cx = self.w/2 + math.cos(self.a) * self.r
+        cy = self.h/2 + math.sin(self.a) * self.r
+
+        # Lógica de atracción del mouse (si está cerca)
+        if mx is not None and my is not None:
+            dx = mx - cx
+            dy = my - cy
+            dist = math.hypot(dx, dy)
+            threshold = 200  # Radio de influencia en píxeles
+
+            if dist < threshold:
+                # Factor de atracción (ajustar para "de a poco")
+                factor = 0.05
+                cx += dx * factor
+                cy += dy * factor
+
+                # Recalcular coordenadas polares basadas en la nueva posición atraída
+                # Esto hace que la animación fluya desde el nuevo punto
+                self.r = math.hypot(cx - self.w/2, cy - self.h/2)
+                self.a = math.atan2(cy - self.h/2, cx - self.w/2)
+
         # Si la estrella sale del límite, la reinicia al centro
         if self.r > self.w/2:
             self.r = 0
@@ -289,6 +312,8 @@ class Hermes:
         self.starfield_running = False
         self.starfield_canvas = None
         self.starfield_after_id = None
+        self.mouse_x = None
+        self.mouse_y = None
 
         # Aplicar estilos de Windows 11 si está disponible
         if pywinstyles:
@@ -570,7 +595,7 @@ class Hermes:
         for star in self.stars:
             star.w = w  # Actualizar límites por si cambia el tamaño
             star.h = h
-            star.move()
+            star.move(self.mouse_x, self.mouse_y)
             x, y, sz = star.get_coords()
 
             if hasattr(star, 'item_id'):
@@ -696,6 +721,13 @@ class Hermes:
 
         # Bind resize event to center logos
         self.starfield_canvas.bind('<Configure>', self._update_start_menu_layout)
+        # Bind mouse movement for star attraction
+        self.starfield_canvas.bind('<Motion>', self._on_mouse_move)
+
+    def _on_mouse_move(self, event):
+        """Actualiza las coordenadas del mouse para la animación de estrellas."""
+        self.mouse_x = event.x
+        self.mouse_y = event.y
 
     def _on_hover_start_logo(self, tag, hover_img):
         """Efecto Hover: Cambia imagen y cursor."""
