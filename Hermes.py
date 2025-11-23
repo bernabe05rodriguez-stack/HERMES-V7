@@ -729,6 +729,15 @@ class Hermes:
             self.starfield_canvas.tag_bind(self.canvas_item_sms, '<Enter>', lambda e: self._on_hover_start_logo(self.canvas_item_sms, self.img_sms_hover))
             self.starfield_canvas.tag_bind(self.canvas_item_sms, '<Leave>', lambda e: self._on_leave_start_logo(self.canvas_item_sms, self.img_sms_normal))
 
+        # Copyright Text
+        self.copyright_text_id = self.starfield_canvas.create_text(
+            0, 0, # Se posiciona en _update_start_menu_layout
+            text="Copyright © 2025 Hermes Inc. Todos los derechos reservados.",
+            font=('Inter', 11),
+            fill=fg_color,
+            anchor='center'
+        )
+
         # Bind resize event to center logos
         self.starfield_canvas.bind('<Configure>', self._update_start_menu_layout)
         # Bind mouse movement for star attraction
@@ -775,6 +784,9 @@ class Hermes:
 
         if self.canvas_item_sms:
             self.starfield_canvas.coords(self.canvas_item_sms, w * 0.65, y_pos)
+
+        if hasattr(self, 'copyright_text_id') and self.copyright_text_id:
+            self.starfield_canvas.coords(self.copyright_text_id, w * 0.5, h - 30)
 
     def enter_app_mode(self, mode):
         """Transición del menú de inicio a la aplicación principal."""
