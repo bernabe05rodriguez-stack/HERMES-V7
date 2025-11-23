@@ -734,8 +734,8 @@ class Hermes:
         # Copyright Text
         self.copyright_text_id = self.starfield_canvas.create_text(
             0, 0, # Se posiciona en _update_start_menu_layout
-            text="Copyright © 2025 Hermes Inc.",
-            font=('Inter', 10),
+            text="Copyright © 2025 Hermes Inc. All rights reserved.",
+            font=('Inter', 8),
             fill=fg_color,
             anchor='center'
         )
@@ -792,7 +792,7 @@ class Hermes:
 
         if hasattr(self, 'title_text_id') and self.title_text_id:
             # Posicionar título al 30% de la altura (aprox donde estaba el header)
-            self.starfield_canvas.coords(self.title_text_id, w * 0.5, h * 0.3)
+            self.starfield_canvas.coords(self.title_text_id, w * 0.5, 90)
 
     def enter_app_mode(self, mode):
         """Transición del menú de inicio a la aplicación principal."""
