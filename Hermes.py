@@ -2334,19 +2334,16 @@ class Hermes:
         )
         self.fidelizado_main_card = content
         content.pack(fill=tk.X, expand=False, padx=10, pady=(10, 0))
-
-        # Layout principal reconfigurado para una columna expandible
         content.grid_columnconfigure(0, weight=1)
-        content.grid_rowconfigure(1, weight=1) # Fila de contenido principal se expande
 
-        # --- Fila 0: Header (Volver y Título) ---
+        # --- Header (Volver y Título) ---
         header_frame = ctk.CTkFrame(content, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(15, 10))
+        header_frame.pack(fill=tk.X, padx=30, pady=(15, 10))
 
         self.back_to_traditional_btn = ctk.CTkButton(header_frame, text="←",
                                       width=40,
                                       command=self.show_traditional_view,
-                                      fg_color=self.colors['bg'], # Fondo sutil
+                                      fg_color=self.colors['bg'],
                                       text_color=self.colors['text'],
                                       font=('Inter', 16, 'bold'),
                                       corner_radius=20,
@@ -2355,119 +2352,179 @@ class Hermes:
 
         ctk.CTkLabel(header_frame, text="Fidelizado", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
 
+        # --- STEP 1: DISPOSITIVOS ---
+        step1_frame = ctk.CTkFrame(content, fg_color="transparent")
+        step1_frame.pack(fill=tk.X, padx=20, pady=(10, 0))
 
-        # --- Fila 1: Contenido Principal ---
-        self.fidelizado_main_content_frame = ctk.CTkFrame(content, fg_color="transparent")
-        self.fidelizado_main_content_frame.grid(row=1, column=0, sticky="nsew", padx=30, pady=0)
-        self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=55) # Columna de inputs
-        self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=45) # Columna de controles
-        self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=1)
+        # Header Step 1
+        s1_header = ctk.CTkFrame(step1_frame, fg_color="transparent")
+        s1_header.pack(fill=tk.X, pady=(0, 5))
+        self._create_step_badge(s1_header, 1).pack(side=tk.LEFT, padx=(0, 10))
+        ctk.CTkLabel(s1_header, text="Dispositivos", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
 
-        # --- Columna Izquierda: Inputs (Números y Grupos) ---
-        self.fidelizado_inputs_col = ctk.CTkFrame(self.fidelizado_main_content_frame, fg_color="transparent")
-        self.fidelizado_inputs_col.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
-        self.fidelizado_inputs_col.grid_rowconfigure(0, weight=1) # Permitir que el frame interno crezca
-        self.fidelizado_inputs_col.grid_columnconfigure(0, weight=1)
+        # Content Step 1
+        device_card = ctk.CTkFrame(step1_frame, fg_color=self.colors['bg'], corner_radius=15)
+        device_card.pack(fill=tk.X, pady=(5, 10))
 
-        # Contenedor principal para los textos dinámicos (sin tarjeta vacía visible)
-        self.fidelizado_inputs_container = ctk.CTkFrame(self.fidelizado_inputs_col, fg_color="transparent")
-        self.fidelizado_inputs_container.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
-        self.fidelizado_inputs_container.grid_rowconfigure(0, weight=1)
-        self.fidelizado_inputs_container.grid_columnconfigure(0, weight=1)
+        device_inner = ctk.CTkFrame(device_card, fg_color="transparent")
+        device_inner.pack(fill=tk.X, padx=15, pady=15)
 
-        # El contenido de "Mensajes" se gestiona dinámicamente según el modo
-
-        # --- Columna Derecha: Controles de Envío ---
-        self.fidelizado_controls_col = ctk.CTkFrame(self.fidelizado_main_content_frame, fg_color="transparent")
-        self.fidelizado_controls_col.grid(row=0, column=1, sticky="nsew", padx=(20, 0))
-        self.fidelizado_controls_col.grid_columnconfigure(0, weight=1)
-        self.fidelizado_controls_col.grid_rowconfigure(1, weight=1)
-
-        # Card para Detección de Dispositivos
-        device_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        device_card.grid(row=0, column=0, sticky="ew", pady=(0, 20))
-        ctk.CTkLabel(device_card, text="📱 Dispositivos", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
-        device_container = ctk.CTkFrame(device_card, fg_color="transparent")
-        device_container.pack(fill="x", padx=20, pady=(0, 20))
-
-        self.fidelizado_detect_btn = ctk.CTkButton(device_container, text="🔍 Detectar Dispositivos",
+        self.fidelizado_detect_btn = ctk.CTkButton(device_inner, text="🔍 Detectar Dispositivos",
                                                   command=self.detect_devices,
                                                   font=self.fonts['button'],
                                                   fg_color=self.colors['action_detect'],
                                                   hover_color=self.hover_colors['action_detect'],
                                                   height=40)
-        self.fidelizado_detect_btn.pack(fill='x', pady=(0, 15))
+        self.fidelizado_detect_btn.pack(fill='x', pady=(0, 10))
 
-        self.fidelizado_device_list_label = ctk.CTkLabel(device_container, text="No hay dispositivos detectados.",
+        self.fidelizado_device_list_label = ctk.CTkLabel(device_inner, text="Teléfonos - 0",
                                                         font=self.fonts['setting_label'],
                                                         text_color=self.colors['text_light'],
                                                         wraplength=350,
                                                         justify='left')
         self.fidelizado_device_list_label.pack(anchor='w')
 
-        # Card para Configuración
-        config_card = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'], corner_radius=15)
-        config_card.grid(row=1, column=0, sticky="nsew", pady=(0, 20))
-        ctk.CTkLabel(config_card, text="⚙️ Configuración", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
+        # --- STEP 2: CARGA ---
+        step2_frame = ctk.CTkFrame(content, fg_color="transparent")
+        step2_frame.pack(fill=tk.X, padx=20, pady=(10, 0))
+
+        # Header Step 2
+        s2_header = ctk.CTkFrame(step2_frame, fg_color="transparent")
+        s2_header.pack(fill=tk.X, pady=(0, 5))
+        self._create_step_badge(s2_header, 2).pack(side=tk.LEFT, padx=(0, 10))
+        ctk.CTkLabel(s2_header, text="Carga", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
+
+        # Content Step 2
+        self.fidelizado_carga_section = ctk.CTkFrame(step2_frame, fg_color=self.colors['bg'], corner_radius=15)
+        self.fidelizado_carga_section.pack(fill=tk.X, pady=(5, 10))
+
+        # File Loader
+        self.fidelizado_messages_container = ctk.CTkFrame(self.fidelizado_carga_section, fg_color="transparent")
+        self.fidelizado_messages_container.pack(fill=tk.X, padx=15, pady=15)
+
+        load_msg_frame = ctk.CTkFrame(self.fidelizado_messages_container, fg_color="transparent")
+        load_msg_frame.pack(fill=tk.X, pady=(0, 10))
+
+        load_messages_btn = ctk.CTkButton(load_msg_frame, text="Cargar Archivo Mensajes",
+                                          command=self._load_fidelizado_messages_from_file,
+                                          font=self.fonts['button'],
+                                          fg_color=self.colors['blue'],
+                                          hover_color=darken_color(self.colors['blue'], 0.15),
+                                          height=35)
+        load_messages_btn.pack(side=tk.LEFT)
+
+        self.fidelizado_message_count_label = ctk.CTkLabel(load_msg_frame, text="", font=self.fonts['setting_label'], text_color=self.colors['text'])
+        self.fidelizado_message_count_label.pack(side=tk.LEFT, padx=15)
+
+        # Manual Inputs Frame (Holds Numbers and Groups boxes)
+        self.fidelizado_manual_inputs_frame = ctk.CTkFrame(self.fidelizado_messages_container, fg_color="transparent")
+        self.fidelizado_manual_inputs_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Numbers Box
+        self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_manual_inputs_frame, fg_color="transparent")
+        self.fidelizado_numbers_frame.pack(fill=tk.X, pady=(0, 5))
+        ctk.CTkLabel(self.fidelizado_numbers_frame, text="Números", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor='w')
+        self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 13), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=80)
+        self.fidelizado_numbers_text.pack(fill=tk.X, pady=(5,0))
+        self.fidelizado_numbers_text.bind("<<Modified>>", self._on_fidelizado_numbers_changed)
+
+        # Groups Box
+        self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_manual_inputs_frame, fg_color="transparent")
+        self.fidelizado_groups_frame.pack(fill=tk.X, pady=(5, 0))
+        ctk.CTkLabel(self.fidelizado_groups_frame, text="Links / Grupos", font=('Inter', 14, 'bold'), text_color=self.colors['text']).pack(anchor='w')
+        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 13), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=80)
+        self.fidelizado_groups_text.pack(fill=tk.X, pady=(5,0))
+
+        initial_message_count = len(self.manual_messages_numbers)
+        if initial_message_count > 0:
+            self.fidelizado_message_count_label.configure(text=f"✅ {initial_message_count} mensajes cargados")
+        else:
+            self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
+
+        # --- STEP 3: CONFIGURACIÓN ---
+        step3_frame = ctk.CTkFrame(content, fg_color="transparent")
+        step3_frame.pack(fill=tk.X, padx=20, pady=(10, 0))
+
+        s3_header = ctk.CTkFrame(step3_frame, fg_color="transparent")
+        s3_header.pack(fill=tk.X, pady=(0, 5))
+        self._create_step_badge(s3_header, 3).pack(side=tk.LEFT, padx=(0, 10))
+        ctk.CTkLabel(s3_header, text="Configuración", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
+
+        config_card = ctk.CTkFrame(step3_frame, fg_color=self.colors['bg'], corner_radius=15)
+        config_card.pack(fill=tk.X, pady=(5, 10))
 
         config_grid = ctk.CTkFrame(config_card, fg_color="transparent")
-        config_grid.pack(fill=tk.X, padx=20, pady=(0, 20))
-        config_grid.grid_columnconfigure([0, 1], weight=1)
+        config_grid.pack(fill=tk.X, padx=15, pady=15)
 
-        # Fila 0: Modo de envío
+        # Envíos (Mode)
         mode_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        mode_container.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 15))
-        ctk.CTkLabel(mode_container, text="Modo de envío:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        fidelizado_modes = ["Modo Números", "Modo Grupos"]
-        mode_map_to_ui = {"NUMEROS": "Modo Números", "GRUPOS": "Modo Grupos", "MIXTO": "Modo Mixto"}
-        current_mode_ui = mode_map_to_ui.get(self.fidelizado_mode, "Modo Números")
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+        ctk.CTkLabel(mode_container, text="Envíos:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+
+        fidelizado_modes = ["Números", "Grupos"] # Plural
+        # Internal mapping will be handled in logic
+        current_mode_ui = "Números" # Default
         self.fidelizado_mode_var = tk.StringVar(value=current_mode_ui)
-        mode_menu = ctk.CTkOptionMenu(mode_container, variable=self.fidelizado_mode_var, values=fidelizado_modes, font=self.fonts['button'], dropdown_font=self.fonts['setting_label'], fg_color=self.colors['bg_card'], button_color=self.colors['blue'], button_hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text'], height=35)
-        mode_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Fila 1: Controles para el modo "Uno a uno" vs "Uno a muchos" (solo visibles en Modo Números)
+        mode_menu = ctk.CTkOptionMenu(
+            mode_container,
+            variable=self.fidelizado_mode_var,
+            values=fidelizado_modes,
+            font=self.fonts['button'],
+            dropdown_font=self.fonts['setting_label'],
+            fg_color=self.colors['bg_card'],
+            button_color=self.colors['blue'],
+            button_hover_color=darken_color(self.colors['blue'], 0.15),
+            text_color=self.colors['text'],
+            height=30,
+            width=120 # Resize width
+        )
+        mode_menu.pack(side=tk.LEFT)
+
+        # Conversación Mode (Uno a uno / Uno a muchos)
         self.numeros_mode_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        ctk.CTkLabel(self.numeros_mode_container, text="Modo de Conversación:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, anchor="w", padx=(0,10))
-        ctk.CTkRadioButton(self.numeros_mode_container, text="Uno a uno", variable=self.fidelizado_numeros_mode, value="Uno a uno", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(15, 10))
-        ctk.CTkRadioButton(self.numeros_mode_container, text="Uno a muchos", variable=self.fidelizado_numeros_mode, value="Uno a muchos", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=10)
+        self.numeros_mode_container.pack(fill=tk.X, pady=(0, 10))
+        ctk.CTkLabel(self.numeros_mode_container, text="Conversación:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        ctk.CTkRadioButton(self.numeros_mode_container, text="Uno a uno", variable=self.fidelizado_numeros_mode, value="Uno a uno", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        ctk.CTkRadioButton(self.numeros_mode_container, text="Uno a muchos", variable=self.fidelizado_numeros_mode, value="Uno a muchos", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
 
-        # Fila 2: Bucles y Ciclos
-        self.loops_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        self.loops_container.grid(row=2, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
+        # Bucles y Ciclos
+        loops_row = ctk.CTkFrame(config_grid, fg_color="transparent")
+        loops_row.pack(fill=tk.X, pady=(0, 10))
+
+        self.loops_container = ctk.CTkFrame(loops_row, fg_color="transparent")
+        self.loops_container.pack(side=tk.LEFT, fill=tk.X, expand=True)
         ctk.CTkLabel(self.loops_container, text="Bucle:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         self.manual_loops_var = tk.IntVar(value=max(1, self.manual_loops))
         self.manual_loops_var.trace_add('write', self.update_per_whatsapp_stat)
-        spinbox_loops = self._create_spinbox_widget(self.loops_container, self.manual_loops_var, min_val=1, max_val=100)
-        spinbox_loops.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        self._create_spinbox_widget(self.loops_container, self.manual_loops_var, min_val=1, max_val=100).pack(side=tk.LEFT)
 
-        # NUEVO: Contenedor para Ciclos (inicialmente oculto)
-        self.cycles_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        self.cycles_container = ctk.CTkFrame(loops_row, fg_color="transparent")
+        self.cycles_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(20, 0))
         ctk.CTkLabel(self.cycles_container, text="Ciclos:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        spinbox_cycles = self._create_spinbox_widget(self.cycles_container, self.manual_cycles_var, min_val=1, max_val=100)
-        spinbox_cycles.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        self.manual_cycles_var = SafeIntVar(value=1)
+        self._create_spinbox_widget(self.cycles_container, self.manual_cycles_var, min_val=1, max_val=100).pack(side=tk.LEFT)
 
-        # Fila 3: WhatsApp
-        whatsapp_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        whatsapp_container.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
-        ctk.CTkLabel(whatsapp_container, text="WhatsApp a usar:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        self.fidelizado_whatsapp_menu = ctk.CTkSegmentedButton(whatsapp_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'], height=35, fg_color=self.colors['bg_card'], selected_color=self.colors['green'], selected_hover_color=darken_color(self.colors['green'], 0.15), unselected_color=self.colors['bg_card'], unselected_hover_color=self.colors["bg"], text_color=self.colors['text'])
-        self.fidelizado_whatsapp_menu.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        # WhatsApp Select
+        wa_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        wa_container.pack(fill=tk.X, pady=(0, 10))
+        ctk.CTkLabel(wa_container, text="WhatsApp a usar:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        self.fidelizado_whatsapp_menu = ctk.CTkSegmentedButton(wa_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'])
+        self.fidelizado_whatsapp_menu.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        # --- Fila 4: Retardo entre envíos ---
+        # Delays
         delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        delay_container.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        delay_container.pack(fill=tk.X, pady=(0, 10))
         ctk.CTkLabel(delay_container, text="Retardo Envíos (s):", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        spinbox_frame = ctk.CTkFrame(delay_container, fg_color="transparent")
-        spinbox_frame.pack(side=tk.RIGHT)
-        spinbox_max = self._create_spinbox_widget(spinbox_frame, self.fidelizado_send_delay_max, min_val=1, max_val=300)
-        spinbox_max.pack(side=tk.RIGHT)
-        ctk.CTkLabel(spinbox_frame, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.RIGHT, padx=8)
-        spinbox_min = self._create_spinbox_widget(spinbox_frame, self.fidelizado_send_delay_min, min_val=1, max_val=300)
-        spinbox_min.pack(side=tk.RIGHT)
+        sp_frame = ctk.CTkFrame(delay_container, fg_color="transparent")
+        sp_frame.pack(side=tk.LEFT)
+        self._create_spinbox_widget(sp_frame, self.fidelizado_send_delay_min, 1, 300).pack(side=tk.LEFT)
+        ctk.CTkLabel(sp_frame, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.LEFT, padx=5)
+        self._create_spinbox_widget(sp_frame, self.fidelizado_send_delay_max, 1, 300).pack(side=tk.LEFT)
 
         # --- Fila 5: Configuración de audios ---
         audio_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        audio_container.grid(row=5, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        audio_container.pack(fill=tk.X, pady=(0, 10))
         self.fidelizado_audio_switch = ctk.CTkSwitch(
             audio_container,
             text="Enviar audios de voz",
@@ -2504,82 +2561,6 @@ class Hermes:
         self.fidelizado_audio_enabled.trace_add('write', lambda *args: self._update_audio_settings_visibility())
         self._update_audio_settings_visibility()
 
-        # Botón para mostrar/ocultar la sección de cargas dentro de configuración
-        self.fidelizado_carga_toggle_btn = ctk.CTkButton(
-            config_card,
-            text="📥 Carga ▶",
-            font=self.fonts['button'],
-            fg_color=self.colors['bg_card'],
-            hover_color=darken_color(self.colors['bg_card'], 0.1),
-            text_color=self.colors['text'],
-            height=38,
-            corner_radius=12,
-            command=self._toggle_fidelizado_carga_section
-        )
-        self.fidelizado_carga_toggle_btn.pack(fill=tk.X, padx=20, pady=(0, 10))
-
-        self.fidelizado_carga_section = ctk.CTkFrame(config_card, fg_color=self.colors['bg'], corner_radius=12)
-        # Inicialmente la sección permanece comprimida hasta que el usuario la despliegue
-        self.fidelizado_carga_section.grid_columnconfigure(0, weight=1)
-        self.fidelizado_carga_section.grid_rowconfigure(1, weight=1)
-
-        ctk.CTkLabel(self.fidelizado_carga_section, text="📥 Cargas", font=('Inter', 16, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w', padx=20, pady=(15, 10))
-
-        self.fidelizado_messages_container = ctk.CTkFrame(self.fidelizado_carga_section, fg_color="transparent")
-        self.fidelizado_messages_container.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 15))
-        self.fidelizado_messages_container.grid_columnconfigure(0, weight=0)
-        self.fidelizado_messages_container.grid_columnconfigure(1, weight=0)
-        self.fidelizado_messages_container.grid_columnconfigure(2, weight=1)
-        self.fidelizado_messages_container.grid_rowconfigure(0, weight=1)
-
-        load_messages_btn = ctk.CTkButton(self.fidelizado_messages_container, text="Cargar Archivo",
-                                          command=self._load_fidelizado_messages_from_file,
-                                          font=self.fonts['button'],
-                                          fg_color=self.colors['blue'],
-                                          hover_color=darken_color(self.colors['blue'], 0.15),
-                                          height=35)
-        load_messages_btn.grid(row=0, column=0, sticky='nw')
-
-        self.fidelizado_message_count_label = ctk.CTkLabel(self.fidelizado_messages_container, text="", font=self.fonts['setting_label'], text_color=self.colors['text'])
-        self.fidelizado_message_count_label.grid(row=0, column=1, sticky='nw', padx=15)
-
-        self.fidelizado_manual_inputs_frame = ctk.CTkFrame(self.fidelizado_messages_container, fg_color=self.colors['bg'], corner_radius=12)
-        self.fidelizado_manual_inputs_frame.grid(row=0, column=2, sticky="nsew", padx=(20, 0))
-        self.fidelizado_manual_inputs_frame.grid_columnconfigure(0, weight=1)
-        self.fidelizado_manual_inputs_frame.grid_rowconfigure(0, weight=1)
-        self.fidelizado_manual_inputs_frame.grid_rowconfigure(1, weight=1)
-
-        # Cuadro reducido para números manuales
-        self.fidelizado_numbers_frame = ctk.CTkFrame(self.fidelizado_manual_inputs_frame, fg_color="transparent")
-        self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
-        self.fidelizado_numbers_frame.grid_columnconfigure(0, weight=1)
-        self.fidelizado_numbers_frame.grid_rowconfigure(1, weight=1)
-        ctk.CTkLabel(self.fidelizado_numbers_frame, text="Números", font=('Inter', 14, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w')
-        self.fidelizado_numbers_text = ctk.CTkTextbox(self.fidelizado_numbers_frame, font=('Inter', 13), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=80)
-        self.fidelizado_numbers_text.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
-        self.fidelizado_numbers_text.bind("<<Modified>>", self._on_fidelizado_numbers_changed)
-        self.fidelizado_numbers_scrollbar = ctk.CTkScrollbar(self.fidelizado_numbers_frame, command=self.fidelizado_numbers_text.yview)
-        self.fidelizado_numbers_scrollbar.grid(row=1, column=1, sticky="ns", padx=(6, 0), pady=(6, 0))
-        self.fidelizado_numbers_text.configure(yscrollcommand=self.fidelizado_numbers_scrollbar.set)
-
-        # Cuadro reducido para links o grupos manuales
-        self.fidelizado_groups_frame = ctk.CTkFrame(self.fidelizado_manual_inputs_frame, fg_color="transparent")
-        self.fidelizado_groups_frame.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
-        self.fidelizado_groups_frame.grid_columnconfigure(0, weight=1)
-        self.fidelizado_groups_frame.grid_rowconfigure(1, weight=1)
-        ctk.CTkLabel(self.fidelizado_groups_frame, text="Links / Grupos", font=('Inter', 14, 'bold'), text_color=self.colors['text']).grid(row=0, column=0, sticky='w')
-        self.fidelizado_groups_text = ctk.CTkTextbox(self.fidelizado_groups_frame, font=('Inter', 13), corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD, height=80)
-        self.fidelizado_groups_text.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
-        self.fidelizado_groups_scrollbar = ctk.CTkScrollbar(self.fidelizado_groups_frame, command=self.fidelizado_groups_text.yview)
-        self.fidelizado_groups_scrollbar.grid(row=1, column=1, sticky="ns", padx=(6, 0), pady=(6, 0))
-        self.fidelizado_groups_text.configure(yscrollcommand=self.fidelizado_groups_scrollbar.set)
-
-        initial_message_count = len(self.manual_messages_numbers)
-        if initial_message_count > 0:
-            self.fidelizado_message_count_label.configure(text=f"✅ {initial_message_count} mensajes cargados")
-        else:
-            self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
-
         # --- Controles de Variante Mixto (inicialmente ocultos) ---
         self.mixto_variant_container = ctk.CTkFrame(config_grid, fg_color="transparent")
         ctk.CTkLabel(self.mixto_variant_container, text="Variante Modo Mixto:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
@@ -2589,34 +2570,33 @@ class Hermes:
         ctk.CTkRadioButton(mixto_radio_frame, text="2G:1N", variable=self.mixto_variant, value=2, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 15))
         ctk.CTkRadioButton(mixto_radio_frame, text="3G:1N", variable=self.mixto_variant, value=3, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
 
-        # --- Botones de Acción ---
-        self.fidelizado_controls_col.grid_rowconfigure(2, weight=1)
+        # --- STEP 4: ACCIONES ---
+        step4_frame = ctk.CTkFrame(content, fg_color="transparent")
+        step4_frame.pack(fill=tk.X, padx=20, pady=(10, 20))
 
-        self.actions_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color=self.colors['bg'])
-        self.actions_frame.grid(row=2, column=0, sticky="nsew", pady=(15, 0))
-        self.actions_frame.grid_columnconfigure(0, weight=1)
-        self.actions_frame.grid_columnconfigure(1, weight=1)
+        s4_header = ctk.CTkFrame(step4_frame, fg_color="transparent")
+        s4_header.pack(fill=tk.X, pady=(0, 5))
+        self._create_step_badge(s4_header, 4).pack(side=tk.LEFT, padx=(0, 10))
+        ctk.CTkLabel(s4_header, text="Iniciar", font=('Inter', 16, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
+
+        self.actions_frame = ctk.CTkFrame(step4_frame, fg_color="transparent")
+        self.actions_frame.pack(fill=tk.X, pady=(5, 0))
 
         self.fidelizado_btn_start = ctk.CTkButton(self.actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
-        self.fidelizado_btn_start.grid(row=0, column=0, sticky='ew', padx=(0, 10))
+        self.fidelizado_btn_start.pack(fill=tk.X, pady=5)
 
         self.unirse_grupos_btn = ctk.CTkButton(self.actions_frame, text="🔗 UNIRSE A GRUPOS", command=self.start_unirse_grupos, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
-        self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(10, 0))
+        self.unirse_grupos_btn.pack(fill=tk.X, pady=5)
 
-        # --- Botones de Control (Pausa/Cancelar) ---
-        self.control_buttons_frame = ctk.CTkFrame(self.fidelizado_controls_col, fg_color="transparent")
-        self.control_buttons_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
-        self.control_buttons_frame.grid_columnconfigure(0, weight=1)
-        self.control_buttons_frame.grid_columnconfigure(1, weight=1)
-
+        self.control_buttons_frame = ctk.CTkFrame(step4_frame, fg_color="transparent")
         self.fidelizado_btn_pause = ctk.CTkButton(self.control_buttons_frame, text="⏸  PAUSAR", command=self.pause_sending, fg_color=self.colors['action_pause'], hover_color=self.hover_colors['action_pause'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
-        self.fidelizado_btn_pause.grid(row=0, column=0, sticky='ew', padx=(0, 10))
+        self.fidelizado_btn_pause.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
 
         self.fidelizado_btn_stop = ctk.CTkButton(self.control_buttons_frame, text="⏹  CANCELAR", command=self.stop_sending, fg_color=self.colors['action_cancel'], hover_color=self.hover_colors['action_cancel'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=45)
-        self.fidelizado_btn_stop.grid(row=0, column=1, sticky='ew', padx=(10, 0))
+        self.fidelizado_btn_stop.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
 
-        # Ocultar el frame de botones de control inicialmente
-        self.control_buttons_frame.grid_remove()
+        self.control_buttons_frame.pack(fill=tk.X, pady=(5, 0))
+        self.control_buttons_frame.pack_forget() # Initially hidden
 
         # --- Lógica de la Vista ---
         self.fidelizado_mode_var.trace_add('write', self._update_fidelizado_ui_mode)
@@ -2659,95 +2639,59 @@ class Hermes:
         mode_ui = self.fidelizado_mode_var.get()
         numeros_submode = self.fidelizado_numeros_mode.get()
 
-        mode_map_from_ui = {"Modo Números": "NUMEROS", "Modo Grupos": "GRUPOS", "Modo Mixto": "MIXTO"}
-        self.fidelizado_mode = mode_map_from_ui.get(mode_ui)
+        # Map UI values to internal keys. Note the plurals.
+        mode_map_from_ui = {"Números": "NUMEROS", "Grupos": "GRUPOS", "Mixto": "MIXTO"}
+        self.fidelizado_mode = mode_map_from_ui.get(mode_ui, "NUMEROS")
         self.set_activity_table_enabled(self.fidelizado_mode == "NUMEROS")
 
-        show_numeros_mode = self.fidelizado_mode == "NUMEROS"
         show_mixto_variant = self.fidelizado_mode == "MIXTO"
         show_cycles = self.fidelizado_mode == "NUMEROS" and numeros_submode == "Uno a uno"
 
-        # --- 1. Reorganización del Layout Principal ---
-        if self.fidelizado_mode == "NUMEROS" or self.fidelizado_mode == "GRUPOS":
-            # Layout de 1 columna: Apilar controles arriba y la caja de texto correspondiente abajo.
-            self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=1)
-            self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=0) # Anular segunda columna
-            self.fidelizado_main_content_frame.grid_rowconfigure(0, weight=0)    # Fila de controles no se expande
-            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=1)    # Fila de inputs se expande verticalmente
-
-            self.fidelizado_controls_col.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 20))
-            self.fidelizado_inputs_col.grid(row=1, column=0, sticky="nsew", padx=0)
-        else: # MODO MIXTO
-            # Layout de 2 columnas: Inputs a la izquierda, controles a la derecha
-            self.fidelizado_main_content_frame.grid_columnconfigure(0, weight=55)
-            self.fidelizado_main_content_frame.grid_columnconfigure(1, weight=45)
-            self.fidelizado_main_content_frame.grid_rowconfigure(1, weight=0) # Anular segunda fila
-
-            self.fidelizado_inputs_col.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
-            self.fidelizado_controls_col.grid(row=0, column=1, sticky="nsew", padx=(20, 0))
-
-        # --- 2. Visibilidad de Widgets de Input ---
-        is_manual_numbers_mode = len(self.manual_inputs_numbers) > 0
-
+        # --- 1. Visibilidad de Widgets de Input (Carga) ---
         if self.fidelizado_mode == "NUMEROS":
-            self.fidelizado_manual_inputs_frame.grid_rowconfigure(0, weight=1)
-            self.fidelizado_manual_inputs_frame.grid_rowconfigure(1, weight=0)
-            self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
-            if self.fidelizado_groups_frame.winfo_manager():
-                self.fidelizado_groups_frame.grid_remove()
+            self.fidelizado_numbers_frame.pack(fill=tk.X, pady=(0, 5))
+            self.fidelizado_groups_frame.pack_forget()
 
-            # Mostrar selector de conversación solo en modo Números
             if hasattr(self, 'numeros_mode_container'):
-                self.numeros_mode_container.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
+                self.numeros_mode_container.pack(fill=tk.X, pady=(0, 10))
 
         elif self.fidelizado_mode == "GRUPOS":
-            self.fidelizado_manual_inputs_frame.grid_rowconfigure(0, weight=1)
-            self.fidelizado_manual_inputs_frame.grid_rowconfigure(1, weight=0)
-            if self.fidelizado_numbers_frame.winfo_manager():
-                self.fidelizado_numbers_frame.grid_remove()
-            self.fidelizado_groups_frame.grid(row=0, column=0, sticky="nsew")
-            self.fidelizado_groups_frame.grid_configure(pady=(0, 0))
+            self.fidelizado_numbers_frame.pack_forget()
+            self.fidelizado_groups_frame.pack(fill=tk.X, pady=(5, 0))
 
             if hasattr(self, 'numeros_mode_container'):
-                self.numeros_mode_container.grid_remove()
+                self.numeros_mode_container.pack_forget()
 
         elif self.fidelizado_mode == "MIXTO":
-            self.fidelizado_manual_inputs_frame.grid_rowconfigure(0, weight=1)
-            self.fidelizado_manual_inputs_frame.grid_rowconfigure(1, weight=1)
-            self.fidelizado_numbers_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
-            self.fidelizado_groups_frame.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
+            self.fidelizado_numbers_frame.pack(fill=tk.X, pady=(0, 5))
+            self.fidelizado_groups_frame.pack(fill=tk.X, pady=(5, 0))
 
             if hasattr(self, 'numeros_mode_container'):
-                self.numeros_mode_container.grid_remove()
+                self.numeros_mode_container.pack_forget()
 
-
-        # --- 3. Visibilidad de Configuración Adicional ---
+        # --- 2. Visibilidad de Configuración Adicional ---
         if show_mixto_variant:
-            self.mixto_variant_container.grid(row=6, column=0, columnspan=2, sticky='w', pady=(0, 15))
+            if not self.mixto_variant_container.winfo_manager():
+                self.mixto_variant_container.pack(fill=tk.X, pady=(0, 10))
         else:
-            self.mixto_variant_container.grid_remove()
+            self.mixto_variant_container.pack_forget()
 
         if show_cycles:
-            self.loops_container.grid(row=2, column=0, sticky='ew', pady=(0, 15), padx=(0, 10))
-            self.cycles_container.grid(row=2, column=1, sticky='ew', pady=(0, 15), padx=(10, 0))
+            if not self.cycles_container.winfo_manager():
+                self.cycles_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(20, 0))
         else:
-            self.cycles_container.grid_remove()
-            self.loops_container.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=0)
+            self.cycles_container.pack_forget()
 
-
-        # --- 4. Visibilidad de Botones de Acción ---
+        # --- 3. Visibilidad de Botones de Acción ---
         if self.fidelizado_mode == "GRUPOS":
-            self.fidelizado_btn_start.grid(row=0, column=0, columnspan=1, sticky='ew', padx=(0, 5))
-            self.unirse_grupos_btn.grid(row=0, column=1, sticky='ew', padx=(5, 0))
-            self.actions_frame.grid_columnconfigure(1, weight=1)
+            if not self.unirse_grupos_btn.winfo_manager():
+                self.unirse_grupos_btn.pack(fill=tk.X, pady=5)
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO A GRUPOS")
         else:
-            self.unirse_grupos_btn.grid_remove()
-            self.fidelizado_btn_start.grid(row=0, column=0, columnspan=2, sticky='ew', padx=0)
-            self.actions_frame.grid_columnconfigure(1, weight=0)
+            self.unirse_grupos_btn.pack_forget()
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO FIDELIZADO")
 
-        # --- 5. Actualización del Menú de WhatsApp ---
+        # --- 4. Actualización del Menú de WhatsApp ---
         if self.fidelizado_mode == "NUMEROS":
             self.fidelizado_whatsapp_menu.configure(values=["Normal", "Business", "Ambas"])
             if self.whatsapp_mode.get() == "Todas":
@@ -4786,10 +4730,10 @@ class Hermes:
         if hasattr(self, 'fidelizado_device_list_label'):
             if self.devices:
                 count = len(self.devices)
-                device_text = f"Teléfonos conectados a la PC: {count}"
+                device_text = f"Teléfonos - {count}"
                 self.fidelizado_device_list_label.configure(text=device_text)
             else:
-                self.fidelizado_device_list_label.configure(text="No hay dispositivos conectados.")
+                self.fidelizado_device_list_label.configure(text="Teléfonos - 0")
 
     # --- ################################################################## ---
     # --- send_msg (MODIFICADO para loguear device)
