@@ -400,6 +400,9 @@ class Hermes:
         self.audio_pending_trigger_combo = None
         self.audio_known_combinations = set()
         
+        # Estado de widgets bloqueados
+        self._blocked_widgets_state = {}
+
         # Variables de tiempo para Modo Grupos Dual
         self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
         self.wait_between_enters = SafeIntVar(value=3)  # Tiempo de espera tras presionar Enter
@@ -4696,6 +4699,7 @@ class Hermes:
 
     def _finalize_sending(self):
         """Reestablece la UI al finalizar o cancelar el envío."""
+        self._unblock_ui_from_task()  # Desbloquear UI
         self.is_running = False
 
         # -- Vista Tradicional --
@@ -4771,6 +4775,148 @@ class Hermes:
             self.sms_btn_stop.configure(state=tk.NORMAL)
             if hasattr(self, 'sms_back_btn'):
                 self.sms_back_btn.configure(state=tk.DISABLED)
+
+        self._block_ui_for_task()  # Bloquear interacciones
+
+    def _recursive_set_blocking(self, widget, block=True, skip_widgets=None):
+        """
+        Recorre recursivamente los widgets y deshabilita la interacción
+        preservando la apariencia visual original.
+        """
+        if skip_widgets and widget in skip_widgets:
+            return
+
+        # Procesar el widget actual
+        if block:
+            # Verificar si el widget soporta 'state'
+            try:
+                # Solo bloquear si no está ya deshabilitado (o si ya lo procesamos)
+                # Usamos el ID del widget como clave única
+                w_id = id(widget)
+
+                if w_id not in self._blocked_widgets_state:
+                    # Guardar estado original si tiene 'state'
+                    current_config = {}
+                    has_state = False
+
+                    try:
+                        current_state = widget.cget("state")
+                        has_state = True
+                        current_config["state"] = current_state
+                    except:
+                        pass
+
+                    if has_state:
+                        # Guardar colores para mantener apariencia
+                        for attr in ["fg_color", "text_color", "border_color", "button_color",
+                                     "text_color_disabled", "fg_color_disabled", "border_color_disabled",
+                                     "button_color_disabled", "segment_color", "unselected_color",
+                                     "selected_color", "unselected_hover_color", "selected_hover_color",
+                                     "progress_color"]:
+                            try:
+                                val = widget.cget(attr)
+                                current_config[attr] = val
+                            except:
+                                pass
+
+                        self._blocked_widgets_state[w_id] = current_config
+
+                        # Configurar para deshabilitar pero manteniendo colores
+                        new_config = {"state": "disabled"}
+
+                        # Mapeo de colores normales a disabled para CustomTkinter
+                        if "fg_color" in current_config:
+                            new_config["fg_color_disabled"] = current_config["fg_color"]
+                        if "text_color" in current_config:
+                            new_config["text_color_disabled"] = current_config["text_color"]
+                        if "border_color" in current_config:
+                            new_config["border_color_disabled"] = current_config["border_color"]
+                        if "button_color" in current_config: # Checkbox, Switch, OptionMenu
+                            new_config["button_color_disabled"] = current_config["button_color"]
+
+                        # Aplicar cambios
+                        widget.configure(**new_config)
+            except Exception as e:
+                # Algunos widgets pueden no soportar cget/configure de la manera estándar
+                pass
+        else:
+            # Restaurar estado
+            w_id = id(widget)
+            if w_id in self._blocked_widgets_state:
+                original_config = self._blocked_widgets_state.pop(w_id)
+                try:
+                    # Restaurar colores disabled a sus valores originales (si existían) o default
+                    # Y restaurar el estado
+                    restore_config = {}
+                    if "state" in original_config:
+                        restore_config["state"] = original_config["state"]
+
+                    for attr in ["text_color_disabled", "fg_color_disabled", "border_color_disabled", "button_color_disabled"]:
+                        if attr in original_config:
+                            restore_config[attr] = original_config[attr]
+                        # Si no estaba guardado, no lo tocamos (se queda con el valor modificado o default)
+                        # Para ser precisos, CustomTkinter no tiene "default" fácil de recuperar sin reiniciar,
+                        # pero al restaurar el estado a "normal", los colores disabled dejan de usarse.
+
+                    widget.configure(**restore_config)
+                except:
+                    pass
+
+        # Recorrer hijos
+        for child in widget.winfo_children():
+            self._recursive_set_blocking(child, block, skip_widgets)
+
+    def _block_ui_for_task(self):
+        """Bloquea la interacción en la interfaz excepto controles permitidos."""
+        skip = []
+
+        # Controles globales a mantener
+        if hasattr(self, 'btn_pause'): skip.append(self.btn_pause)
+        if hasattr(self, 'btn_stop'): skip.append(self.btn_stop)
+        if hasattr(self, 'fidelizado_btn_pause'): skip.append(self.fidelizado_btn_pause)
+        if hasattr(self, 'fidelizado_btn_stop'): skip.append(self.fidelizado_btn_stop)
+        if hasattr(self, 'control_buttons_frame'): skip.append(self.control_buttons_frame)
+        if hasattr(self, 'sms_btn_pause'): skip.append(self.sms_btn_pause)
+        if hasattr(self, 'sms_btn_stop'): skip.append(self.sms_btn_stop)
+
+        # El panel derecho (Log/Tabla) NO se bloquea
+
+        # Áreas a bloquear
+        areas_to_block = []
+
+        # 1. Header (Botón atrás, etc.)
+        if hasattr(self, 'header_frame'):
+            areas_to_block.append(self.header_frame)
+
+        # 2. Vistas (Settings, Inputs)
+        # Tradicional
+        if hasattr(self, 'traditional_view_frame') and self.traditional_view_frame.winfo_ismapped():
+            areas_to_block.append(self.traditional_view_frame)
+            # Excluir explícitamente controles si están dentro (ya están en skip, pero por si acaso)
+
+        # Fidelizado
+        if hasattr(self, 'fidelizado_view_frame') and self.fidelizado_view_frame.winfo_ismapped():
+            areas_to_block.append(self.fidelizado_view_frame)
+
+        # SMS
+        if hasattr(self, 'sms_view_frame') and self.sms_view_frame.winfo_ismapped():
+            areas_to_block.append(self.sms_view_frame)
+
+        for area in areas_to_block:
+            self._recursive_set_blocking(area, block=True, skip_widgets=skip)
+
+    def _unblock_ui_from_task(self):
+        """Restaura la interacción en la interfaz."""
+        areas_to_unblock = []
+        if hasattr(self, 'header_frame'): areas_to_unblock.append(self.header_frame)
+        if hasattr(self, 'traditional_view_frame'): areas_to_unblock.append(self.traditional_view_frame)
+        if hasattr(self, 'fidelizado_view_frame'): areas_to_unblock.append(self.fidelizado_view_frame)
+        if hasattr(self, 'sms_view_frame'): areas_to_unblock.append(self.sms_view_frame)
+
+        for area in areas_to_unblock:
+            self._recursive_set_blocking(area, block=False)
+
+        self._blocked_widgets_state.clear()
 
     def _update_device_labels(self):
         """Actualiza todas las etiquetas de la UI que muestran la lista de dispositivos."""
