@@ -2431,6 +2431,13 @@ class Hermes:
         ctk.CTkRadioButton(self.numeros_mode_container, text="Uno a uno", variable=self.fidelizado_numeros_mode, value="Uno a uno", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         ctk.CTkRadioButton(self.numeros_mode_container, text="Uno a muchos", variable=self.fidelizado_numeros_mode, value="Uno a muchos", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
 
+        # WhatsApp Select
+        wa_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        wa_container.pack(fill=tk.X, pady=(0, 10))
+        ctk.CTkLabel(wa_container, text="WhatsApp a usar:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        self.fidelizado_whatsapp_menu = ctk.CTkSegmentedButton(wa_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'])
+        self.fidelizado_whatsapp_menu.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
         # Bucles y Ciclos
         loops_row = ctk.CTkFrame(config_grid, fg_color="transparent")
         loops_row.pack(fill=tk.X, pady=(0, 10))
@@ -2447,13 +2454,6 @@ class Hermes:
         ctk.CTkLabel(self.cycles_container, text="Ciclos:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
         self.manual_cycles_var = SafeIntVar(value=1)
         self._create_spinbox_widget(self.cycles_container, self.manual_cycles_var, min_val=1, max_val=100).pack(side=tk.LEFT)
-
-        # WhatsApp Select
-        wa_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        wa_container.pack(fill=tk.X, pady=(0, 10))
-        ctk.CTkLabel(wa_container, text="WhatsApp a usar:", font=self.fonts['button'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
-        self.fidelizado_whatsapp_menu = ctk.CTkSegmentedButton(wa_container, variable=self.whatsapp_mode, values=["Normal", "Business", "Ambas", "Todas"], font=self.fonts['button_small'])
-        self.fidelizado_whatsapp_menu.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         # Delays
         delay_container = ctk.CTkFrame(config_grid, fg_color="transparent")
