@@ -1073,6 +1073,14 @@ class Hermes:
         )
         self.fidelizado_unlock_btn.grid(row=0, column=0, sticky="e", padx=(0, 12))
 
+        self.ver_pantalla_btn = ctk.CTkButton(
+            header_actions,
+            text="Ver Pantalla",
+            command=self._iniciar_ver_pantalla,
+            **tool_btn_kwargs
+        )
+        self.ver_pantalla_btn.grid(row=0, column=1, sticky="e", padx=(0, 12))
+
         # Dark mode button moved to Start Menu
 
         self.adb_injector_btn = ctk.CTkButton(
