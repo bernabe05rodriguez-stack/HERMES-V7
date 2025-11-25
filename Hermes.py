@@ -5263,61 +5263,62 @@ class Hermes:
         return None
 
     def _wait_for_chat_ready(self, ui_device, wait_time, expected_package=None, is_sms=False):
-        """Espera a que WhatsApp/SMS esté listo para escribir sin exceder el tiempo máximo."""
+        """
+        Espera a que WhatsApp/SMS esté listo para escribir y devuelve los objetos de la UI.
+        Retorna (chat_field, send_button) si tiene éxito, o (None, None) si falla.
+        """
         if ui_device is None:
-            return False
+            return None, None
 
         deadline = time.time() + max(0, wait_time)
-        poll_interval = 0.5
+        poll_interval = 0.2  # Reducir intervalo para una detección más rápida
 
-        chat_field_found = False
-        send_button_found = False
+        chat_field = None
+        send_button = None
 
         while not self.should_stop:
-            try:
-                current_app = ui_device.app_current()
-                current_package = None
-                if isinstance(current_app, dict):
-                    current_package = current_app.get("package") or current_app.get("pkg")
-                elif hasattr(current_app, "get"):
-                    current_package = current_app.get("package") or current_app.get("pkg")
-            except Exception:
-                current_package = None
-
-            if expected_package and current_package and current_package != expected_package:
-                pass
-            else:
-                if not chat_field_found:
-                    chat_field = ui_device(className="android.widget.EditText")
-                    if chat_field.wait(timeout=0.2):
-                        chat_field_found = True
-
-                if not send_button_found:
-                    send_button = self._locate_message_send_button(
-                        ui_device,
-                        is_sms=is_sms,
-                        wait_timeout=0.3,
-                    )
-                    if send_button:
-                        send_button_found = True
-
-                if chat_field_found and send_button_found:
-                    self.log("Conversación lista.", 'success')
-                    return True
-
-            remaining = deadline - time.time()
-            if remaining <= 0:
+            # Si ya encontramos ambos elementos, no es necesario seguir buscando.
+            if chat_field and send_button:
                 break
-            self._controlled_sleep(min(poll_interval, remaining))
 
-        if not chat_field_found and not send_button_found:
-            self.log("Chat no listo: No se encontró campo de texto ni botón de envío.", 'error')
-        elif not chat_field_found:
-            self.log("Chat no listo: Se encontró botón de envío pero no el campo de texto.", 'error')
-        elif not send_button_found:
-            self.log("Chat no listo: Se encontró campo de texto pero no el botón de envío.", 'error')
+            # Buscar campo de texto si aún no se ha encontrado
+            if not chat_field:
+                field = ui_device(className="android.widget.EditText")
+                if field.wait(timeout=poll_interval):
+                    chat_field = field
 
-        return False
+            # Buscar botón de envío si aún no se ha encontrado
+            if not send_button:
+                button = self._locate_message_send_button(
+                    ui_device,
+                    is_sms=is_sms,
+                    wait_timeout=poll_interval,
+                )
+                if button:
+                    send_button = button
+
+            # Salir si el tiempo se ha agotado
+            if time.time() > deadline:
+                break
+
+            # Evitar un controlled_sleep si ya hemos encontrado todo en el primer intento
+            if not (chat_field and send_button):
+                 self._controlled_sleep(poll_interval)
+
+        # Evaluar el resultado final
+        if chat_field and send_button:
+            self.log("✓ Conversación lista (campo y botón encontrados).", 'success')
+            return chat_field, send_button
+
+        # Si falla, registrar el motivo específico
+        if not chat_field and not send_button:
+            self.log("✗ Chat no listo: No se encontró ni el campo de texto ni el botón de envío.", 'error')
+        elif not chat_field:
+            self.log("✗ Chat no listo: Se encontró el botón de envío, pero no el campo de texto.", 'error')
+        elif not send_button:
+            self.log("✗ Chat no listo: Se encontró el campo de texto, pero no el botón de envío.", 'error')
+
+        return None, None
 
     def _locate_voice_note_button(self, ui_device):
         """Localiza específicamente el botón de nota de voz (micrófono)."""
@@ -5629,14 +5630,15 @@ class Hermes:
                 active_package = None if local_is_sms else whatsapp_package
 
                 wait_time = max(0, int(self.wait_after_open.get()))
-                chat_ready = self._wait_for_chat_ready(
+                chat_field, send_button = self._wait_for_chat_ready(
                     ui_device,
                     wait_time,
                     expected_package=active_package,
                     is_sms=local_is_sms,
                 )
-                if not chat_ready:
-                    self.log(f"✗ El chat con {num_display} no cargó a tiempo.", 'error')
+
+                if not chat_field or not send_button:
+                    # El error específico ya fue registrado por _wait_for_chat_ready
                     return False, False
                 if self.should_stop:
                     return False, False
@@ -5660,26 +5662,27 @@ class Hermes:
                         return True, False
 
                     needs_text_input = is_group or local_is_sms
-                    if needs_text_input:
-                        edit_text = ui_device(className="android.widget.EditText")
-                        if not edit_text.wait(timeout=5):
-                            self.log("✗ No se encontró el campo para escribir el mensaje.", "error")
-                            return False, False
-                        if msg_to_send is not None:
-                            edit_text.set_text(msg_to_send)
+                    if needs_text_input and msg_to_send is not None:
+                        # Usar el chat_field ya encontrado
+                        chat_field.set_text(msg_to_send)
 
-                    send_button = self._locate_message_send_button(
-                        ui_device, is_sms=local_is_sms
-                    )
-                    if not send_button:
-                        # La función _locate_message_send_button ya registra el error detallado
-                        return False, False
-
+                    # Usar el send_button ya encontrado
                     send_button.click()
                     self._controlled_sleep(0.25)
 
+                    # --- INICIO DEL CAMBIO: Clic de confirmación ---
+                    # En todos los casos (excepto SMS que a veces no lo necesita), un segundo clic
+                    # ayuda a confirmar el envío en dispositivos lentos.
                     if not local_is_sms:
-                        send_button.click()
+                        try:
+                            # Volver a hacer clic en el mismo objeto de botón que ya tenemos
+                            send_button.click()
+                        except Exception as e:
+                            # Si el botón desaparece (lo cual es normal si el envío es instantáneo),
+                            # este error es esperado y no indica un fallo.
+                            self.log(f"Segundo clic no fue necesario (el botón desapareció, lo cual es normal): {e}", 'info')
+                            pass
+                    # --- FIN DEL CAMBIO ---
 
                     self._controlled_sleep(1.0)
 
