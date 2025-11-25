@@ -1225,7 +1225,7 @@ class Hermes:
         self.mode_selector = ctk.CTkSegmentedButton(
             mode_content,
             variable=self.traditional_send_mode,
-            values=["Business", "Normal", "Business/Normal", "B/N.1/N.2"],
+            values=["Business", "Normal", "Business/Normal", "Business/Normal 1/Normal 2"],
             font=('Inter', 11, 'bold'),
             height=36,
             corner_radius=14,
@@ -2185,7 +2185,7 @@ class Hermes:
             b_per_account = b_total / num_devices
             n_per_account = n_total / num_devices
             stat_text = f"~{round(b_per_account)} (B) / ~{round(n_per_account)} (N)"
-        elif mode == "B/N.1/N.2":
+        elif mode == "Business/Normal 1/Normal 2":
             # Total messages are split among B, N1, N2
             b_total = (base_links + 2) // 3
             n1_total = (base_links + 1) // 3
@@ -3800,7 +3800,7 @@ class Hermes:
             self._run_simple_mode(whatsapp_package="com.whatsapp")
         elif mode == "Business/Normal":
             self._run_doble_mode()
-        elif mode == "B/N.1/N.2":
+        elif mode == "Business/Normal 1/Normal 2":
             self._run_triple_mode()
     
     def _run_simple_mode(self, whatsapp_package="com.whatsapp.w4b"):
