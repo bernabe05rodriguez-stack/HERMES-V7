@@ -887,7 +887,42 @@ class Hermes:
             self.left_panel.grid(row=0, column=0, sticky='nsew', padx=0, pady=0)
             self.right_panel.grid(row=1, column=0, sticky='nsew', padx=0, pady=0)
 
-        self._current_main_layout = mode
+        # Forzar estado correcto del panel de registro/tabla tras un redibujado
+        self._enforce_log_state()
+
+    def _enforce_log_state(self):
+        """Asegura que la visibilidad del log/tabla sea correcta tras redimensionar."""
+        if not hasattr(self, 'log_table_container') or not hasattr(self, 'log_text'):
+            return
+
+        # Si el botón de tabla está oculto o deshabilitado (modo tradicional/SMS), forzar vista de log
+        # Usamos la visibilidad del botón como proxy del estado, o el modo fidelizado
+        is_numeros_mode = (self.fidelizado_mode == "NUMEROS")
+
+        if not is_numeros_mode:
+            # Forzar modo Log Texto y ocultar Tabla
+            if self.log_table_container.winfo_ismapped():
+                self.log_table_container.grid_remove()
+            if not self.log_text.winfo_ismapped():
+                self.log_text.grid(row=0, column=0, sticky="nsew")
+
+            # Asegurar que el botón toggle esté oculto
+            if hasattr(self, 'toggle_log_view_btn') and self.toggle_log_view_btn.winfo_ismapped():
+                self.toggle_log_view_btn.pack_forget()
+        else:
+            # Estamos en modo Números, respetar la preferencia del usuario (log_view_mode)
+            if hasattr(self, 'toggle_log_view_btn') and not self.toggle_log_view_btn.winfo_ismapped():
+                self.toggle_log_view_btn.pack(side=tk.RIGHT, padx=(10, 0))
+                self.toggle_log_view_btn.configure(state=tk.NORMAL)
+
+            if self.log_view_mode == "table":
+                if not self.log_table_container.winfo_ismapped():
+                    self.log_text.grid_remove()
+                    self.log_table_container.grid(row=0, column=0, sticky="nsew")
+            else:
+                if not self.log_text.winfo_ismapped():
+                    self.log_table_container.grid_remove()
+                    self.log_text.grid(row=0, column=0, sticky="nsew")
 
     def _iniciar_ver_pantalla(self):
         """Handles the logic for the 'Ver Pantalla' button."""
@@ -1133,27 +1168,9 @@ class Hermes:
 
         # Dark mode button moved to Start Menu
 
-        self.adb_injector_btn = ctk.CTkButton(
-            self.additional_actions_frame,
-            text="Inyector ADB",
-            command=self.open_adb_injector,
-            **tool_btn_kwargs
-        )
-        self.adb_injector_btn.grid(row=0, column=0, pady=6, sticky="ew")
-        self.adb_injector_btn.grid_remove()
-
-        self.adb_injector_dual_btn = ctk.CTkButton(
-            self.additional_actions_frame,
-            text="Inyector Dual",
-            command=self.open_adb_injector_dual,
-            **tool_btn_kwargs
-        )
-        self.adb_injector_dual_btn.grid(row=1, column=0, pady=6, sticky="ew")
-        self.adb_injector_dual_btn.grid_remove()
-
         # Espaciado adicional para mantener alineado con el diseño previo
         spacer = ctk.CTkLabel(self.additional_actions_frame, text="", fg_color="transparent")
-        spacer.grid(row=2, column=0, pady=(4, 0))
+        spacer.grid(row=0, column=0, pady=(4, 0))
 
         steps_wrapper = ctk.CTkFrame(actions_body, fg_color="transparent")
         steps_wrapper.grid(row=0, column=1, sticky="nsew")
@@ -5926,183 +5943,6 @@ class Hermes:
             self.log(f"✗ Error al cambiar cuenta en {device}: {str(e)}", 'error')
             return False
 
-    def open_adb_injector(self):
-        """Abre una ventana para inyectar comandos ADB a todos los dispositivos."""
-        if not self.devices:
-            messagebox.showwarning("Sin dispositivos", "No hay dispositivos conectados. Detecta dispositivos primero.", parent=self.root)
-            return
-        
-        # Crear ventana de inyector
-        injector_window = ctk.CTkToplevel(self.root)
-        injector_window.title("HΞЯMΞS V1 - Inyector ADB")
-        injector_window.geometry("900x700")
-        injector_window.transient(self.root)
-
-        # Centrar ventana
-        injector_window.update_idletasks()
-        root_x = self.root.winfo_rootx()
-        root_y = self.root.winfo_rooty()
-        root_w = self.root.winfo_width()
-        root_h = self.root.winfo_height()
-        x = root_x + (root_w // 2) - 450
-        y = root_y + (root_h // 2) - 350
-        injector_window.geometry(f"900x700+{x}+{y}")
-        injector_window.after(100, injector_window.focus_force)
-        
-        # Contenedor principal
-        main_cont = ctk.CTkFrame(injector_window, fg_color=self.colors['bg'], corner_radius=0)
-        main_cont.pack(fill=tk.BOTH, expand=True)
-        
-        # Header
-        header = ctk.CTkFrame(main_cont, fg_color=self.colors['action_detect'], height=80, corner_radius=0)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-        ctk.CTkLabel(header, text="Inyector ADB - Comandos Multiples", font=('Inter', 22, 'bold'), text_color=self.colors['text_header']).pack(expand=True)
-        
-        # Contenido
-        content = ctk.CTkFrame(main_cont, fg_color=self.colors['bg'], corner_radius=0)
-        content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
-        
-        # Info de dispositivos
-        info_card = ctk.CTkFrame(content, fg_color=self.colors['bg_card'], corner_radius=15)
-        info_card.pack(fill=tk.X, pady=(0, 15))
-        info_frame = ctk.CTkFrame(info_card, fg_color="transparent")
-        info_frame.pack(fill=tk.X, padx=20, pady=15)
-        ctk.CTkLabel(info_frame, text=f"📱 Dispositivos conectados: {len(self.devices)}", 
-                     font=self.fonts['card_title'], text_color=self.colors['text']).pack(anchor='w')
-        devices_text = ", ".join(self.devices)
-        ctk.CTkLabel(info_frame, text=devices_text, 
-                     font=self.fonts['setting_label'], text_color=self.colors['text_light'], wraplength=800).pack(anchor='w', pady=(5, 0))
-        
-        # Campo de comando
-        cmd_card = ctk.CTkFrame(content, fg_color=self.colors['bg_card'], corner_radius=15)
-        cmd_card.pack(fill=tk.X, pady=(0, 15))
-        cmd_frame = ctk.CTkFrame(cmd_card, fg_color="transparent")
-        cmd_frame.pack(fill=tk.X, padx=20, pady=15)
-        
-        ctk.CTkLabel(cmd_frame, text="Comando ADB (sin 'adb -s <device>'):", 
-                     font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 5))
-        
-        cmd_var = tk.StringVar()
-        cmd_entry = ctk.CTkEntry(cmd_frame, textvariable=cmd_var, font=('Consolas', 12), 
-                                 corner_radius=10, height=40, placeholder_text="Ejemplo: shell input tap 500 1000")
-        cmd_entry.pack(fill=tk.X, pady=(0, 10))
-        cmd_entry.focus_set()
-        
-        # Ejemplos
-        examples_label = ctk.CTkLabel(cmd_frame, 
-                                      text="Ejemplos: shell input tap 500 1000 | shell input text Hola | shell input keyevent KEYCODE_HOME",
-                                      font=('Inter', 10), text_color=self.colors['text_light'])
-        examples_label.pack(anchor='w')
-        
-        # Botón ejecutar
-        def execute_command():
-            command = cmd_var.get().strip()
-            if not command:
-                messagebox.showwarning("Comando vacío", "Ingresa un comando ADB para ejecutar.", parent=injector_window)
-                return
-            
-            # Ejecutar en todos los dispositivos
-            log_output.configure(state=tk.NORMAL)
-            log_output.insert(tk.END, f"\n{'='*80}\n", 'info')
-            log_output.insert(tk.END, f"Ejecutando: {command}\n", 'info')
-            log_output.insert(tk.END, f"{'='*80}\n", 'info')
-            log_output.see(tk.END)
-            log_output.configure(state=tk.DISABLED)
-            
-            for device in self.devices:
-                log_output.configure(state=tk.NORMAL)
-                log_output.insert(tk.END, f"\n[{device}] Ejecutando...\n", 'device')
-                log_output.see(tk.END)
-                log_output.configure(state=tk.DISABLED)
-                
-                # Construir comando completo
-                cmd_parts = ['-s', device] + command.split()
-                
-                try:
-                    result = subprocess.run(
-                        [self.adb_path.get()] + cmd_parts,
-                        capture_output=True,
-                        text=True,
-                        timeout=10
-                    )
-                    
-                    log_output.configure(state=tk.NORMAL)
-                    if result.returncode == 0:
-                        log_output.insert(tk.END, f"[{device}] ✓ Éxito\n", 'success')
-                        if result.stdout.strip():
-                            log_output.insert(tk.END, f"Output: {result.stdout.strip()}\n", 'output')
-                    else:
-                        log_output.insert(tk.END, f"[{device}] ✗ Error (código {result.returncode})\n", 'error')
-                        if result.stderr.strip():
-                            log_output.insert(tk.END, f"Error: {result.stderr.strip()}\n", 'error')
-                    log_output.see(tk.END)
-                    log_output.configure(state=tk.DISABLED)
-                    
-                except subprocess.TimeoutExpired:
-                    log_output.configure(state=tk.NORMAL)
-                    log_output.insert(tk.END, f"[{device}] ✗ Timeout (>10s)\n", 'error')
-                    log_output.see(tk.END)
-                    log_output.configure(state=tk.DISABLED)
-                except Exception as e:
-                    log_output.configure(state=tk.NORMAL)
-                    log_output.insert(tk.END, f"[{device}] ✗ Excepción: {e}\n", 'error')
-                    log_output.see(tk.END)
-                    log_output.configure(state=tk.DISABLED)
-            
-            log_output.configure(state=tk.NORMAL)
-            log_output.insert(tk.END, f"\nComando completado en todos los dispositivos.\n", 'success')
-            log_output.see(tk.END)
-            log_output.configure(state=tk.DISABLED)
-        
-        btn_frame = ctk.CTkFrame(cmd_card, fg_color="transparent")
-        btn_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
-        
-        exec_btn = ctk.CTkButton(btn_frame, text="▶ EJECUTAR EN TODOS", command=execute_command,
-                                 fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'],
-                                 text_color=self.colors['text_header'], font=self.fonts['button'], corner_radius=10, height=45)
-        exec_btn.pack(fill=tk.X)
-        
-        # Log de salida
-        log_card = ctk.CTkFrame(content, fg_color=self.colors['bg_card'], corner_radius=15)
-        log_card.pack(fill=tk.BOTH, expand=True)
-        
-        log_header = ctk.CTkFrame(log_card, fg_color="transparent")
-        log_header.pack(fill=tk.X, padx=20, pady=(15, 10))
-        ctk.CTkLabel(log_header, text="📝 Registro de Ejecución", 
-                     font=self.fonts['card_title'], text_color=self.colors['text']).pack(anchor='w')
-        
-        log_container = ctk.CTkFrame(log_card, fg_color="transparent")
-        log_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
-        
-        log_output = ctk.CTkTextbox(log_container, fg_color=self.colors['bg_log'], 
-                                    text_color=self.colors['log_text'], font=('Consolas', 10),
-                                    corner_radius=10, activate_scrollbars=True, border_width=1, border_color="#444851")
-        log_output.pack(fill=tk.BOTH, expand=True)
-        
-        # Configurar tags de color
-        log_output.tag_config('success', foreground=self.colors['log_success'])
-        log_output.tag_config('error', foreground=self.colors['log_error'])
-        log_output.tag_config('info', foreground=self.colors['log_info'])
-        log_output.tag_config('device', foreground=self.colors['log_warning'])
-        log_output.tag_config('output', foreground='#98c379')
-        
-        log_output.configure(state=tk.DISABLED)
-        
-        # Mensaje inicial
-        log_output.configure(state=tk.NORMAL)
-        log_output.insert(tk.END, "Inyector ADB iniciado\n", 'success')
-        log_output.insert(tk.END, f"Dispositivos disponibles: {len(self.devices)}\n", 'info')
-        log_output.insert(tk.END, "Ingresa un comando y presiona EJECUTAR\n\n", 'info')
-        log_output.configure(state=tk.DISABLED)
-        
-        # Bind Enter para ejecutar
-        cmd_entry.bind('<Return>', lambda e: execute_command())
-
-    def open_adb_injector_dual(self):
-        """Compatibilidad para el botón 'Inyector Dual'."""
-        self.log("Inyector Dual reutiliza la ventana del Inyector ADB estándar.", 'info')
-        self.open_adb_injector()
 
     def detect_phone_numbers_thread(self):
         """Inicia la detección de números de teléfono en un hilo separado."""
