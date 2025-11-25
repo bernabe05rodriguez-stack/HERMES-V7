@@ -325,10 +325,10 @@ class Hermes:
 
         # Variables de estado
         self.adb_path = tk.StringVar(value="")
-        self.delay_min = SafeIntVar(value=10)
-        self.delay_max = SafeIntVar(value=15)
-        self.wait_after_open = SafeIntVar(value=15)
-        self.wait_after_first_enter = SafeIntVar(value=10)
+        self.delay_min = SafeIntVar(value=3)
+        self.delay_max = SafeIntVar(value=5)
+        self.wait_after_open = SafeIntVar(value=7)
+        self.wait_after_first_enter = SafeIntVar(value=3)
 
         # Variables para el nuevo SMS
         self.sms_mode_active = False
@@ -5270,6 +5270,9 @@ class Hermes:
         deadline = time.time() + max(0, wait_time)
         poll_interval = 0.5
 
+        chat_field_found = False
+        send_button_found = False
+
         while not self.should_stop:
             try:
                 current_app = ui_device.app_current()
@@ -5284,20 +5287,35 @@ class Hermes:
             if expected_package and current_package and current_package != expected_package:
                 pass
             else:
-                chat_field = ui_device(className="android.widget.EditText")
-                ready_field = chat_field.wait(timeout=0.2)
-                send_button = self._locate_message_send_button(
-                    ui_device,
-                    is_sms=is_sms,
-                    wait_timeout=0.3,
-                )
-                if ready_field and send_button:
+                if not chat_field_found:
+                    chat_field = ui_device(className="android.widget.EditText")
+                    if chat_field.wait(timeout=0.2):
+                        chat_field_found = True
+
+                if not send_button_found:
+                    send_button = self._locate_message_send_button(
+                        ui_device,
+                        is_sms=is_sms,
+                        wait_timeout=0.3,
+                    )
+                    if send_button:
+                        send_button_found = True
+
+                if chat_field_found and send_button_found:
+                    self.log("Conversación lista.", 'success')
                     return True
 
             remaining = deadline - time.time()
             if remaining <= 0:
                 break
             self._controlled_sleep(min(poll_interval, remaining))
+
+        if not chat_field_found and not send_button_found:
+            self.log("Chat no listo: No se encontró campo de texto ni botón de envío.", 'error')
+        elif not chat_field_found:
+            self.log("Chat no listo: Se encontró botón de envío pero no el campo de texto.", 'error')
+        elif not send_button_found:
+            self.log("Chat no listo: Se encontró campo de texto pero no el botón de envío.", 'error')
 
         return False
 
@@ -5569,14 +5587,10 @@ class Hermes:
         ui_device=None,
         primary_index=None,
     ):
-        """Ejecuta los comandos para enviar un único mensaje.
-
-        Si el envío falla por el mensaje "No se envió", intenta nuevamente usando
-        números alternativos registrados para la misma fila (si existen).
-        """
+        """Ejecuta los comandos para enviar un único mensaje."""
         try:
             if not ui_device:
-                self.log("Error crítico: la conexión de uiautomator2 no está disponible.", "error")
+                self.log("✗ Error crítico: la conexión de uiautomator2 no está disponible.", "error")
                 return False
 
             is_group = bool(message_to_send)
@@ -5604,12 +5618,12 @@ class Hermes:
                 intento = "Principal" if attempt_idx == 0 else f"Alternativo {attempt_idx}"
                 self.log(f"({i}/{total}) → {num_display} [en {device}] ({intento})", 'info')
 
-                self.log(f"Abriendo link en {device} con ADB...", 'info')
+                self.log(f"Abriendo WhatsApp en {device} con ADB...", 'info')
                 open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{current_link}"']
                 if whatsapp_package and not local_is_sms:
                     open_args.extend(['-p', whatsapp_package])
                 if not self._run_adb_command(open_args, timeout=20):
-                    self.log(f"Fallo al abrir link para {num_display}.", 'error')
+                    self.log(f"✗ No se pudo abrir el chat con {num_display}.", 'error')
                     return False, False
 
                 active_package = None if local_is_sms else whatsapp_package
@@ -5622,10 +5636,7 @@ class Hermes:
                     is_sms=local_is_sms,
                 )
                 if not chat_ready:
-                    self.log(
-                        "No se detectó la conversación lista tras la espera configurada.",
-                        'error',
-                    )
+                    self.log(f"✗ El chat con {num_display} no cargó a tiempo.", 'error')
                     return False, False
                 if self.should_stop:
                     return False, False
@@ -5641,15 +5652,10 @@ class Hermes:
                         msg_to_send = None
 
                 try:
-
                     if self._maybe_send_audio(
-                        ui_device,
-                        device,
-                        i,
-                        whatsapp_package=active_package,
-                        pre_send=True,
+                        ui_device, device, i, whatsapp_package=active_package, pre_send=True
                     ):
-                        self.log("Nota de voz enviada en lugar del mensaje de texto.", 'success')
+                        self.log(f"✓ Nota de voz a {num_display} enviada.", 'success')
                         self._controlled_sleep(1.5)
                         return True, False
 
@@ -5657,46 +5663,39 @@ class Hermes:
                     if needs_text_input:
                         edit_text = ui_device(className="android.widget.EditText")
                         if not edit_text.wait(timeout=5):
-                            self.log("No se encontró el campo de texto para escribir.", "error")
+                            self.log("✗ No se encontró el campo para escribir el mensaje.", "error")
                             return False, False
                         if msg_to_send is not None:
                             edit_text.set_text(msg_to_send)
 
                     send_button = self._locate_message_send_button(
-                        ui_device,
-                        is_sms=local_is_sms,
+                        ui_device, is_sms=local_is_sms
                     )
                     if not send_button:
-                        self.log("No se encontró el botón 'Enviar'.", "error")
+                        # La función _locate_message_send_button ya registra el error detallado
                         return False, False
 
                     send_button.click()
                     self._controlled_sleep(0.25)
 
-                    # En SMS no se reenvía el Enter para evitar duplicados
                     if not local_is_sms:
-                        # Pulsar nuevamente para minimizar el riesgo de que el mensaje quede sin enviar
                         send_button.click()
 
                     self._controlled_sleep(1.0)
 
                     if self._detect_send_failure(ui_device):
-                        self.log("Se detectó el mensaje 'No se envió'.", 'warning')
+                        self.log("✗ WhatsApp reportó un fallo de envío (mensaje 'No se envió').", 'error')
                         return False, True
 
-                    self.log("Mensaje enviado con éxito.", 'success')
+                    self.log(f"✓ Mensaje a {num_display} enviado.", 'success')
                     self._controlled_sleep(0.6)
                     self._maybe_send_audio(
-                        ui_device,
-                        device,
-                        i,
-                        whatsapp_package=active_package,
-                        pre_send=False,
+                        ui_device, device, i, whatsapp_package=active_package, pre_send=False
                     )
                     return True, False
 
                 except Exception as e:
-                    self.log(f"Falló el envío con uiautomator2: {e}", 'error')
+                    self.log(f"✗ Error inesperado al intentar enviar: {e}", 'error')
                     return False, False
 
             for attempt_idx, current_link in enumerate(attempt_links):
@@ -5717,13 +5716,13 @@ class Hermes:
                     continue
 
                 if should_retry and attempt_idx == total_attempts - 1:
-                    self.log("No se pudo enviar el mensaje tras agotar los números disponibles.", 'error')
+                    self.log("✗ No se pudo enviar el mensaje tras agotar los números disponibles.", 'error')
                 return False
 
             return False
 
         except Exception as e:
-            self.log(f"Error inesperado en send_msg: {e}", 'error')
+            self.log(f"✗ Error crítico en la lógica de envío: {e}", 'error')
             import traceback
             traceback.print_exc()
             return False
