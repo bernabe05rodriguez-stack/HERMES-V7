@@ -544,27 +544,31 @@ class Hermes:
             l_img_path = os.path.join(BASE_DIR, 'logo_left.png')
             l_img = Image.open(l_img_path).resize((150, 150), Image.Resampling.LANCZOS)
             l_pho = ctk.CTkImage(light_image=l_img, dark_image=l_img, size=(150, 150))
-            ctk.CTkLabel(hc, image=l_pho, text="").pack(side=tk.LEFT, padx=(0, 20))
+            self.header_logo_left = ctk.CTkLabel(hc, image=l_pho, text="")
+            self.header_logo_left.pack(side=tk.LEFT, padx=(0, 20))
         except Exception as e:
             print(f"Error cargando logo_left: {e}")
-            ctk.CTkLabel(hc, text="🦶", font=('Inter', 60), fg_color="transparent").pack(side=tk.LEFT, padx=(0, 20))
+            self.header_logo_left = ctk.CTkLabel(hc, text="🦶", font=('Inter', 60), fg_color="transparent")
+            self.header_logo_left.pack(side=tk.LEFT, padx=(0, 20))
 
         # Logo Derecho
         try:
             r_img_path = os.path.join(BASE_DIR, 'logo_right.png')
             r_img = Image.open(r_img_path).resize((150, 150), Image.Resampling.LANCZOS)
             r_pho = ctk.CTkImage(light_image=r_img, dark_image=r_img, size=(150, 150))
-            ctk.CTkLabel(hc, image=r_pho, text="").pack(side=tk.RIGHT, padx=(20, 0))
+            self.header_logo_right = ctk.CTkLabel(hc, image=r_pho, text="")
+            self.header_logo_right.pack(side=tk.RIGHT, padx=(20, 0))
         except Exception as e:
             print(f"Error cargando logo_right: {e}")
-            ctk.CTkLabel(hc, text="🦶", font=('Inter', 60), fg_color="transparent").pack(side=tk.RIGHT, padx=(20, 0))
+            self.header_logo_right = ctk.CTkLabel(hc, text="🦶", font=('Inter', 60), fg_color="transparent")
+            self.header_logo_right.pack(side=tk.RIGHT, padx=(20, 0))
 
         # Título
-        title_label = ctk.CTkLabel(hc, text="HΞЯMΞS", font=self.fonts['header'],
+        self.header_title_label = ctk.CTkLabel(hc, text="HΞЯMΞS", font=self.fonts['header'],
                                    fg_color="transparent",
                                    text_color=self.colors['text_header'],
                                    cursor="hand2") # Añadir cursor para indicar que es interactivo
-        title_label.pack(side=tk.LEFT, fill=tk.X, expand=True, anchor='center')
+        self.header_title_label.pack(side=tk.LEFT, fill=tk.X, expand=True, anchor='center')
 
         # Tooltip para el título
         tooltip_text = (
@@ -575,7 +579,7 @@ class Hermes:
             "BERNABE GABRIEL RODRIGUEZ, y FRANCISCO JOSE RODRIGUEZ."
         )
         tooltip_font = self.fonts.get('dialog_text', ('Inter', 12))
-        self.hermes_tooltip = Tooltip(widget=title_label, text=tooltip_text, font_info=tooltip_font)
+        self.hermes_tooltip = Tooltip(widget=self.header_title_label, text=tooltip_text, font_info=tooltip_font)
 
         # 2. Contenedor principal scrollable (Guardado en self.main_content_frame)
         self.main_content_frame = ctk.CTkFrame(self.root, fg_color="transparent")
@@ -5013,6 +5017,9 @@ class Hermes:
         # Controles globales a mantener
         if hasattr(self, 'btn_pause'): skip.append(self.btn_pause)
         if hasattr(self, 'btn_stop'): skip.append(self.btn_stop)
+        if hasattr(self, 'header_logo_left'): skip.append(self.header_logo_left)
+        if hasattr(self, 'header_logo_right'): skip.append(self.header_logo_right)
+        if hasattr(self, 'header_title_label'): skip.append(self.header_title_label)
         if hasattr(self, 'fidelizado_btn_pause'): skip.append(self.fidelizado_btn_pause)
         if hasattr(self, 'fidelizado_btn_stop'): skip.append(self.fidelizado_btn_stop)
         if hasattr(self, 'control_buttons_frame'): skip.append(self.control_buttons_frame)
