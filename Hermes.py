@@ -4853,8 +4853,8 @@ class Hermes:
         # -- Vista Fidelizado --
         if hasattr(self, 'fidelizado_btn_start'):
             # Ocultar botones de control, mostrar los de inicio
-            self.control_buttons_frame.grid_remove()
-            self.actions_frame.grid()
+            self.control_buttons_frame.pack_forget()
+            self.actions_frame.pack(fill=tk.X, pady=(5, 0))
 
             # Configurar estado de botones
             self.fidelizado_btn_start.configure(state=tk.NORMAL)
@@ -4896,8 +4896,8 @@ class Hermes:
         # -- Vista Fidelizado --
         if hasattr(self, 'fidelizado_btn_start'):
             # Ocultar botones de inicio, mostrar los de control
-            self.actions_frame.grid_remove()
-            self.control_buttons_frame.grid()
+            self.actions_frame.pack_forget()
+            self.control_buttons_frame.pack(fill=tk.X, pady=(5, 0))
 
             # Configurar estado de botones
             self.fidelizado_btn_start.configure(state=tk.DISABLED)
