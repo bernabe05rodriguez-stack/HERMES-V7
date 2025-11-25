@@ -3093,7 +3093,7 @@ class Hermes:
     def open_processor_window(self, original_file):
         """Abre la ventana para configurar la plantilla de mensajes."""
         proc_window = ctk.CTkToplevel(self.root)
-        proc_window.title("Configurar Procesamiento de Excel/CSV")
+        proc_window.title("Procesar Excel")
         proc_window.transient(self.root)
 
         width, height = 900, 750
@@ -3107,29 +3107,30 @@ class Hermes:
         main_cont = ctk.CTkFrame(proc_window, fg_color=self.colors['bg'], corner_radius=0)
         main_cont.pack(fill=tk.BOTH, expand=True)
 
-        # Header
-        header = ctk.CTkFrame(main_cont, fg_color=self.colors['blue'], height=80, corner_radius=0)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-        ctk.CTkLabel(header, text="Configurar Procesamiento", font=('Inter', 22, 'bold'), text_color=self.colors['text_header']).pack(expand=True)
+        # Header (Minimalista)
+        header_frame = ctk.CTkFrame(main_cont, fg_color="transparent")
+        header_frame.pack(fill=tk.X, padx=30, pady=(25, 10))
+
+        ctk.CTkLabel(header_frame, text="Procesar Excel", font=('Inter', 26, 'bold'), text_color=self.colors['text']).pack(side=tk.LEFT)
 
         # Contenido scrollable
         scroll_f = ctk.CTkScrollableFrame(main_cont, fg_color="transparent", corner_radius=0)
         scroll_f.pack(fill=tk.BOTH, expand=True, padx=20)
 
-        # Tarjeta 1: Info Archivo
+        # Tarjeta 1: Info Archivo (Simplificada)
         step1_card = ctk.CTkFrame(scroll_f, fg_color=self.colors['bg_card'], corner_radius=15)
         step1_card.pack(fill=tk.X, padx=10, pady=(15, 15))
-        ctk.CTkLabel(step1_card, text="Información del Archivo", font=self.fonts['card_title'], text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(15, 10))
-        ctk.CTkLabel(step1_card, text=f"📊 {os.path.basename(original_file)}", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(5, 5))
-        ctk.CTkLabel(step1_card, text=f"📝 Filas: {len(self.raw_data)}", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', padx=20, pady=5)
-        ctk.CTkLabel(step1_card, text=f"📞 Teléfonos: {', '.join(self.phone_columns)}", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', padx=20, pady=(5, 15))
+
+        file_name_short = os.path.basename(original_file)
+        ctk.CTkLabel(step1_card, text=f"Información del Archivo ({file_name_short})", font=self.fonts['card_title'], text_color=self.colors['text']).pack(anchor='w', padx=20, pady=20)
 
         # Crear acordeón
+        # Nota: Usamos verde para todos los pasos para mejor visibilidad en dark mode
+        green_color = self.colors['green']
         steps_data = [
-            {"title": "Columnas de Teléfono", "color": self.colors['green'], "id": "step2"},
-            {"title": "Columnas para Mensaje", "color": self.colors['orange'], "id": "step3"},
-            {"title": "Plantilla de Mensaje", "color": self.colors['blue'], "id": "step4"}
+            {"title": "Columnas de Teléfono", "color": green_color, "id": "step2"},
+            {"title": "Columnas para Mensaje", "color": green_color, "id": "step3"},
+            {"title": "Plantilla de Mensaje", "color": green_color, "id": "step4"}
         ]
         toggles = {}
 
@@ -3143,8 +3144,10 @@ class Hermes:
             hi = ctk.CTkFrame(tb, fg_color="transparent")
             hi.pack(fill=tk.X)
 
-            ctk.CTkLabel(hi, text=str(i+1), font=('Inter', 18, 'bold'), fg_color="transparent", text_color='#202124').pack(side=tk.LEFT, padx=(0, 12))
+            # Números de paso en verde
+            ctk.CTkLabel(hi, text=str(i+1), font=('Inter', 18, 'bold'), fg_color="transparent", text_color=data["color"]).pack(side=tk.LEFT, padx=(0, 12))
             ctk.CTkLabel(hi, text=data["title"], font=self.fonts['card_title'], text_color=self.colors['text']).pack(side=tk.LEFT)
+            # Flecha en verde
             al = ctk.CTkLabel(hi, text="▼", font=('Inter', 16, 'bold'), text_color=data["color"])
             al.pack(side=tk.RIGHT, padx=10)
 
@@ -3207,15 +3210,49 @@ class Hermes:
         mt = ctk.CTkTextbox(step4_c, height=100, font=self.fonts['setting_label'], corner_radius=10, border_width=1, border_color="#cccccc", wrap=tk.WORD)
         mt.pack(fill=tk.BOTH, expand=True)
 
-        # Previsualización
+        # Previsualización Mejorada
+        preview_container = ctk.CTkFrame(step4_c, fg_color="transparent")
+        preview_container.pack(fill=tk.X, pady=(15, 0))
+
+        # Estado de visibilidad de la preview
+        self.preview_visible = False
+
+        # Frame de la preview (oculto inicialmente)
         pf = ctk.CTkFrame(step4_c, fg_color=self.colors['bg'], corner_radius=10, border_width=1, border_color=self.colors["text_light"])
-        pf.pack(fill=tk.BOTH, expand=True, pady=(15, 0))
-        ctk.CTkLabel(pf, text="👁️ Previsualización (basada en la primera fila):", font=('Inter', 10, 'bold'), text_color=self.colors['text_light']).pack(anchor='w', padx=10, pady=(8, 5))
-        pt = ctk.CTkTextbox(pf, height=70, font=('Inter', 10), fg_color=self.colors['bg_card'], text_color='#333', corner_radius=5, wrap=tk.WORD, border_width=0)
-        pt.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 8))
+
+        # Botón Ojo
+        def toggle_preview():
+            if self.preview_visible:
+                pf.pack_forget()
+                self.preview_visible = False
+                # btn_preview.configure(text="👁️ Mostrar Vista Previa") # Opcional: cambiar texto
+            else:
+                pf.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+                self.preview_visible = True
+                update_preview()
+                # btn_preview.configure(text="👁️ Ocultar Vista Previa")
+
+        btn_preview = ctk.CTkButton(preview_container, text="👁️",
+                                    command=toggle_preview,
+                                    fg_color="transparent",
+                                    text_color=self.colors['text'],
+                                    hover_color=self.colors['bg_card'],
+                                    font=('Inter', 24),
+                                    width=50, height=40)
+        btn_preview.pack(anchor='w')
+        ctk.CTkLabel(preview_container, text="Mostrar Vista Previa", font=('Inter', 12), text_color=self.colors['text_light']).pack(anchor='w', padx=10)
+
+        # Configuración del Textbox de Preview (Más grande y legible)
+        ctk.CTkLabel(pf, text="Vista Previa (Fila 1):", font=('Inter', 12, 'bold'), text_color=self.colors['text_light']).pack(anchor='w', padx=15, pady=(10, 5))
+        pt = ctk.CTkTextbox(pf, height=150, font=('Inter', 13), fg_color=self.colors['bg_card'], text_color=self.colors['text'], corner_radius=8, wrap=tk.WORD, border_width=0)
+        pt.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 15))
         pt.configure(state=tk.DISABLED)
 
         def update_preview(*a):
+            # Solo actualizar si es visible para ahorrar recursos
+            if not self.preview_visible:
+                return
+
             try:
                 cm = mt.get('1.0', tk.END).strip()
                 pt.configure(state=tk.NORMAL)
@@ -3243,7 +3280,7 @@ class Hermes:
 
         mt.bind('<KeyRelease>', update_preview)
         mt.bind('<ButtonRelease>', update_preview)
-        update_preview()
+        # update_preview() # No llamar al inicio ya que está oculto
 
         def update_buttons(*a):
             """Actualiza los botones de inserción rápida."""
