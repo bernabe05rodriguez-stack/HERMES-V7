@@ -489,6 +489,43 @@ class Hermes:
         except tk.TclError:
             pass
 
+    def open_tutorial_window(self):
+        """Abre una ventana flotante con instrucciones (Tutorial)."""
+        if hasattr(self, 'tutorial_window') and self.tutorial_window is not None and self.tutorial_window.winfo_exists():
+            self.tutorial_window.lift()
+            self.tutorial_window.focus_force()
+            return
+
+        self.tutorial_window = ctk.CTkToplevel(self.root)
+        self.tutorial_window.title("Tutorial")
+        self.tutorial_window.geometry("420x320")
+        self.tutorial_window.attributes('-topmost', True)
+
+        # Intentar centrar
+        self._center_toplevel(self.tutorial_window, 420, 320)
+
+        # Usar un textbox de solo lectura para el contenido
+        textbox = ctk.CTkTextbox(
+            self.tutorial_window,
+            font=('Inter', 14),
+            text_color=self.colors['text'],
+            fg_color=self.colors['bg_card'],
+            wrap="word",
+            corner_radius=0,
+            border_width=0
+        )
+        textbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        text_content = (
+            "PASO 1 - Preparar el dispositivo.\n\n"
+            "1.  Ve a -Ajustes- ⚙️.\n"
+            "2.  En la lupa, escribe -Compilación- y toca el resultado -7 veces- seguidas.\n"
+            "3.  Vuelve al buscador, escribe -Depuración por USB- y actívala."
+        )
+
+        textbox.insert("0.0", text_content)
+        textbox.configure(state="disabled")
+
     def setup_ui(self):
         # Configurar fondo de la ventana principal
         self.root.configure(fg_color=self.colors['bg'])
@@ -1028,6 +1065,19 @@ class Hermes:
         ctk.CTkLabel(header, text="Whatsapp", font=('Inter', 26, 'bold'),
                      text_color=self.colors['text']).pack(side=tk.LEFT)
 
+        ctk.CTkButton(
+            header,
+            text="Tutorial",
+            command=self.open_tutorial_window,
+            font=('Inter', 14, 'bold'),
+            fg_color="transparent",
+            text_color=self.colors['action_mode'],
+            width=60,
+            height=30,
+            anchor="s",
+            hover=False
+        ).pack(side=tk.LEFT, padx=(10, 0), pady=(8, 0))
+
         actions_section, actions_header = self._build_section(
             content,
             1,
@@ -1318,6 +1368,19 @@ class Hermes:
 
         title = ctk.CTkLabel(header_frame, text="SMS", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
         title.pack(side=tk.LEFT)
+
+        ctk.CTkButton(
+            header_frame,
+            text="Tutorial",
+            command=self.open_tutorial_window,
+            font=('Inter', 14, 'bold'),
+            fg_color="transparent",
+            text_color=self.colors['action_mode'],
+            width=60,
+            height=30,
+            anchor="s",
+            hover=False
+        ).pack(side=tk.LEFT, padx=(10, 0), pady=(8, 0))
 
         actions_section, _ = self._build_section(content, 1, None,
                                                  "Sigue los pasos para preparar y lanzar la campaña.", icon="📨")
