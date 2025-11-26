@@ -407,6 +407,7 @@ class Hermes:
 
         # Variables de tiempo para Modo Grupos Dual
         self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
+        self.wait_after_first_enter = SafeIntVar(value=2)  # Tiempo de espera tras el primer Enter
         self.wait_between_enters = SafeIntVar(value=3)  # Tiempo de espera tras presionar Enter
         self.wait_between_messages = SafeIntVar(value=2)  # Tiempo entre Business y Normal
         self.whatsapp_mode = tk.StringVar(value="Todas")  # Qué WhatsApp usar: Normal, Business, Ambos
@@ -1296,9 +1297,29 @@ class Hermes:
 
         self.time_advanced_frame = ctk.CTkFrame(self.traditional_time_card, fg_color="transparent")
         self.time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
+        self.time_advanced_frame.grid_columnconfigure(0, weight=1)
+        self.time_advanced_frame.grid_columnconfigure(1, weight=1)
+
         self.create_setting(self.time_advanced_frame, "Espera Abrir (seg):", self.wait_after_open, None, 0)
-        self.create_setting(self.time_advanced_frame, "Pausar tras (envíos):", self.pause_sends_count, None, 1)
-        self.create_setting(self.time_advanced_frame, "Duración Pausa (seg):", self.pause_sends_delay_min, self.pause_sends_delay_max, 2)
+
+        # Pausa programada en una línea
+        ctk.CTkLabel(self.time_advanced_frame, text="Tiempo entre mensaje:", font=self.fonts['setting_label'], fg_color="transparent", text_color=self.colors['text_light']).grid(row=1, column=0, sticky='w', pady=10)
+
+        pause_controls = ctk.CTkFrame(self.time_advanced_frame, fg_color="transparent")
+        pause_controls.grid(row=1, column=1, sticky='e', pady=10, padx=(10, 0))
+
+        spinbox_count = self._create_spinbox_widget(pause_controls, self.pause_sends_count, min_val=0, max_val=999)
+        spinbox_count.pack(side=tk.LEFT, padx=(0, 4))
+
+        ctk.CTkLabel(pause_controls, text="mensajes esperar", font=self.fonts['setting_label'], fg_color="transparent", text_color=self.colors['text_light']).pack(side=tk.LEFT, padx=4)
+
+        spinbox_delay_min = self._create_spinbox_widget(pause_controls, self.pause_sends_delay_min, min_val=1, max_val=300)
+        spinbox_delay_min.pack(side=tk.LEFT, padx=4)
+
+        ctk.CTkLabel(pause_controls, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.LEFT, padx=4)
+
+        spinbox_delay_max = self._create_spinbox_widget(pause_controls, self.pause_sends_delay_max, min_val=1, max_val=300)
+        spinbox_delay_max.pack(side=tk.LEFT, padx=0)
 
         self.time_advanced_visible = False
         self.time_advanced_frame.grid_remove()
@@ -1500,8 +1521,7 @@ class Hermes:
         self.sms_time_advanced_frame = ctk.CTkFrame(sms_time_card, fg_color="transparent")
         self.sms_time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
         self.create_setting(self.sms_time_advanced_frame, "Espera Abrir (seg):", self.wait_after_open, None, 0)
-        self.create_setting(self.sms_time_advanced_frame, "Pausar tras (envíos):", self.pause_sends_count, None, 1)
-        self.create_setting(self.sms_time_advanced_frame, "Duración Pausa (seg):", self.pause_sends_delay_min, self.pause_sends_delay_max, 2)
+        self.create_setting(self.sms_time_advanced_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 1)
 
         self.sms_time_advanced_visible = False
         self.sms_time_advanced_frame.grid_remove()
