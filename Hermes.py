@@ -5191,6 +5191,40 @@ class Hermes:
             time.sleep(0.1)
             elapsed += 0.1
 
+    def _locate_chat_field(self, ui_device, wait_timeout=0.1):
+        """Busca el campo de texto de la conversación actual de forma eficiente."""
+        if ui_device is None:
+            return None
+
+        selectors = [
+            # 1. Por resourceId (el más fiable)
+            dict(resourceId="com.whatsapp:id/entry"),
+            dict(resourceId="com.whatsapp.w4b:id/entry"),
+            # 2. Por className (debe ser un EditText)
+            dict(className="android.widget.EditText"),
+            # 3. Por descripción de accesibilidad (fallback)
+            dict(description="Mensaje"),
+            dict(description="Message"),
+            dict(descriptionMatches="(?i).*mensaje.*"),
+            dict(descriptionMatches="(?i).*message.*"),
+        ]
+
+        for selector in selectors:
+            try:
+                candidate = ui_device(**selector)
+                if candidate.wait(timeout=wait_timeout):
+                    info = candidate.info or {}
+                    bounds = info.get('bounds') or {}
+                    if not bounds or bounds.get('left') == bounds.get('right'):
+                        continue
+
+                    self.log(f"✓ Campo de texto encontrado con selector: {selector}", "info")
+                    return candidate
+            except Exception:
+                continue
+
+        return None
+
     def _locate_message_send_button(self, ui_device, is_sms=False, wait_timeout=2):
         """Busca el botón de enviar dentro de la conversación actual."""
         if ui_device is None:
@@ -5283,9 +5317,7 @@ class Hermes:
 
             # Buscar campo de texto si aún no se ha encontrado
             if not chat_field:
-                field = ui_device(className="android.widget.EditText")
-                if field.wait(timeout=poll_interval):
-                    chat_field = field
+                chat_field = self._locate_chat_field(ui_device, wait_timeout=poll_interval)
 
             # Buscar botón de envío si aún no se ha encontrado
             if not send_button:
@@ -5656,8 +5688,17 @@ class Hermes:
                 try:
                     needs_text_input = is_group or local_is_sms
                     if needs_text_input and msg_to_send is not None:
+                        # --- INICIO DEL CAMBIO: Clic de enfoque ---
+                        # Hacer clic en el campo de texto antes de escribir asegura que esté enfocado.
+                        try:
+                            chat_field.click()
+                            self._controlled_sleep(0.1) # Pequeña pausa para asegurar el enfoque
+                        except Exception as e:
+                            self.log(f"Advertencia: no se pudo hacer clic en el campo de texto (puede que ya estuviera enfocado): {e}", "warning")
+
                         # Usar el chat_field ya encontrado
                         chat_field.set_text(msg_to_send)
+                        # --- FIN DEL CAMBIO ---
 
                     # Usar el send_button ya encontrado
                     send_button.click()
