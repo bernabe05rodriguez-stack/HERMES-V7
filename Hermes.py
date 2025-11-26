@@ -3735,10 +3735,24 @@ class Hermes:
             self.should_stop = True
             self.log("Cancelando...", 'warning')
 
-    def _generate_report(self):
+    def _generate_report(self, parent_window=None):
         """Genera y guarda un reporte Excel con los resultados del envío."""
+        # Asignar a self.root como padre por defecto si no se especifica
+        parent = parent_window if parent_window is not None else self.root
+
+        # --- OPTIMIZACIÓN: Calcular "No procesado" solo cuando se solicita el reporte ---
+        if self.should_stop:
+            self.log("Generando datos de reporte para envío cancelado...", 'info')
+            processed_numbers = {d['number'] for d in self.report_data}
+
+            if not self.manual_mode and self.links:
+                for link in self.links:
+                    phone_number = self._get_phone_from_link(link)
+                    if phone_number and phone_number not in processed_numbers:
+                        self.report_data.append({'number': phone_number, 'status': 'No procesado'})
+
         if not self.report_data:
-            messagebox.showinfo("Sin Datos", "No hay datos de envío para generar un reporte.", parent=self.root)
+            messagebox.showinfo("Sin Datos", "No hay datos de envío para generar un reporte.", parent=parent)
             return
 
         try:
@@ -3751,7 +3765,7 @@ class Hermes:
                 defaultextension=".xlsx",
                 filetypes=[("Excel Files", "*.xlsx")],
                 initialfile=default_filename,
-                parent=self.root
+                parent=parent
             )
 
             if not filepath:
@@ -3788,11 +3802,11 @@ class Hermes:
             # Guardar el archivo
             wb.save(filepath)
             self.log(f"Reporte de envío guardado exitosamente en: {filepath}", 'success')
-            messagebox.showinfo("Éxito", "El reporte se ha guardado correctamente.", parent=self.root)
+            messagebox.showinfo("Éxito", "El reporte se ha guardado correctamente.", parent=parent)
 
         except Exception as e:
             self.log(f"Error al generar el reporte: {e}", 'error')
-            messagebox.showerror("Error", f"Ocurrió un error al generar el reporte:\n{e}", parent=self.root)
+            messagebox.showerror("Error", f"Ocurrió un error al generar el reporte:\n{e}", parent=parent)
 
     def _show_completion_dialog(self):
         """Muestra la ventana personalizada de finalización (MOD 28)."""
@@ -3838,7 +3852,8 @@ class Hermes:
             self.root.focus_force()
 
         def generate_report_and_close():
-            self._generate_report()
+            # Pasar el diálogo como padre para que la ventana de guardar aparezca encima
+            self._generate_report(parent_window=dialog)
             close_dialog()
 
         buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
@@ -5084,19 +5099,6 @@ class Hermes:
 
     def _finalize_sending(self):
         """Reestablece la UI al finalizar o cancelar el envío."""
-        if self.should_stop:
-            self.log("Generando datos de reporte para envío cancelado...", 'info')
-            processed_numbers = {d['number'] for d in self.report_data}
-
-            # Para modos no manuales, verificar qué números de la lista original no se procesaron.
-            if not self.manual_mode and self.links:
-                for link in self.links:
-                    phone_number = self._get_phone_from_link(link)
-                    if phone_number and phone_number not in processed_numbers:
-                        self.report_data.append({'number': phone_number, 'status': 'No procesado'})
-            # Nota: El modo Fidelizado es demasiado complejo para determinar los "no procesados"
-            # de forma fiable sin refactorizar la generación de tareas.
-
         self._unblock_ui_from_task()  # Desbloquear UI
         self.is_running = False
 
