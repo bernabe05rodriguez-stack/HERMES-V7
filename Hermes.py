@@ -5338,9 +5338,12 @@ class Hermes:
         """Restaura la interacción en la interfaz."""
         areas_to_unblock = []
         if hasattr(self, 'header_frame'): areas_to_unblock.append(self.header_frame)
-        if hasattr(self, 'traditional_view_frame'): areas_to_unblock.append(self.traditional_view_frame)
-        if hasattr(self, 'fidelizado_view_frame'): areas_to_unblock.append(self.fidelizado_view_frame)
-        if hasattr(self, 'sms_view_frame'): areas_to_unblock.append(self.sms_view_frame)
+        if hasattr(self, 'traditional_view_frame') and self.traditional_view_frame is not None:
+            areas_to_unblock.append(self.traditional_view_frame)
+        if hasattr(self, 'fidelizado_view_frame') and self.fidelizado_view_frame is not None:
+            areas_to_unblock.append(self.fidelizado_view_frame)
+        if hasattr(self, 'sms_view_frame') and self.sms_view_frame is not None:
+            areas_to_unblock.append(self.sms_view_frame)
 
         for area in areas_to_unblock:
             self._recursive_set_blocking(area, block=False)
