@@ -328,7 +328,9 @@ class Hermes:
         self.delay_min = SafeIntVar(value=3)
         self.delay_max = SafeIntVar(value=5)
         self.wait_after_open = SafeIntVar(value=7)
-        self.wait_after_first_enter = SafeIntVar(value=3)
+        self.pause_sends_count = SafeIntVar(value=0)
+        self.pause_sends_delay_min = SafeIntVar(value=30)
+        self.pause_sends_delay_max = SafeIntVar(value=60)
 
         # Variables para el nuevo SMS
         self.sms_mode_active = False
@@ -1295,7 +1297,8 @@ class Hermes:
         self.time_advanced_frame = ctk.CTkFrame(self.traditional_time_card, fg_color="transparent")
         self.time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
         self.create_setting(self.time_advanced_frame, "Espera Abrir (seg):", self.wait_after_open, None, 0)
-        self.create_setting(self.time_advanced_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 1)
+        self.create_setting(self.time_advanced_frame, "Pausar tras (envíos):", self.pause_sends_count, None, 1)
+        self.create_setting(self.time_advanced_frame, "Duración Pausa (seg):", self.pause_sends_delay_min, self.pause_sends_delay_max, 2)
 
         self.time_advanced_visible = False
         self.time_advanced_frame.grid_remove()
@@ -1497,7 +1500,8 @@ class Hermes:
         self.sms_time_advanced_frame = ctk.CTkFrame(sms_time_card, fg_color="transparent")
         self.sms_time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
         self.create_setting(self.sms_time_advanced_frame, "Espera Abrir (seg):", self.wait_after_open, None, 0)
-        self.create_setting(self.sms_time_advanced_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 1)
+        self.create_setting(self.sms_time_advanced_frame, "Pausar tras (envíos):", self.pause_sends_count, None, 1)
+        self.create_setting(self.sms_time_advanced_frame, "Duración Pausa (seg):", self.pause_sends_delay_min, self.pause_sends_delay_max, 2)
 
         self.sms_time_advanced_visible = False
         self.sms_time_advanced_frame.grid_remove()
@@ -3703,6 +3707,21 @@ class Hermes:
             # Siempre reestablecer la UI
             self.root.after(100, self._finalize_sending)
     
+    def _maybe_pause_sending(self, task_index):
+        """Checks if a pause is needed based on the task index and configured settings."""
+        pause_count = self.pause_sends_count.get()
+        if pause_count <= 0:
+            return
+
+        # Check if the current task index is a multiple of the pause count
+        if task_index > 0 and task_index % pause_count == 0:
+            delay_min = self.pause_sends_delay_min.get()
+            delay_max = self.pause_sends_delay_max.get()
+            pause_duration = random.uniform(delay_min, delay_max)
+
+            self.log(f"Pausa programada alcanzada. Esperando {pause_duration:.1f} segundos...", 'info')
+            self._controlled_sleep(pause_duration)
+
     def run_single_task(self, device, link, message_to_send, task_index, whatsapp_package="com.whatsapp.w4b", link_index=None, activity_info=None):
         """
         Ejecuta una única tarea de envío (abrir link, enviar, esperar), gestionando la conexión de uiautomator2.
@@ -3821,6 +3840,9 @@ class Hermes:
             device = self.devices[idx]
             idx = (idx + 1) % len(self.devices)
 
+            # Check for pause before running the task
+            self._maybe_pause_sending(i)
+
             # Ejecutar tarea con el paquete de WA especificado
             self.run_single_task(device, link, None, i + 1, whatsapp_package=whatsapp_package, link_index=i)
 
@@ -3846,6 +3868,9 @@ class Hermes:
                 break
             
             self.last_task_time = time.time()
+
+            # Check for pause before running the task
+            self._maybe_pause_sending(i)
 
             # Seleccionar la combinación de envío (dispositivo + cuenta)
             combination = envio_combinations[i % num_combinations]
@@ -3880,6 +3905,9 @@ class Hermes:
                 break
 
             self.last_task_time = time.time()
+
+            # Check for pause before running the task
+            self._maybe_pause_sending(i)
 
             # Seleccionar la combinación de envío (dispositivo + cuenta)
             combination = envio_combinations[i % num_combinations]
