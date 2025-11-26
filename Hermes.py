@@ -5654,13 +5654,6 @@ class Hermes:
                         msg_to_send = None
 
                 try:
-                    if self._maybe_send_audio(
-                        ui_device, device, i, whatsapp_package=active_package, pre_send=True
-                    ):
-                        self.log(f"✓ Nota de voz a {num_display} enviada.", 'success')
-                        self._controlled_sleep(1.5)
-                        return True, False
-
                     needs_text_input = is_group or local_is_sms
                     if needs_text_input and msg_to_send is not None:
                         # Usar el chat_field ya encontrado
@@ -5668,22 +5661,6 @@ class Hermes:
 
                     # Usar el send_button ya encontrado
                     send_button.click()
-                    self._controlled_sleep(0.25)
-
-                    # --- INICIO DEL CAMBIO: Clic de confirmación ---
-                    # En todos los casos (excepto SMS que a veces no lo necesita), un segundo clic
-                    # ayuda a confirmar el envío en dispositivos lentos.
-                    if not local_is_sms:
-                        try:
-                            # Volver a hacer clic en el mismo objeto de botón que ya tenemos
-                            send_button.click()
-                        except Exception as e:
-                            # Si el botón desaparece (lo cual es normal si el envío es instantáneo),
-                            # este error es esperado y no indica un fallo.
-                            self.log(f"Segundo clic no fue necesario (el botón desapareció, lo cual es normal): {e}", 'info')
-                            pass
-                    # --- FIN DEL CAMBIO ---
-
                     self._controlled_sleep(1.0)
 
                     if self._detect_send_failure(ui_device):
@@ -5692,9 +5669,6 @@ class Hermes:
 
                     self.log(f"✓ Mensaje a {num_display} enviado.", 'success')
                     self._controlled_sleep(0.6)
-                    self._maybe_send_audio(
-                        ui_device, device, i, whatsapp_package=active_package, pre_send=False
-                    )
                     return True, False
 
                 except Exception as e:
