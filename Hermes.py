@@ -995,64 +995,78 @@ class Hermes:
         self.views_container = ctk.CTkFrame(parent, fg_color="transparent")
         self.views_container.pack(fill=tk.X, expand=False, anchor="n")
 
-        # --- Vista Tradicional ---
-        self.traditional_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
-        self.setup_traditional_view(self.traditional_view_frame)
-
-        # --- Vista Fidelizado (inicialmente vacía) ---
-        self.fidelizado_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
-        self.setup_fidelizado_view(self.fidelizado_view_frame) # <-- LLAMAR AL MÉTODO DE CONSTRUCCIÓN
-
-        # --- Vista SMS ---
-        self.sms_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
-        self.setup_sms_view(self.sms_view_frame)
-
-        # Mostrar la vista tradicional por defecto
-        self.show_traditional_view()
+        # Las vistas ahora se inicializan bajo demanda (lazy loading)
+        self.traditional_view_frame = None
+        self.fidelizado_view_frame = None
+        self.sms_view_frame = None
 
     def show_traditional_view(self):
-        """Guarda el estado de la vista Fidelizado y muestra la tradicional."""
-        # Guardar datos de los textboxes para persistencia
-        if hasattr(self, 'fidelizado_groups_text'): # Comprobar si los widgets existen
+        """Muestra la vista tradicional, creándola si es la primera vez."""
+        # Guardar datos de los textboxes para persistencia (si la vista Fidelizado ya existe)
+        if self.fidelizado_view_frame and hasattr(self, 'fidelizado_groups_text'):
             self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
-        if hasattr(self, 'fidelizado_numbers_text'):
+        if self.fidelizado_view_frame and hasattr(self, 'fidelizado_numbers_text'):
             self.manual_inputs_numbers = [line.strip() for line in self.fidelizado_numbers_text.get("1.0", tk.END).splitlines() if line.strip()]
-            # Los mensajes se gestionan al cargar el archivo, no se guardan desde un widget.
-            # Asumir que los mensajes de grupo son los mismos
             self.manual_messages_groups = self.manual_messages_numbers
 
         self.sms_mode_active = False
-        self.fidelizado_view_frame.pack_forget()
-        self.sms_view_frame.pack_forget()
+        if self.fidelizado_view_frame:
+            self.fidelizado_view_frame.pack_forget()
+        if self.sms_view_frame:
+            self.sms_view_frame.pack_forget()
+
+        # Crear la vista si no existe
+        if self.traditional_view_frame is None:
+            self.traditional_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+            self.setup_traditional_view(self.traditional_view_frame)
+
         self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
         self.set_activity_table_enabled(False)
 
     def show_fidelizado_view(self):
-        """Muestra la vista de Fidelizado, repoblando los datos, y oculta las demás."""
-        self._populate_fidelizado_inputs() # Repoblar datos al mostrar la vista
+        """Muestra la vista de Fidelizado, creándola si es la primera vez."""
         self.sms_mode_active = False
-        self.traditional_view_frame.pack_forget()
-        self.sms_view_frame.pack_forget()
+        if self.traditional_view_frame:
+            self.traditional_view_frame.pack_forget()
+        if self.sms_view_frame:
+            self.sms_view_frame.pack_forget()
+
+        # Crear la vista si no existe
+        if self.fidelizado_view_frame is None:
+            self.fidelizado_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+            self.setup_fidelizado_view(self.fidelizado_view_frame)
+
+        self._populate_fidelizado_inputs() # Repoblar datos al mostrar la vista
         self.fidelizado_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(True)
         self.set_activity_table_enabled(self.fidelizado_mode == "NUMEROS")
 
     def show_sms_view(self):
-        """Activa la vista de envío por SMS."""
+        """Activa la vista de envío por SMS, creándola si es la primera vez."""
         self.sms_mode_active = True
         self.manual_mode = False
         self.fidelizado_mode = None
+
         if self.links and not all(link.lower().startswith("sms:") for link in self.links):
             self.links = []
             self.link_retry_map = {}
             self.total_messages = 0
             self.update_stats()
             self.log("SMS activo: limpia enlaces previos para evitar envíos erróneos.", 'warning')
-        self.traditional_view_frame.pack_forget()
-        self.fidelizado_view_frame.pack_forget()
+
+        if self.traditional_view_frame:
+            self.traditional_view_frame.pack_forget()
+        if self.fidelizado_view_frame:
+            self.fidelizado_view_frame.pack_forget()
+
+        # Crear la vista si no existe
+        if self.sms_view_frame is None:
+            self.sms_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+            self.setup_sms_view(self.sms_view_frame)
+
         self.sms_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
