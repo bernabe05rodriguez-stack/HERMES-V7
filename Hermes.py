@@ -325,8 +325,8 @@ class Hermes:
 
         # Variables de estado
         self.adb_path = tk.StringVar(value="")
-        self.delay_min = SafeIntVar(value=3)
-        self.delay_max = SafeIntVar(value=5)
+        self.delay_min = SafeIntVar(value=10)
+        self.delay_max = SafeIntVar(value=10)
         self.wait_after_open = SafeIntVar(value=7)
         self.pause_sends_count = SafeIntVar(value=0)
         self.pause_sends_delay_min = SafeIntVar(value=30)
