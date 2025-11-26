@@ -5128,37 +5128,40 @@ class Hermes:
         self._unblock_ui_from_task()  # Desbloquear UI
         self.is_running = False
 
-        # -- Vista Tradicional --
-        self.btn_start.configure(state=tk.NORMAL)
-        self.btn_load.configure(state=tk.NORMAL)
-        if self.fidelizado_unlock_btn:
-            self.fidelizado_unlock_btn.configure(state=tk.NORMAL)
-        self.btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
-        self.btn_stop.configure(state=tk.DISABLED)
-
-        # -- Vista Fidelizado --
-        if hasattr(self, 'fidelizado_btn_start'):
-            # Ocultar botones de control, mostrar los de inicio
-            self.control_buttons_frame.pack_forget()
-            self.actions_frame.pack(fill=tk.X, pady=(5, 0))
-
-            # Configurar estado de botones
-            self.fidelizado_btn_start.configure(state=tk.NORMAL)
-            self.unirse_grupos_btn.configure(state=tk.NORMAL)
-            self.fidelizado_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
-            self.fidelizado_btn_stop.configure(state=tk.DISABLED)
-            if hasattr(self, 'back_to_traditional_btn'):
-                self.back_to_traditional_btn.configure(state=tk.NORMAL)
-
-        # -- Vista SMS --
-        if hasattr(self, 'sms_btn_start'):
-            self.sms_btn_start.configure(state=tk.NORMAL)
+        if self.sms_mode_active:
+            # -- Vista SMS --
+            if hasattr(self, 'sms_btn_start'):
+                self.sms_btn_start.configure(state=tk.NORMAL)
             if hasattr(self, 'sms_btn_load'):
                 self.sms_btn_load.configure(state=tk.NORMAL)
-            self.sms_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
-            self.sms_btn_stop.configure(state=tk.DISABLED)
+            if hasattr(self, 'sms_btn_pause'):
+                self.sms_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
+            if hasattr(self, 'sms_btn_stop'):
+                self.sms_btn_stop.configure(state=tk.DISABLED)
             if hasattr(self, 'sms_back_btn'):
                 self.sms_back_btn.configure(state=tk.NORMAL)
+        else:
+            # -- Vista Tradicional --
+            self.btn_start.configure(state=tk.NORMAL)
+            self.btn_load.configure(state=tk.NORMAL)
+            if self.fidelizado_unlock_btn:
+                self.fidelizado_unlock_btn.configure(state=tk.NORMAL)
+            self.btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
+            self.btn_stop.configure(state=tk.DISABLED)
+
+            # -- Vista Fidelizado --
+            if hasattr(self, 'fidelizado_btn_start'):
+                # Ocultar botones de control, mostrar los de inicio
+                self.control_buttons_frame.pack_forget()
+                self.actions_frame.pack(fill=tk.X, pady=(5, 0))
+
+                # Configurar estado de botones
+                self.fidelizado_btn_start.configure(state=tk.NORMAL)
+                self.unirse_grupos_btn.configure(state=tk.NORMAL)
+                self.fidelizado_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
+                self.fidelizado_btn_stop.configure(state=tk.DISABLED)
+                if hasattr(self, 'back_to_traditional_btn'):
+                    self.back_to_traditional_btn.configure(state=tk.NORMAL)
 
     def _enter_task_mode(self):
         """Configura la UI para un estado de 'tarea en ejecución'."""
@@ -5171,36 +5174,39 @@ class Hermes:
         self.start_time = datetime.now()
 
         # Actualizar UI
-        # -- Vista Tradicional --
-        self.btn_start.configure(state=tk.DISABLED)
-        self.btn_load.configure(state=tk.DISABLED)
-        if self.fidelizado_unlock_btn:
-            self.fidelizado_unlock_btn.configure(state=tk.DISABLED)
-        self.btn_pause.configure(state=tk.NORMAL)
-        self.btn_stop.configure(state=tk.NORMAL)
-
-        # -- Vista Fidelizado --
-        if hasattr(self, 'fidelizado_btn_start'):
-            # Ocultar botones de inicio, mostrar los de control
-            self.actions_frame.pack_forget()
-            self.control_buttons_frame.pack(fill=tk.X, pady=(5, 0))
-
-            # Configurar estado de botones
-            self.fidelizado_btn_start.configure(state=tk.DISABLED)
-            self.unirse_grupos_btn.configure(state=tk.DISABLED)
-            self.fidelizado_btn_pause.configure(state=tk.NORMAL)
-            self.fidelizado_btn_stop.configure(state=tk.NORMAL)
-            if hasattr(self, 'back_to_traditional_btn'):
-                self.back_to_traditional_btn.configure(state=tk.DISABLED)
-
-        if self.sms_mode_active and hasattr(self, 'sms_btn_start'):
-            self.sms_btn_start.configure(state=tk.DISABLED)
+        if self.sms_mode_active:
+            if hasattr(self, 'sms_btn_start'):
+                self.sms_btn_start.configure(state=tk.DISABLED)
             if hasattr(self, 'sms_btn_load'):
                 self.sms_btn_load.configure(state=tk.DISABLED)
-            self.sms_btn_pause.configure(state=tk.NORMAL)
-            self.sms_btn_stop.configure(state=tk.NORMAL)
+            if hasattr(self, 'sms_btn_pause'):
+                self.sms_btn_pause.configure(state=tk.NORMAL)
+            if hasattr(self, 'sms_btn_stop'):
+                self.sms_btn_stop.configure(state=tk.NORMAL)
             if hasattr(self, 'sms_back_btn'):
                 self.sms_back_btn.configure(state=tk.DISABLED)
+        else:
+            # -- Vista Tradicional --
+            self.btn_start.configure(state=tk.DISABLED)
+            self.btn_load.configure(state=tk.DISABLED)
+            if self.fidelizado_unlock_btn:
+                self.fidelizado_unlock_btn.configure(state=tk.DISABLED)
+            self.btn_pause.configure(state=tk.NORMAL)
+            self.btn_stop.configure(state=tk.NORMAL)
+
+            # -- Vista Fidelizado --
+            if hasattr(self, 'fidelizado_btn_start'):
+                # Ocultar botones de inicio, mostrar los de control
+                self.actions_frame.pack_forget()
+                self.control_buttons_frame.pack(fill=tk.X, pady=(5, 0))
+
+                # Configurar estado de botones
+                self.fidelizado_btn_start.configure(state=tk.DISABLED)
+                self.unirse_grupos_btn.configure(state=tk.DISABLED)
+                self.fidelizado_btn_pause.configure(state=tk.NORMAL)
+                self.fidelizado_btn_stop.configure(state=tk.NORMAL)
+                if hasattr(self, 'back_to_traditional_btn'):
+                    self.back_to_traditional_btn.configure(state=tk.DISABLED)
 
         self._block_ui_for_task()  # Bloquear interacciones
 
