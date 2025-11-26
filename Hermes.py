@@ -1606,7 +1606,8 @@ class Hermes:
         self.stats_frame = stats
         self.create_stat(stats, "Total", "0", self.colors['blue'], 0)
         self.create_stat(stats, "Enviados", "0", self.colors['green'], 1)
-        self.create_stat(stats, "Progreso", "0%", self.colors['orange'], 2)
+        self.create_stat(stats, "Fallidos", "0", self.colors['log_error'], 2)
+        self.create_stat(stats, "Progreso", "0%", self.colors['orange'], 3)
 
         self.progress_label = ctk.CTkLabel(sc, text="--/--", font=self.fonts['progress_value'], fg_color="transparent", text_color=self.colors['text'])
         self.progress_label.pack(anchor='w', pady=(0, 10), padx=25)
@@ -1618,11 +1619,14 @@ class Hermes:
         self.progress_bar = ctk.CTkFrame(bbg, fg_color=self.colors['green'], height=8, corner_radius=4)
         self.progress_bar.place(x=0, y=0, relwidth=0, relheight=1)
 
-        # Tiempos
-        self.time_elapsed = ctk.CTkLabel(sc, text="Transcurrido: --:--:--", font=('Inter', 14), fg_color="transparent", text_color=self.colors['text'])
-        self.time_elapsed.pack(anchor='w', pady=2, padx=25)
-        self.time_remaining = ctk.CTkLabel(sc, text="Restante: --:--:--", font=('Inter', 14), fg_color="transparent", text_color=self.colors['text'])
-        self.time_remaining.pack(anchor='w', pady=2, padx=25)
+        # Tiempos (ahora en una fila)
+        time_frame = ctk.CTkFrame(sc, fg_color="transparent")
+        time_frame.pack(fill=tk.X, padx=25, pady=(0, 5))
+        self.time_elapsed = ctk.CTkLabel(time_frame, text="Trans: --:--:--", font=('Inter', 14), fg_color="transparent", text_color=self.colors['text'])
+        self.time_elapsed.pack(side=tk.LEFT, expand=True, anchor='w')
+        self.time_remaining = ctk.CTkLabel(time_frame, text="Rest: --:--:--", font=('Inter', 14), fg_color="transparent", text_color=self.colors['text'])
+        self.time_remaining.pack(side=tk.LEFT, expand=True, anchor='e')
+
 
         # Estadística de mensajes por WhatsApp
         self.stat_per_whatsapp = ctk.CTkLabel(sc, text="Mensajes por WhatsApp: --", font=('Inter', 14), fg_color="transparent", text_color=self.colors['text'])
@@ -1900,6 +1904,7 @@ class Hermes:
 
         if label == "Total": self.stat_total = vl
         elif label == "Enviados": self.stat_sent = vl
+        elif label == "Fallidos": self.stat_failed = vl
         elif label == "Progreso": self.stat_progress = vl
 
     def _create_spinbox_widget(self, parent, textvariable, min_val=0, max_val=999, step=1):
@@ -2175,6 +2180,8 @@ class Hermes:
 
         self.stat_total.configure(text=str(effective_total))
         self.stat_sent.configure(text=str(self.sent_count))
+        if hasattr(self, 'stat_failed'):
+            self.stat_failed.configure(text=str(self.failed_count))
 
         if effective_total > 0:
             # Usar sent_count en lugar de current_index para el %
