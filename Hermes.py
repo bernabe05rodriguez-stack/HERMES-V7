@@ -1775,18 +1775,25 @@ class Hermes:
                 count_part, rest = msg_part.split('→', 1)
                 target = rest.split('[')[0].strip()
                 count = count_part.strip().replace('(', '').replace(')', '')
-                if "(Grupo)" in count: count = count.replace("(Grupo)", "").strip()
-                if "(Número)" in count: count = count.replace("(Número)", "").strip()
+                # Limpiar texto residual del log original
+                if "(Grupo)" in target: target = target.replace("(Grupo)", "").strip()
+                if "(Número)" in target: target = target.replace("(Número)", "").strip()
 
                 formatted_count = f"Envío {count}"
-                return f"{ts_part} {formatted_count} {icon_part} {target}"
+                # Aquí se determina el ícono correcto basado en el tag del log original
+                final_icon = "✓" if tag == 'success' else "✗"
+                return f"{ts_part} {formatted_count} {final_icon} {target}"
+
+            # Ocultar razones de fallo indentadas en la vista simple
+            if msg_part.strip().startswith("└─"):
+                return None
 
             keywords_to_keep = [
                 "HΞЯMΞS V1", "Sigue los pasos", "ADB detectado", "dispositivo(s) encontrado(s)",
                 "No se encontraron dispositivos", "Selecciona el archivo", "filas leídas",
                 "mensajes generados y listos", "Archivo procesado guardado", "INICIANDO ENVÍO",
                 "ENVÍO FINALIZADO", "Cancelado", "Pausado", "Reanudado", "Resumen:", "Bucle",
-                "Ciclo", "Repetición", "Error"
+                "Ciclo", "Repetición", "Error", "Pausa de"
             ]
             if any(keyword.lower() in msg_part.lower() for keyword in keywords_to_keep):
                 return full_msg
@@ -5793,14 +5800,15 @@ class Hermes:
                 local_is_sms = current_link.lower().startswith("sms:")
                 num_display = describe_link(current_link)
                 intento = "Principal" if attempt_idx == 0 else f"Alternativo {attempt_idx}"
-                self.log(f"({i}/{total}) → {num_display} [en {device}] ({intento})", 'info')
+                log_prefix = f"({i}/{total}) → {num_display} [en {device}] ({intento})"
 
-                self.log(f"Abriendo WhatsApp en {device} con ADB...", 'info')
+                # self.log(f"Abriendo WhatsApp en {device} con ADB...", 'info') # LOG ELIMINADO
                 open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{current_link}"']
                 if whatsapp_package and not local_is_sms:
                     open_args.extend(['-p', whatsapp_package])
                 if not self._run_adb_command(open_args, timeout=20):
-                    self.log(f"✗ No se pudo abrir el chat con {num_display}.", 'error')
+                    self.log(log_prefix, 'error')
+                    self.log(f"  └─ Motivo: No se pudo abrir el chat.", 'error')
                     return False, False
 
                 active_package = None if local_is_sms else whatsapp_package
@@ -5814,7 +5822,8 @@ class Hermes:
                 )
 
                 if not chat_field or not send_button:
-                    # El error específico ya fue registrado por _wait_for_chat_ready
+                    self.log(log_prefix, 'error')
+                    self.log(f"  └─ Motivo: El chat no estuvo listo para enviar (timeout).", 'error')
                     return False, False
                 if self.should_stop:
                     return False, False
@@ -5849,15 +5858,17 @@ class Hermes:
                     self._controlled_sleep(1.0)
 
                     if self._detect_send_failure(ui_device):
-                        self.log("✗ WhatsApp reportó un fallo de envío (mensaje 'No se envió').", 'error')
+                        self.log(log_prefix, 'error')
+                        self.log(f"  └─ Motivo: WhatsApp reportó un fallo de envío (mensaje 'No se envió').", 'error')
                         return False, True
 
-                    self.log(f"✓ Mensaje a {num_display} enviado.", 'success')
+                    self.log(log_prefix, 'success')
                     self._controlled_sleep(0.6)
                     return True, False
 
                 except Exception as e:
-                    self.log(f"✗ Error inesperado al intentar enviar: {e}", 'error')
+                    self.log(log_prefix, 'error')
+                    self.log(f"  └─ Motivo: Error inesperado ({e}).", 'error')
                     return False, False
 
             for attempt_idx, current_link in enumerate(attempt_links):
