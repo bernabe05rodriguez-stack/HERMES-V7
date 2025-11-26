@@ -3815,7 +3815,7 @@ class Hermes:
         dialog.transient(self.root); dialog.grab_set(); dialog.attributes('-topmost', True)
         dialog.resizable(False, False)
 
-        width, height = 400, 200
+        width, height = 450, 220
         self.root.update_idletasks()
         root_x, root_y = self.root.winfo_x(), self.root.winfo_y()
         root_w, root_h = self.root.winfo_width(), self.root.winfo_height()
@@ -3844,7 +3844,7 @@ class Hermes:
                      text=message,
                      font=self.fonts['dialog_text'],
                      text_color=self.colors['text'],
-                     wraplength=300).pack()
+                     wraplength=400).pack()
 
         def close_dialog(e=None):
             dialog.grab_release()
