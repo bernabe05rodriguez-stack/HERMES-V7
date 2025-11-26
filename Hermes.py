@@ -405,6 +405,10 @@ class Hermes:
         # Estado de widgets bloqueados
         self._blocked_widgets_state = {}
 
+        # Variables para la vista del log
+        self.log_detailed_view = False # False = simple, True = detallado
+        self.log_history = [] # Almacena tuplas de (full_message, tag)
+
         # Variables de tiempo para Modo Grupos Dual
         self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
         self.wait_after_first_enter = SafeIntVar(value=2)  # Tiempo de espera tras el primer Enter
@@ -1636,7 +1640,15 @@ class Hermes:
         self.log_card_header = ltf
         self.log_card_header_padding = {'padx': 25, 'pady': (25, 15)}
         ctk.CTkLabel(ltf, text="▶", font=('Inter', 14), fg_color="transparent", text_color=self.colors['log_info']).pack(side=tk.LEFT, padx=(0, 8))
-        ctk.CTkLabel(ltf, text="Registro de actividad", font=self.fonts['log_title'], fg_color="transparent", text_color=self.colors['log_title_color']).pack(side=tk.LEFT)
+        ctk.CTkLabel(ltf, text="Registro de actividad", font=self.fonts['log_title'], fg_color="transparent", text_color=self.colors['log_title_color']).pack(side=tk.LEFT, padx=(0, 5))
+
+        self.log_verbosity_btn = ctk.CTkButton(
+            ltf, text="👁️", command=self.toggle_log_verbosity,
+            font=('Inter', 20), fg_color="transparent", hover_color=self.colors['bg_log'],
+            width=30, height=30, corner_radius=15
+        )
+        self.log_verbosity_btn.pack(side=tk.LEFT, padx=(0, 10))
+
         self.toggle_log_view_btn = ctk.CTkButton(
             ltf,
             text="Tabla",
@@ -1713,6 +1725,75 @@ class Hermes:
         if hasattr(self, 'activity_table'):
             self.activity_table.configure(style="Activity.Treeview")
 
+    def toggle_log_verbosity(self):
+        """Alterna entre la vista de log simple y detallada."""
+        self.log_detailed_view = not self.log_detailed_view
+        new_icon = "🗣️" if self.log_detailed_view else "👁️"
+        self.log_verbosity_btn.configure(text=new_icon)
+        self._redraw_log()
+
+    def _redraw_log(self):
+        """Limpia y vuelve a dibujar el contenido del log desde el historial."""
+        try:
+            self.log_text.configure(state=tk.NORMAL)
+            self.log_text.delete("1.0", tk.END)
+
+            is_first_line = True
+            for i, (full_msg, tag) in enumerate(self.log_history):
+                display_msg = self._format_log_message(full_msg, tag)
+                if display_msg is None:
+                    continue
+
+                # Heurística para añadir espacio antes de mensajes importantes
+                add_space_before = False
+                keywords_for_space = ["INICIANDO ENVÍO", "ENVÍO FINALIZADO", "--- BUCLE", "Procesando...", "Cancelado", "Resumen:"]
+                if any(keyword in display_msg for keyword in keywords_for_space):
+                    add_space_before = True
+
+                if not is_first_line and add_space_before:
+                    self.log_text.insert(tk.END, "\n")
+
+                self.log_text.insert(tk.END, display_msg + "\n", tag)
+                is_first_line = False
+
+            self.log_text.configure(state=tk.DISABLED)
+            self.log_text.see(tk.END)
+        except tk.TclError:
+            pass
+
+    def _format_log_message(self, full_msg, tag):
+        """Formatea un mensaje de log para la vista simple o detallada."""
+        if self.log_detailed_view:
+            return full_msg
+
+        try:
+            parts = full_msg.split(" ", 2)
+            if len(parts) < 3: return full_msg
+            ts_part, icon_part, msg_part = parts
+
+            if "→" in msg_part and "Usando" not in msg_part:
+                count_part, rest = msg_part.split('→', 1)
+                target = rest.split('[')[0].strip()
+                count = count_part.strip().replace('(', '').replace(')', '')
+                if "(Grupo)" in count: count = count.replace("(Grupo)", "").strip()
+                if "(Número)" in count: count = count.replace("(Número)", "").strip()
+
+                formatted_count = f"Envío {count}"
+                return f"{ts_part} {formatted_count} {icon_part} {target}"
+
+            keywords_to_keep = [
+                "HΞЯMΞS V1", "Sigue los pasos", "ADB detectado", "dispositivo(s) encontrado(s)",
+                "No se encontraron dispositivos", "Selecciona el archivo", "filas leídas",
+                "mensajes generados y listos", "Archivo procesado guardado", "INICIANDO ENVÍO",
+                "ENVÍO FINALIZADO", "Cancelado", "Pausado", "Reanudado", "Resumen:", "Bucle",
+                "Ciclo", "Repetición", "Error"
+            ]
+            if any(keyword.lower() in msg_part.lower() for keyword in keywords_to_keep):
+                return full_msg
+
+            return None
+        except Exception:
+            return full_msg
     def toggle_log_view(self):
         """Alterna entre el registro tradicional y la tabla de actividad."""
         if self.log_view_mode == "table":
@@ -2044,13 +2125,32 @@ class Hermes:
                 return # Ocultar stdout y tracebacks genéricos
 
         try:
+            full_line = f"{ts} {icon} {msg}"
+            self.log_history.append((full_line, tag))
+
+            # Formatear solo el mensaje nuevo
+            display_msg = self._format_log_message(full_line, tag)
+            if display_msg is None:
+                # El mensaje debe ocultarse en la vista simple, no hacer nada
+                return
+
             self.log_text.configure(state=tk.NORMAL)
-            if add_space_before:
-                if self.log_text.index("end-1c") != "1.0": # No añadir espacio si es la primera línea
-                     self.log_text.insert(tk.END, "\n")
-            self.log_text.insert(tk.END, f"{ts} {icon} {msg}\n", tag)
+
+            # Heurística para añadir espacio antes de mensajes importantes
+            add_space_before = False
+            keywords_for_space = ["INICIANDO ENVÍO", "ENVÍO FINALIZADO", "--- BUCLE", "Procesando...", "Cancelado", "Resumen:"]
+            if any(keyword in display_msg for keyword in keywords_for_space):
+                add_space_before = True
+
+            # No añadir espacio si es la primera línea del log
+            is_empty = self.log_text.index("end-1c") == "1.0"
+            if not is_empty and add_space_before:
+                self.log_text.insert(tk.END, "\n")
+
+            self.log_text.insert(tk.END, display_msg + "\n", tag)
             self.log_text.configure(state=tk.DISABLED)
             self.log_text.see(tk.END)
+
             self.root.update_idletasks()
         except tk.TclError:
             # Evita crash si la ventana se está cerrando
@@ -2195,36 +2295,24 @@ class Hermes:
             self.stat_per_whatsapp.configure(text="Mensajes por WhatsApp: --")
             return
 
+        total_messages = len(self.links)
         mode = self.traditional_send_mode.get()
-        base_links = len(self.links)
-        stat_text = "--"
 
-        if mode == "Business":
-            per_account = base_links / num_devices
-            stat_text = f"~{round(per_account)} (Business)"
-        elif mode == "Normal":
-            per_account = base_links / num_devices
-            stat_text = f"~{round(per_account)} (Normal)"
-        elif mode == "Business/Normal":
-            # Total messages are split between Business and Normal
-            b_total = (base_links + 1) // 2
-            n_total = base_links // 2
-            # Then distributed among devices
-            b_per_account = b_total / num_devices
-            n_per_account = n_total / num_devices
-            stat_text = f"~{round(b_per_account)} (B) / ~{round(n_per_account)} (N)"
+        # Determinar cuántas cuentas de WhatsApp se usan por dispositivo
+        multiplier = 1
+        if mode == "Business/Normal":
+            multiplier = 2
         elif mode == "Business/Normal 1/Normal 2":
-            # Total messages are split among B, N1, N2
-            b_total = (base_links + 2) // 3
-            n1_total = (base_links + 1) // 3
-            n2_total = base_links - b_total - n1_total
-            # Then distributed among devices
-            b_per_account = b_total / num_devices
-            n1_per_account = n1_total / num_devices
-            n2_per_account = n2_total / num_devices
-            stat_text = f"~{round(b_per_account)}(B), ~{round(n1_per_account)}(N1), ~{round(n2_per_account)}(N2)"
+            multiplier = 3
 
-        self.stat_per_whatsapp.configure(text=f"Mensajes por WhatsApp: {stat_text}")
+        total_whatsapps = num_devices * multiplier
+
+        if total_whatsapps > 0:
+            # Usar math.ceil para redondear hacia arriba
+            messages_per_whatsapp = math.ceil(total_messages / total_whatsapps)
+            self.stat_per_whatsapp.configure(text=f"Mensajes por WhatsApp: ~{messages_per_whatsapp}")
+        else:
+            self.stat_per_whatsapp.configure(text="Mensajes por WhatsApp: --")
 
     def auto_detect_adb(self):
         """Busca adb.exe en las carpetas comunes del proyecto."""
