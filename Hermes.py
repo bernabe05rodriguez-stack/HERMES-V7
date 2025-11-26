@@ -5353,39 +5353,47 @@ class Hermes:
             return None, None
 
         deadline = time.time() + max(0, wait_time)
-        poll_interval = 0.2  # Reducir intervalo para una detección más rápida
-
+        poll_interval = 0.2  # Intervalo de sondeo rápido
         chat_field = None
         send_button = None
+        deadline_extended = False  # Flag para asegurar que solo extendemos el tiempo una vez
 
         while not self.should_stop:
-            # Si ya encontramos ambos elementos, no es necesario seguir buscando.
+            # Si ya encontramos ambos elementos, el trabajo está hecho.
             if chat_field and send_button:
                 break
 
-            # Buscar campo de texto si aún no se ha encontrado
+            # Buscar el campo de texto si aún no lo tenemos
             if not chat_field:
                 chat_field = self._locate_chat_field(ui_device, wait_timeout=poll_interval)
 
-            # Buscar botón de envío si aún no se ha encontrado
+            # Buscar el botón de envío si aún no lo tenemos
             if not send_button:
                 button = self._locate_message_send_button(
-                    ui_device,
-                    is_sms=is_sms,
-                    wait_timeout=poll_interval,
+                    ui_device, is_sms=is_sms, wait_timeout=poll_interval
                 )
                 if button:
                     send_button = button
 
-            # Salir si el tiempo se ha agotado
+            # Comprobar si hemos superado el tiempo de espera
             if time.time() > deadline:
+                # LÓGICA DE ESPERA INTELIGENTE:
+                # Si hemos encontrado solo uno de los dos elementos y aún no hemos extendido
+                # el tiempo, lo extendemos unos segundos más para darle una oportunidad.
+                if (chat_field or send_button) and not deadline_extended:
+                    self.log("✓ Se encontró un elemento del chat, extendiendo la espera 4s...", 'info')
+                    deadline += 4  # Extender por 4 segundos
+                    deadline_extended = True
+                    continue  # Saltar al siguiente ciclo con el nuevo tiempo límite
+
+                # Si no se encontró nada o si ya extendimos el tiempo, nos rendimos.
                 break
 
-            # Evitar un controlled_sleep si ya hemos encontrado todo en el primer intento
+            # Si aún no hemos encontrado ambos, esperamos un poco antes de volver a intentar
             if not (chat_field and send_button):
-                 self._controlled_sleep(poll_interval)
+                self._controlled_sleep(poll_interval)
 
-        # Evaluar el resultado final
+        # Evaluar el resultado final (sin cambios aquí)
         if chat_field and send_button:
             self.log("✓ Conversación lista (campo y botón encontrados).", 'success')
             return chat_field, send_button
