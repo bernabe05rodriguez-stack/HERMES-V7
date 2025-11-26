@@ -410,6 +410,7 @@ class Hermes:
         self.log_history = [] # Almacena tuplas de (full_message, tag)
 
         # Variables de tiempo para Modo Grupos Dual
+        self.report_data = []
         self.wait_after_write = SafeIntVar(value=2)  # Tiempo después de escribir antes del primer Enter
         self.wait_after_first_enter = SafeIntVar(value=2)  # Tiempo de espera tras el primer Enter
         self.wait_between_enters = SafeIntVar(value=3)  # Tiempo de espera tras presionar Enter
@@ -3575,6 +3576,20 @@ class Hermes:
             messagebox.showerror("Error", f"Error al guardar el archivo:\n{e}", parent=self.root)
             self.root.attributes('-topmost', False); self.root.focus_force()
 
+    def _get_phone_from_link(self, link):
+        """Extrae un número de teléfono de un link wa.me o sms:."""
+        if not isinstance(link, str):
+            return None
+        try:
+            clean_link = link.strip()
+            if "wa.me/" in clean_link:
+                return clean_link.split("wa.me/")[1].split("?")[0]
+            elif clean_link.lower().startswith("sms:"):
+                return clean_link.split(":")[1].split("?")[0]
+        except (IndexError, AttributeError):
+            pass
+        return None
+
     # --- Lógica de Envío (Threading y ADB) ---
 
     # --- INICIO MODIFICACIÓN: start_sending (Modo Bucles Blast V2) ---
@@ -3660,6 +3675,7 @@ class Hermes:
         if not messagebox.askyesno("Confirmar Envío", f"¿Estás seguro de que deseas iniciar el envío de {self.total_messages} mensajes?", parent=self.root):
             return
 
+        self.report_data = [] # Limpiar datos para el nuevo reporte
         
         # Calcular total_messages para modo tradicional según Simple/Doble/Triple
         if not self.manual_mode and not self.sms_mode_active:
@@ -3719,6 +3735,65 @@ class Hermes:
             self.should_stop = True
             self.log("Cancelando...", 'warning')
 
+    def _generate_report(self):
+        """Genera y guarda un reporte Excel con los resultados del envío."""
+        if not self.report_data:
+            messagebox.showinfo("Sin Datos", "No hay datos de envío para generar un reporte.", parent=self.root)
+            return
+
+        try:
+            # Sugerir nombre de archivo
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            default_filename = f"Reporte Hermes - {today_str}.xlsx"
+
+            filepath = filedialog.asksaveasfilename(
+                title="Guardar Reporte de Envío",
+                defaultextension=".xlsx",
+                filetypes=[("Excel Files", "*.xlsx")],
+                initialfile=default_filename,
+                parent=self.root
+            )
+
+            if not filepath:
+                self.log("Guardado de reporte cancelado por el usuario.", 'info')
+                return
+
+            # Crear el libro de trabajo y la hoja
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Resultados de Envío"
+
+            # Escribir encabezados
+            ws['A1'] = "Numeros"
+            ws['B1'] = "Estado"
+
+            # Escribir datos
+            for index, record in enumerate(self.report_data, start=2):
+                ws[f'A{index}'] = record.get('number', 'N/A')
+                ws[f'B{index}'] = record.get('status', 'Desconocido')
+
+            # Auto-ajustar ancho de columnas
+            for col in ws.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(cell.value)
+                    except:
+                        pass
+                adjusted_width = (max_length + 2)
+                ws.column_dimensions[column].width = adjusted_width
+
+            # Guardar el archivo
+            wb.save(filepath)
+            self.log(f"Reporte de envío guardado exitosamente en: {filepath}", 'success')
+            messagebox.showinfo("Éxito", "El reporte se ha guardado correctamente.", parent=self.root)
+
+        except Exception as e:
+            self.log(f"Error al generar el reporte: {e}", 'error')
+            messagebox.showerror("Error", f"Ocurrió un error al generar el reporte:\n{e}", parent=self.root)
+
     def _show_completion_dialog(self):
         """Muestra la ventana personalizada de finalización (MOD 28)."""
         dialog = ctk.CTkToplevel(self.root)
@@ -3762,12 +3837,30 @@ class Hermes:
             dialog.destroy()
             self.root.focus_force()
 
-        ok_button = ctk.CTkButton(main_frame, text="OK", command=close_dialog,
+        def generate_report_and_close():
+            self._generate_report()
+            close_dialog()
+
+        buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        buttons_frame.grid(row=1, column=0, pady=(0, 10))
+        buttons_frame.grid_columnconfigure((0, 1), weight=1, uniform="dialog_buttons")
+
+        report_button = ctk.CTkButton(buttons_frame, text="Reporte", command=generate_report_and_close,
+                                   font=self.fonts['button'],
+                                   fg_color=self.colors['blue'],
+                                   hover_color=darken_color(self.colors['blue'], 0.18),
+                                   width=140)
+        report_button.grid(row=0, column=0, sticky="e", padx=(0, 8))
+
+        ok_button = ctk.CTkButton(buttons_frame, text="OK", command=close_dialog,
                                   font=self.fonts['button'],
-                                  fg_color=self.colors['action_start'],
-                                  hover_color=self.hover_colors['action_start'],
-                                  width=100)
-        ok_button.grid(row=1, column=0, pady=(0, 10))
+                                  fg_color='transparent',
+                                  text_color=self.colors['text'],
+                                  border_width=1,
+                                  border_color=self.colors['text_light'],
+                                  hover_color=self.colors['bg'],
+                                  width=140)
+        ok_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
 
         dialog.bind('<Return>', close_dialog)
         dialog.protocol("WM_DELETE_WINDOW", close_dialog)
@@ -3881,7 +3974,12 @@ class Hermes:
             primary_index=link_index,
         )
         
-        # --- Importante: Actualizar contadores DESPUÉS de send_msg ---
+        # --- Importante: Actualizar contadores y reporte DESPUÉS de send_msg ---
+        phone_number = self._get_phone_from_link(link)
+        if phone_number:
+            status = "Enviado" if success else "Fallo"
+            self.report_data.append({'number': phone_number, 'status': status})
+
         if success:
             self.sent_count += 1
             if activity_info and self.fidelizado_mode == "NUMEROS":
@@ -4986,6 +5084,19 @@ class Hermes:
 
     def _finalize_sending(self):
         """Reestablece la UI al finalizar o cancelar el envío."""
+        if self.should_stop:
+            self.log("Generando datos de reporte para envío cancelado...", 'info')
+            processed_numbers = {d['number'] for d in self.report_data}
+
+            # Para modos no manuales, verificar qué números de la lista original no se procesaron.
+            if not self.manual_mode and self.links:
+                for link in self.links:
+                    phone_number = self._get_phone_from_link(link)
+                    if phone_number and phone_number not in processed_numbers:
+                        self.report_data.append({'number': phone_number, 'status': 'No procesado'})
+            # Nota: El modo Fidelizado es demasiado complejo para determinar los "no procesados"
+            # de forma fiable sin refactorizar la generación de tareas.
+
         self._unblock_ui_from_task()  # Desbloquear UI
         self.is_running = False
 
