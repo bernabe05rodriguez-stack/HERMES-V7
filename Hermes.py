@@ -5319,16 +5319,16 @@ class Hermes:
 
         # 2. Vistas (Settings, Inputs)
         # Tradicional
-        if hasattr(self, 'traditional_view_frame') and self.traditional_view_frame.winfo_ismapped():
+        if hasattr(self, 'traditional_view_frame') and self.traditional_view_frame and self.traditional_view_frame.winfo_ismapped():
             areas_to_block.append(self.traditional_view_frame)
             # Excluir explícitamente controles si están dentro (ya están en skip, pero por si acaso)
 
         # Fidelizado
-        if hasattr(self, 'fidelizado_view_frame') and self.fidelizado_view_frame.winfo_ismapped():
+        if hasattr(self, 'fidelizado_view_frame') and self.fidelizado_view_frame and self.fidelizado_view_frame.winfo_ismapped():
             areas_to_block.append(self.fidelizado_view_frame)
 
         # SMS
-        if hasattr(self, 'sms_view_frame') and self.sms_view_frame.winfo_ismapped():
+        if hasattr(self, 'sms_view_frame') and self.sms_view_frame and self.sms_view_frame.winfo_ismapped():
             areas_to_block.append(self.sms_view_frame)
 
         for area in areas_to_block:
