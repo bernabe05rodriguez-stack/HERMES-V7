@@ -1001,7 +1001,11 @@ class Hermes:
         self.sms_view_frame = None
 
     def show_traditional_view(self):
-        """Muestra la vista tradicional, creándola si es la primera vez."""
+        """
+        ################################################################################
+        # BLOQUE WHATSAPP (TRADICIONAL Y FIDELIZADO)
+        ################################################################################
+        Muestra la vista tradicional, creándola si es la primera vez."""
         # Guardar datos de los textboxes para persistencia (si la vista Fidelizado ya existe)
         if self.fidelizado_view_frame and hasattr(self, 'fidelizado_groups_text'):
             self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
@@ -1045,7 +1049,11 @@ class Hermes:
         self.set_activity_table_enabled(self.fidelizado_mode == "NUMEROS")
 
     def show_sms_view(self):
-        """Activa la vista de envío por SMS, creándola si es la primera vez."""
+        """
+        ################################################################################
+        # BLOQUE SMS
+        ################################################################################
+        Activa la vista de envío por SMS, creándola si es la primera vez."""
         self.sms_mode_active = True
         self.manual_mode = False
         self.fidelizado_mode = None
@@ -3918,21 +3926,24 @@ class Hermes:
             if self.should_stop: self.log("Cancelado", 'warning'); return
 
             # --- Lógica de envío (depende del modo) ---
+            # La variable `self.sms_mode_active` es la que determina si se usa la
+            # lógica de SMS o la de WhatsApp.
+            # Los modos Fidelizado (GRUPOS, NUMEROS, etc.) son sub-modos de WhatsApp.
             if self.fidelizado_mode == "GRUPOS":
-                self.run_grupos_dual_whatsapp_thread()
+                self.run_grupos_dual_whatsapp_thread() # <-- WHATSAPP
             elif self.fidelizado_mode == "NUMEROS_MANUAL":
-                self.run_numeros_manual_thread()
+                self.run_numeros_manual_thread() # <-- WHATSAPP
             elif self.fidelizado_mode == "NUMEROS":
                 if self.fidelizado_numeros_mode.get() == "Uno a uno":
-                    self.run_uno_a_uno_thread()
+                    self.run_uno_a_uno_thread() # <-- WHATSAPP
                 else: # Uno a muchos
-                    self.run_uno_a_muchos_thread()
+                    self.run_uno_a_muchos_thread() # <-- WHATSAPP
             elif self.fidelizado_mode == "MIXTO":
-                self.run_mixto_dual_whatsapp_thread()
+                self.run_mixto_dual_whatsapp_thread() # <-- WHATSAPP
             elif self.sms_mode_active:
-                self.run_sms_thread()
+                self.run_sms_thread() # <-- SMS
             else:
-                self.run_default_thread()
+                self.run_default_thread() # <-- WHATSAPP (Tradicional)
             # --- Fin Lógica de envío ---
 
             # Finalización
