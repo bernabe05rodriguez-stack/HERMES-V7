@@ -3808,10 +3808,10 @@ class Hermes:
             self.log(f"Error al generar el reporte: {e}", 'error')
             messagebox.showerror("Error", f"Ocurrió un error al generar el reporte:\n{e}", parent=parent)
 
-    def _show_completion_dialog(self):
+    def _show_completion_dialog(self, title="Envío Completado", message="Hermes entregó tus mensajes correctamente."):
         """Muestra la ventana personalizada de finalización (MOD 28)."""
         dialog = ctk.CTkToplevel(self.root)
-        dialog.title("Envío Completado")
+        dialog.title(title)
         dialog.transient(self.root); dialog.grab_set(); dialog.attributes('-topmost', True)
         dialog.resizable(False, False)
 
@@ -3841,7 +3841,7 @@ class Hermes:
             print(f"Error cargando logo para diálogo: {e}")
 
         ctk.CTkLabel(content_frame,
-                     text="Hermes entregó tus mensajes correctamente.",
+                     text=message,
                      font=self.fonts['dialog_text'],
                      text_color=self.colors['text'],
                      wraplength=300).pack()
@@ -3915,7 +3915,12 @@ class Hermes:
             # --- Fin Lógica de envío ---
 
             # Finalización
-            if not self.should_stop:
+            if self.should_stop:
+                self.log("Cancelado. Mostrando diálogo de finalización.", 'info')
+                title = "Envío Cancelado"
+                message = "El envío fue cancelado. Puedes generar un reporte de los mensajes procesados."
+                self.root.after(100, lambda: self._show_completion_dialog(title=title, message=message))
+            else:
                 self.log("ENVÍO FINALIZADO", 'success')
                 self.log(f"Resumen: Enviados: {self.sent_count} | Fallidos: {self.failed_count}", 'info')
                 self.root.after(100, self._show_completion_dialog)
