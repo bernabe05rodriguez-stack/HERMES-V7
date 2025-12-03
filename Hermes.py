@@ -4351,7 +4351,7 @@ class Hermes:
             time.sleep(3)  # Esperar 3 segundos para que WhatsApp se abra completamente
             
             self.log(f"[{device}] Cambiando de cuenta...", 'info')
-            self._switch_account_for_device(device)
+            self._switch_account_for_device(device, delay=1.5)
             time.sleep(1)
             
             self.log(f"[{device}] Cerrando WhatsApp Normal después de cambiar cuenta...", 'info')
@@ -4740,7 +4740,7 @@ class Hermes:
                             time.sleep(3)
 
                             self.log(f"[{device}] Cambiando de cuenta...", 'info')
-                            self._switch_account_for_device(device)
+                            self._switch_account_for_device(device, delay=1.5)
                             time.sleep(1)
 
                             self.log(f"[{device}] Cerrando WhatsApp Normal después de cambiar cuenta...", 'info')
