@@ -4351,8 +4351,8 @@ class Hermes:
             time.sleep(3)  # Esperar 3 segundos para que WhatsApp se abra completamente
             
             self.log(f"[{device}] Cambiando de cuenta...", 'info')
-            self._switch_account_for_device(device, delay=1.5)
-            time.sleep(1)
+            self._switch_account_for_device(device, delay=0.2)
+            time.sleep(3)
             
             self.log(f"[{device}] Cerrando WhatsApp Normal después de cambiar cuenta...", 'info')
             close_cmd = ['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp']
@@ -4740,8 +4740,8 @@ class Hermes:
                             time.sleep(3)
 
                             self.log(f"[{device}] Cambiando de cuenta...", 'info')
-                            self._switch_account_for_device(device, delay=1.5)
-                            time.sleep(1)
+                            self._switch_account_for_device(device, delay=0.2)
+                            time.sleep(3)
 
                             self.log(f"[{device}] Cerrando WhatsApp Normal después de cambiar cuenta...", 'info')
                             self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp'], timeout=5)
