@@ -4187,12 +4187,12 @@ class Hermes:
                 if needs_switch_to_acc2 and not currently_is_acc2:
                     self.log(f"Cambiando a Cuenta 2 en {device}...", 'info')
                     self._switch_whatsapp_account(device)
-                    time.sleep(1)
+                    time.sleep(4)
                     is_normal_account_2[device] = True
                 elif not needs_switch_to_acc2 and currently_is_acc2:
                     self.log(f"Restaurando a Cuenta 1 en {device}...", 'info')
                     self._switch_whatsapp_account(device)
-                    time.sleep(1)
+                    time.sleep(4)
                     is_normal_account_2[device] = False
 
             if self.should_stop: break
@@ -4206,7 +4206,7 @@ class Hermes:
             if is_acc2:
                 self.log(f"Restaurando a Cuenta 1 en {dev}...", 'info')
                 self._switch_whatsapp_account(dev)
-                time.sleep(1)
+                time.sleep(4)
 
     def run_sms_thread(self):
         """Lógica de envío para el SMS."""
@@ -4339,6 +4339,8 @@ class Hermes:
         self.root.after(0, self.update_stats)
         
         # Si es Normal y el modo es "Todas", ejecutar el cambio de cuenta DESPUÉS de enviar
+        # IMPORTANTE: Si se envió audio, restablecer el contador para que la siguiente cuenta no lo envíe
+        # a menos que le toque aleatoriamente.
         if wa_name == "Normal" and self.whatsapp_mode.get() == "Todas":
             self.log(f"[{device}] Cerrando WhatsApp Normal después de enviar...", 'info')
             close_cmd = ['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp']
@@ -4352,7 +4354,7 @@ class Hermes:
             
             self.log(f"[{device}] Cambiando de cuenta...", 'info')
             self._switch_account_for_device(device, delay=0.2)
-            time.sleep(3)
+            time.sleep(4)
             
             self.log(f"[{device}] Cerrando WhatsApp Normal después de cambiar cuenta...", 'info')
             close_cmd = ['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp']
@@ -4363,6 +4365,11 @@ class Hermes:
             open_cmd = ['-s', device, 'shell', 'am', 'start', '-n', 'com.whatsapp/.Main']
             self._run_adb_command(open_cmd, timeout=5)
             time.sleep(2)
+
+            # Resetear pending audio para la nueva cuenta si no está habilitado globalmente
+            # o si la lógica de 'una cuenta a la vez' estaba causando repeticiones
+            if not self.fidelizado_audio_enabled.get():
+                self.audio_pending_for_next_sender = False
         
         return True
     
@@ -4741,7 +4748,7 @@ class Hermes:
 
                             self.log(f"[{device}] Cambiando de cuenta...", 'info')
                             self._switch_account_for_device(device, delay=0.2)
-                            time.sleep(3)
+                            time.sleep(4)
 
                             self.log(f"[{device}] Cerrando WhatsApp Normal después de cambiar cuenta...", 'info')
                             self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp'], timeout=5)
@@ -4750,6 +4757,10 @@ class Hermes:
                             self.log(f"[{device}] Reabriendo WhatsApp Normal con nueva cuenta...", 'info')
                             self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', 'com.whatsapp/.Main'], timeout=5)
                             time.sleep(2)
+
+                            # Resetear pending audio si la función está deshabilitada, por seguridad
+                            if not self.fidelizado_audio_enabled.get():
+                                self.audio_pending_for_next_sender = False
 
 
                         # Pausa entre diferentes tipos de WhatsApp (ej. Business -> Normal)
@@ -5738,13 +5749,14 @@ class Hermes:
             if not self.audio_pending_for_next_sender:
                 return False
 
-            skip_for_same_combo = (
-                combo == self.audio_pending_trigger_combo and
-                len(self.audio_known_combinations) > 1
-            )
-            if skip_for_same_combo:
-                self.log("Audio pendiente aplazado para otra cuenta/dispositivo.", 'info')
-                return False
+            # Ensure audio is sent even if it's the same combo, if it's pending
+            # skip_for_same_combo = (
+            #     combo == self.audio_pending_trigger_combo and
+            #     len(self.audio_known_combinations) > 1
+            # )
+            # if skip_for_same_combo:
+            #    self.log("Audio pendiente aplazado para otra cuenta/dispositivo.", 'info')
+            #    return False
 
             self.log("Intentando enviar nota de voz...", 'info')
             audio_success = self._send_audio_note(ui_device, device, whatsapp_package)
