@@ -1547,7 +1547,7 @@ class Hermes:
         # Configuración avanzada (Oculta por defecto)
         self.sms_time_advanced_frame = ctk.CTkFrame(sms_time_card, fg_color="transparent")
         self.sms_time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
-        self.create_setting(self.sms_time_advanced_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 0)
+        self.create_setting(self.sms_time_advanced_frame, "Esperar a enviar (seg):", self.wait_after_first_enter, None, 0)
 
         self.sms_time_advanced_visible = False
         self.sms_time_advanced_frame.grid_remove()
@@ -5981,22 +5981,30 @@ class Hermes:
                         self.log(f"  └─ Motivo: No se pudo abrir la app de SMS.", 'error')
                         return False, False
 
-                    # 2. Esperar tiempo "Espera Enter"
+                    # 2. Esperar tiempo "Esperar a enviar"
                     try:
-                        wait_enter = max(0, int(self.wait_after_first_enter.get()))
+                        wait_send = max(0, int(self.wait_after_first_enter.get()))
                     except:
-                        wait_enter = 2
+                        wait_send = 2
 
-                    # self.log(f"Esperando {wait_enter}s para enviar...", 'info') # Verbose opcional
-                    self._controlled_sleep(wait_enter)
+                    # self.log(f"Esperando {wait_send}s para enviar...", 'info') # Verbose opcional
+                    self._controlled_sleep(wait_send)
 
                     if self.should_stop: return False, False
 
-                    # 3. Presionar ENTER
-                    if not self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENTER'], timeout=5):
-                         self.log(log_prefix, 'error')
-                         self.log(f"  └─ Motivo: Fallo al enviar KEYCODE_ENTER.", 'error')
-                         return False, False
+                    # 3. Buscar y Clickear Botón Enviar
+                    send_btn = self._locate_message_send_button(ui_device, is_sms=True, wait_timeout=2)
+                    if send_btn:
+                        try:
+                            send_btn.click()
+                        except Exception as e:
+                            self.log(log_prefix, 'error')
+                            self.log(f"  └─ Motivo: Error al hacer clic en el botón enviar: {e}", 'error')
+                            return False, False
+                    else:
+                        self.log(log_prefix, 'error')
+                        self.log(f"  └─ Motivo: No se encontró el botón de enviar SMS.", 'error')
+                        return False, False
 
                     # 4. Esperar y Verificar Hora
                     self._controlled_sleep(2.0)
