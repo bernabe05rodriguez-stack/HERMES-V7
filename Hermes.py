@@ -1547,8 +1547,7 @@ class Hermes:
         # Configuración avanzada (Oculta por defecto)
         self.sms_time_advanced_frame = ctk.CTkFrame(sms_time_card, fg_color="transparent")
         self.sms_time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
-        self.create_setting(self.sms_time_advanced_frame, "Espera Abrir (seg):", self.wait_after_open, None, 0)
-        self.create_setting(self.sms_time_advanced_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 1)
+        self.create_setting(self.sms_time_advanced_frame, "Espera Enter (seg):", self.wait_after_first_enter, None, 0)
 
         self.sms_time_advanced_visible = False
         self.sms_time_advanced_frame.grid_remove()
@@ -5973,23 +5972,62 @@ class Hermes:
                 intento = "Principal" if attempt_idx == 0 else f"Alternativo {attempt_idx}"
                 log_prefix = f"({i}/{total}) → {num_display} [en {device}] ({intento})"
 
-                # self.log(f"Abriendo WhatsApp en {device} con ADB...", 'info') # LOG ELIMINADO
+                # --- MODO SMS SIMPLIFICADO ---
+                if local_is_sms:
+                    # 1. Inyectar URL
+                    open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{current_link}"']
+                    if not self._run_adb_command(open_args, timeout=20):
+                        self.log(log_prefix, 'error')
+                        self.log(f"  └─ Motivo: No se pudo abrir la app de SMS.", 'error')
+                        return False, False
+
+                    # 2. Esperar tiempo "Espera Enter"
+                    try:
+                        wait_enter = max(0, int(self.wait_after_first_enter.get()))
+                    except:
+                        wait_enter = 2
+
+                    # self.log(f"Esperando {wait_enter}s para enviar...", 'info') # Verbose opcional
+                    self._controlled_sleep(wait_enter)
+
+                    if self.should_stop: return False, False
+
+                    # 3. Presionar ENTER
+                    if not self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENTER'], timeout=5):
+                         self.log(log_prefix, 'error')
+                         self.log(f"  └─ Motivo: Fallo al enviar KEYCODE_ENTER.", 'error')
+                         return False, False
+
+                    # 4. Esperar y Verificar Hora
+                    self._controlled_sleep(2.0)
+
+                    now_str = datetime.now().strftime("%H:%M")
+                    # Verificar si la hora actual está en pantalla
+                    if ui_device(textContains=now_str).exists:
+                        self.log(log_prefix, 'success')
+                        return True, False
+                    else:
+                        self.log(log_prefix, 'error')
+                        self.log(f"  └─ Motivo: No se verificó el envío (Hora '{now_str}' no encontrada en pantalla).", 'error')
+                        return False, True # True = reintentar con otro número si hay
+
+                # --- MODO WHATSAPP (Lógica original) ---
                 open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{current_link}"']
-                if whatsapp_package and not local_is_sms:
+                if whatsapp_package:
                     open_args.extend(['-p', whatsapp_package])
                 if not self._run_adb_command(open_args, timeout=20):
                     self.log(log_prefix, 'error')
                     self.log(f"  └─ Motivo: No se pudo abrir el chat.", 'error')
                     return False, False
 
-                active_package = None if local_is_sms else whatsapp_package
+                active_package = whatsapp_package
 
                 wait_time = max(0, int(self.wait_after_open.get()))
                 chat_field, send_button = self._wait_for_chat_ready(
                     ui_device,
                     wait_time,
                     expected_package=active_package,
-                    is_sms=local_is_sms,
+                    is_sms=False,
                 )
 
                 if not chat_field or not send_button:
@@ -6002,15 +6040,13 @@ class Hermes:
                 msg_to_send = message_to_send
                 if not msg_to_send and not is_group:
                     try:
-                        if local_is_sms and '?body=' in current_link:
-                            msg_to_send = urllib.parse.unquote(current_link.split('?body=')[1])
-                        elif 'text=' in current_link:
+                        if 'text=' in current_link:
                             msg_to_send = urllib.parse.unquote(current_link.split('text=')[1])
                     except Exception:
                         msg_to_send = None
 
                 try:
-                    needs_text_input = is_group or local_is_sms
+                    needs_text_input = is_group
                     if needs_text_input and msg_to_send is not None:
                         # --- INICIO DEL CAMBIO: Clic de enfoque ---
                         # Hacer clic en el campo de texto antes de escribir asegura que esté enfocado.
