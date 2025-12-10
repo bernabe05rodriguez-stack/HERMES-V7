@@ -3562,13 +3562,11 @@ class Hermes:
             if not links_for_row:
                 continue
 
-            primary_index = len(processed_rows)
-            processed_rows.append(links_for_row[0])
-            if len(links_for_row) > 1:
-                retry_map[primary_index] = links_for_row[1:]
+            # Agregar todos los números encontrados como tareas independientes
+            processed_rows.extend(links_for_row)
 
         self.links = processed_rows
-        self.link_retry_map = retry_map
+        self.link_retry_map = {} # Ya no se usan reintentos para múltiples números, son tareas individuales
         self.total_messages = len(self.links)
         self.update_stats()
         self.log(f"{len(self.links)} URLs generados", 'success')
