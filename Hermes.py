@@ -336,6 +336,7 @@ class Hermes:
         self.sms_mode_active = False
         self.sms_delay_min = SafeIntVar(value=10)
         self.sms_delay_max = SafeIntVar(value=15)
+        self.sms_simultaneous_mode = tk.BooleanVar(value=False)
 
         self.excel_file = ""
         self.links = []
@@ -1542,7 +1543,24 @@ class Hermes:
         # Configuración principal (Delay)
         sms_time_main_settings = ctk.CTkFrame(sms_time_card, fg_color="transparent")
         sms_time_main_settings.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
-        self.create_setting(sms_time_main_settings, "Delay (seg):", self.sms_delay_min, self.sms_delay_max, 0)
+
+        # Frame contenedor para el Delay y el Checkbox
+        delay_container = ctk.CTkFrame(sms_time_main_settings, fg_color="transparent")
+        delay_container.pack(fill=tk.X, expand=True)
+
+        self.create_setting(delay_container, "Delay (seg):", self.sms_delay_min, self.sms_delay_max, 0)
+
+        # Checkbox "Enviar en simultáneo"
+        self.sms_simultaneous_switch = ctk.CTkSwitch(
+            sms_time_main_settings,
+            text="Enviar en simultáneo",
+            variable=self.sms_simultaneous_mode,
+            font=self.fonts['setting_label'],
+            text_color=self.colors['text'],
+            button_color=self.colors['action_mode'],
+            progress_color=self.colors['action_mode']
+        )
+        self.sms_simultaneous_switch.pack(anchor="w", pady=(10, 0))
 
         # Configuración avanzada (Oculta por defecto)
         self.sms_time_advanced_frame = ctk.CTkFrame(sms_time_card, fg_color="transparent")
@@ -3938,7 +3956,10 @@ class Hermes:
             elif self.fidelizado_mode == "MIXTO":
                 self.run_mixto_dual_whatsapp_thread() # <-- WHATSAPP
             elif self.sms_mode_active:
-                self.run_sms_thread() # <-- SMS
+                if self.sms_simultaneous_mode.get():
+                    self.run_sms_parallel_thread() # <-- SMS SIMULTÁNEO
+                else:
+                    self.run_sms_thread() # <-- SMS
             else:
                 self.run_default_thread() # <-- WHATSAPP (Tradicional)
             # --- Fin Lógica de envío ---
@@ -3979,9 +4000,11 @@ class Hermes:
             self.log(f"Pausa programada alcanzada. Esperando {pause_duration:.1f} segundos...", 'info')
             self._controlled_sleep(pause_duration)
 
-    def run_single_task(self, device, link, message_to_send, task_index, whatsapp_package="com.whatsapp.w4b", link_index=None, activity_info=None):
+    def run_single_task(self, device, link, message_to_send, task_index, whatsapp_package="com.whatsapp.w4b", link_index=None, activity_info=None, skip_delay=False):
         """
         Ejecuta una única tarea de envío (abrir link, enviar, esperar), gestionando la conexión de uiautomator2.
+        Args:
+            skip_delay (bool): Si es True, omite el retardo posterior al envío (útil para modo simultáneo).
         """
         ui_device = None
         # --- MODIFICACIÓN: Siempre intentar conectar uiautomator2 ---
@@ -4042,8 +4065,8 @@ class Hermes:
         self.root.after(0, self.update_stats)
         # --- Fin actualización contadores ---
 
-        # Espera entre mensajes (solo si no es la última tarea)
-        if task_index < self.total_messages and not self.should_stop:
+        # Espera entre mensajes (solo si no es la última tarea y no se omite)
+        if task_index < self.total_messages and not self.should_stop and not skip_delay:
             send_elapsed = time.time() - send_start
             if self.manual_mode:
                 # FIX: Usar las nuevas variables de retardo de envío
@@ -4223,6 +4246,59 @@ class Hermes:
             idx = (idx + 1) % len(self.devices)
 
             self.run_single_task(device, link, None, i + 1, whatsapp_package=None, link_index=i)
+
+    def run_sms_parallel_thread(self):
+        """Lógica de envío SIMULTÁNEO para el SMS."""
+        if not self.links:
+            self.log("Error: No hay enlaces SMS para enviar.", 'error')
+            return
+
+        self.log("Ejecutando SMS en modo SIMULTÁNEO...", 'info')
+
+        num_devices = len(self.devices)
+        total_links = len(self.links)
+
+        # Process in batches
+        for i in range(0, total_links, num_devices):
+            if self.should_stop:
+                self.log("Cancelado en SMS Simultáneo", 'warning')
+                break
+
+            batch_links = self.links[i : i + num_devices]
+            threads = []
+
+            self.log(f"--- Iniciando lote simultáneo ({len(batch_links)} envíos) ---", 'info')
+
+            for j, link in enumerate(batch_links):
+                # Ensure we have enough devices (cycle if fewer devices than batch size - unlikely here as batch size is len(devices))
+                device = self.devices[j % num_devices]
+                # Task index logic: global index
+                task_idx = i + j + 1
+
+                # Create thread
+                t = threading.Thread(
+                    target=self.run_single_task,
+                    args=(device, link, None, task_idx),
+                    kwargs={
+                        'whatsapp_package': None,
+                        'link_index': i+j,
+                        'skip_delay': True # NEW ARGUMENT: Skip individual delay
+                    }
+                )
+                threads.append(t)
+                t.start()
+
+            # Wait for all threads in this batch to finish
+            for t in threads:
+                t.join()
+
+            if self.should_stop: break
+
+            # Global delay between batches (if not finished)
+            if i + num_devices < total_links:
+                delay = random.uniform(self.sms_delay_min.get(), self.sms_delay_max.get())
+                self.log(f"⏳ Esperando {delay:.1f}s antes del siguiente lote simultáneo...", 'info')
+                self._controlled_sleep(delay)
 
     def run_numeros_manual_thread(self):
         """Lógica de envío para MODO NÚMEROS - MANUAL."""
