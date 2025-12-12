@@ -5995,6 +5995,8 @@ class Hermes:
                     if send_btn:
                         try:
                             send_btn.click()
+                            self.log(log_prefix, 'success')
+                            return True, False
                         except Exception as e:
                             self.log(log_prefix, 'error')
                             self.log(f"  └─ Motivo: Error al hacer clic en el botón enviar: {e}", 'error')
@@ -6003,19 +6005,6 @@ class Hermes:
                         self.log(log_prefix, 'error')
                         self.log(f"  └─ Motivo: No se encontró el botón de enviar SMS.", 'error')
                         return False, False
-
-                    # 4. Esperar y Verificar Hora
-                    self._controlled_sleep(2.0)
-
-                    now_str = datetime.now().strftime("%H:%M")
-                    # Verificar si la hora actual está en pantalla
-                    if ui_device(textContains=now_str).exists:
-                        self.log(log_prefix, 'success')
-                        return True, False
-                    else:
-                        self.log(log_prefix, 'error')
-                        self.log(f"  └─ Motivo: No se verificó el envío (Hora '{now_str}' no encontrada en pantalla).", 'error')
-                        return False, True # True = reintentar con otro número si hay
 
                 # --- MODO WHATSAPP (Lógica original) ---
                 open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{current_link}"']
