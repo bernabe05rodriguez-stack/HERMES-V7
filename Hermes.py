@@ -1521,7 +1521,7 @@ class Hermes:
         sms_time_header.grid_columnconfigure(0, weight=1)
         sms_time_header.grid_columnconfigure(1, weight=0)
 
-        ctk.CTkLabel(sms_time_header, text="Tiempo de envío", font=self.fonts['card_title'],
+        ctk.CTkLabel(sms_time_header, text="Configuración", font=self.fonts['card_title'],
                      text_color=self.colors['text']).grid(row=0, column=0, sticky="w")
 
         self.sms_time_advanced_toggle_btn = ctk.CTkButton(
@@ -1550,9 +1550,14 @@ class Hermes:
 
         self.create_setting(delay_container, "Delay (seg):", self.sms_delay_min, self.sms_delay_max, 0)
 
-        # Checkbox "Enviar en simultáneo"
+        # Configuración avanzada (Oculta por defecto)
+        self.sms_time_advanced_frame = ctk.CTkFrame(sms_time_card, fg_color="transparent")
+        self.sms_time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
+        self.create_setting(self.sms_time_advanced_frame, "Esperar a enviar (seg):", self.wait_after_first_enter, None, 0)
+
+        # Checkbox "Enviar en simultáneo" (Ahora en avanzadas)
         self.sms_simultaneous_switch = ctk.CTkSwitch(
-            sms_time_main_settings,
+            self.sms_time_advanced_frame,
             text="Enviar en simultáneo",
             variable=self.sms_simultaneous_mode,
             font=self.fonts['setting_label'],
@@ -1560,12 +1565,7 @@ class Hermes:
             button_color=self.colors['action_mode'],
             progress_color=self.colors['action_mode']
         )
-        self.sms_simultaneous_switch.pack(anchor="w", pady=(10, 0))
-
-        # Configuración avanzada (Oculta por defecto)
-        self.sms_time_advanced_frame = ctk.CTkFrame(sms_time_card, fg_color="transparent")
-        self.sms_time_advanced_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 18))
-        self.create_setting(self.sms_time_advanced_frame, "Esperar a enviar (seg):", self.wait_after_first_enter, None, 0)
+        self.sms_simultaneous_switch.grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 0), padx=(0, 0))
 
         self.sms_time_advanced_visible = False
         self.sms_time_advanced_frame.grid_remove()
