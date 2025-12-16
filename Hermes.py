@@ -4269,6 +4269,10 @@ class Hermes:
 
         # Process in batches
         for i in range(0, total_links, num_devices):
+            # Check for pause
+            while self.is_paused and not self.should_stop:
+                time.sleep(0.1)
+
             if self.should_stop:
                 self.log("Cancelado en SMS Simultáneo", 'warning')
                 break
@@ -5655,6 +5659,13 @@ class Hermes:
 
         for attempt in range(2):
             for selector in selectors:
+                # Verificar cancelación/pausa entre cada intento de selector
+                if self.should_stop:
+                    return None
+
+                while self.is_paused and not self.should_stop:
+                    time.sleep(0.1)
+
                 try:
                     candidate = ui_device(**selector)
 
@@ -5706,6 +5717,13 @@ class Hermes:
         deadline_extended = False  # Flag para asegurar que solo extendemos el tiempo una vez
 
         while not self.should_stop:
+            # Check for pause
+            while self.is_paused and not self.should_stop:
+                time.sleep(0.1)
+
+            if self.should_stop:
+                return None, None
+
             # Si ya encontramos ambos elementos, el trabajo está hecho.
             if chat_field and send_button:
                 break
