@@ -337,6 +337,8 @@ class Hermes:
         self.sms_delay_min = SafeIntVar(value=10)
         self.sms_delay_max = SafeIntVar(value=15)
         self.sms_simultaneous_mode = tk.BooleanVar(value=False)
+        self.sms_enable_call = tk.BooleanVar(value=False)
+        self.sms_call_duration = SafeIntVar(value=10)
 
         self.excel_file = ""
         self.links = []
@@ -1566,6 +1568,24 @@ class Hermes:
             progress_color=self.colors['action_mode']
         )
         self.sms_simultaneous_switch.grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 0), padx=(0, 0))
+
+        # Checkbox "Realizar llamada" y Duración
+        call_frame = ctk.CTkFrame(self.sms_time_advanced_frame, fg_color="transparent")
+        call_frame.grid(row=2, column=0, columnspan=2, sticky="w", pady=(10, 0))
+
+        self.sms_call_switch = ctk.CTkSwitch(
+            call_frame,
+            text="Realizar llamada",
+            variable=self.sms_enable_call,
+            font=self.fonts['setting_label'],
+            text_color=self.colors['text'],
+            button_color=self.colors['action_mode'],
+            progress_color=self.colors['action_mode']
+        )
+        self.sms_call_switch.pack(side=tk.LEFT, padx=(0, 10))
+
+        ctk.CTkLabel(call_frame, text="Duración (seg):", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(side=tk.LEFT, padx=(5, 5))
+        self._create_spinbox_widget(call_frame, self.sms_call_duration, min_val=1, max_val=300).pack(side=tk.LEFT)
 
         self.sms_time_advanced_visible = False
         self.sms_time_advanced_frame.grid_remove()
@@ -4063,6 +4083,24 @@ class Hermes:
 
         if success:
             self.sent_count += 1
+
+            # --- Lógica de Llamada (Solo Modo SMS) ---
+            if self.sms_mode_active and self.sms_enable_call.get():
+                try:
+                    # Extraer número de sms:NUMBER?body=...
+                    # target_link viene como "sms:12345?body=..."
+                    number_part = link.split(':')[1]
+                    if '?' in number_part:
+                        number = number_part.split('?')[0]
+                    else:
+                        number = number_part
+
+                    if number:
+                        self.log(f"[{device}] Iniciando llamada a {number}...", 'info')
+                        self._perform_call(device, number, self.sms_call_duration.get())
+                except Exception as e:
+                    self.log(f"[{device}] Error al intentar realizar llamada: {e}", 'error')
+
             if activity_info and self.fidelizado_mode == "NUMEROS":
                 sender = activity_info.get('from')
                 receiver = activity_info.get('to')
@@ -5148,6 +5186,32 @@ class Hermes:
             self.log(f"Error al escribir mensaje: {e}", 'error')
             return False
     
+    def _perform_call(self, device, number, duration):
+        """Realiza una llamada telefónica normal, espera y cuelga."""
+        if self.should_stop: return
+
+        try:
+            # 1. Iniciar llamada
+            cmd_call = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.CALL', '-d', f'tel:{number}']
+            self._run_adb_command(cmd_call, timeout=10)
+
+            # 2. Esperar duración configurada
+            self.log(f"[{device}] Llamada en curso ({duration}s)...", 'info')
+            self._controlled_sleep(duration)
+
+            if self.should_stop: return
+
+            # 3. Colgar
+            self.log(f"[{device}] Colgando...", 'info')
+            self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENDCALL'], timeout=5)
+
+            # 4. Cerrar ventana / Ir a inicio (para limpiar)
+            time.sleep(1)
+            self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_HOME'], timeout=5)
+
+        except Exception as e:
+            self.log(f"[{device}] Excepción en _perform_call: {e}", 'error')
+
     def run_bucle_blast_thread_V2(self):
         """
         Lógica de envío NUEVA (Modo Bucles G/N Blast V2).
