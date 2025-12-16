@@ -2404,6 +2404,15 @@ class Hermes:
             # Actualizar las etiquetas de la UI
             self._update_device_labels()
 
+            # Despertar pantallas (silencioso)
+            if self.devices:
+                for device in self.devices:
+                    try:
+                        subprocess.Popen([adb, '-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_WAKEUP'],
+                                         startupinfo=si, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    except Exception:
+                        pass
+
             if self.devices:
                 self.log(f"✓ {len(self.devices)} disp: {', '.join(self.devices)}", 'success')
                 messagebox.showinfo("Dispositivos", f"{len(self.devices)} dispositivo(s) econtrado(s):\n\n" + "\n".join(self.devices))
