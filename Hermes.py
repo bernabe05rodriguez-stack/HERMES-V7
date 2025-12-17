@@ -4790,11 +4790,10 @@ class Hermes:
                 if call_btn: break
                 time.sleep(0.5)
 
-            # Fallback: Estrategia Relativa (Usuario: "entre video y 3 puntos")
+            # Fallback 1: Estrategia Relativa desde Video (Video -> Call)
             if not call_btn:
-                self.log(f"[{device}] Intentando búsqueda relativa (Video -> Call <- Menu)...", 'info')
+                self.log(f"[{device}] Intentando búsqueda relativa (Video -> Call)...", 'info')
                 try:
-                    # Buscar botón de video
                     video_selectors = [
                         dict(resourceId="com.whatsapp:id/video_call_btn"),
                         dict(resourceId="com.whatsapp.w4b:id/video_call_btn"),
@@ -4809,16 +4808,42 @@ class Hermes:
                             break
 
                     if video_btn:
-                        # Buscar un ImageView o TextView clickable a la derecha inmediata
-                        potential_call = video_btn.right(className="android.widget.TextView", clickable=True)
-                        if not potential_call.exists:
-                             potential_call = video_btn.right(className="android.widget.ImageView", clickable=True)
-
-                        if potential_call.exists:
+                        # Buscar elemento clickable a la derecha
+                        # Nota: .right() puede devolver None en algunas versiones de u2 si no encuentra nada
+                        potential_call = video_btn.right(clickable=True)
+                        if potential_call and potential_call.exists:
                             call_btn = potential_call
-                            self.log(f"[{device}] Botón encontrado a la derecha del video llamada.", 'info')
+                            self.log(f"[{device}] Botón encontrado a la derecha del video.", 'info')
                 except Exception as e:
-                    self.log(f"[{device}] Fallo en búsqueda relativa: {e}", 'warning')
+                    self.log(f"[{device}] Fallo en búsqueda relativa (Video): {e}", 'warning')
+
+            # Fallback 2: Estrategia Relativa desde Menú (Call <- Menu)
+            if not call_btn:
+                self.log(f"[{device}] Intentando búsqueda relativa (Menu -> Call)...", 'info')
+                try:
+                    menu_selectors = [
+                        dict(description="More options"),
+                        dict(description="Más opciones"),
+                        dict(descriptionMatches="(?i).*opciones.*"),
+                        dict(descriptionMatches="(?i).*options.*"),
+                        dict(resourceId="com.whatsapp:id/menuitem_overflow"),
+                        dict(resourceId="com.whatsapp.w4b:id/menuitem_overflow")
+                    ]
+                    menu_btn = None
+                    for ms in menu_selectors:
+                        m = d(**ms)
+                        if m.exists:
+                            menu_btn = m
+                            break
+
+                    if menu_btn:
+                        # Buscar elemento clickable a la izquierda
+                        potential_call = menu_btn.left(clickable=True)
+                        if potential_call and potential_call.exists:
+                            call_btn = potential_call
+                            self.log(f"[{device}] Botón encontrado a la izquierda del menú.", 'info')
+                except Exception as e:
+                    self.log(f"[{device}] Fallo en búsqueda relativa (Menu): {e}", 'warning')
 
             if not call_btn:
                 # Debug: Listar elementos clickeables en la barra superior (si es posible)
