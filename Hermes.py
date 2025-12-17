@@ -4756,18 +4756,18 @@ class Hermes:
             # Lista ampliada de selectores
             call_btn = None
             selectors = [
+                dict(resourceId="com.whatsapp:id/voice_call_btn"),
+                dict(resourceId="com.whatsapp.w4b:id/voice_call_btn"),
                 dict(description="Llamada de voz"),
                 dict(description="Voice call"),
                 dict(descriptionMatches="(?i)llamada de voz"),
                 dict(descriptionMatches="(?i)voice call"),
                 dict(text="Llamada de voz"),
                 dict(textMatches="(?i)llamada de voz"),
-                dict(resourceId="com.whatsapp:id/menu_item_call"),
-                dict(resourceId="com.whatsapp.w4b:id/menu_item_call"),
                 dict(resourceId="com.whatsapp:id/action_call"),
                 dict(resourceId="com.whatsapp.w4b:id/action_call"),
-                dict(resourceId="com.whatsapp:id/voice_call_btn"),
-                dict(resourceId="com.whatsapp.w4b:id/voice_call_btn"),
+                dict(resourceId="com.whatsapp:id/menu_item_call"),
+                dict(resourceId="com.whatsapp.w4b:id/menu_item_call"),
                 dict(descriptionMatches="(?i)llamar"),
                 dict(textMatches="(?i)llamar"),
                 dict(className="android.widget.ImageView", descriptionMatches="(?i).*call.*"),
@@ -4790,6 +4790,36 @@ class Hermes:
                 if call_btn: break
                 time.sleep(0.5)
 
+            # Fallback: Estrategia Relativa (Usuario: "entre video y 3 puntos")
+            if not call_btn:
+                self.log(f"[{device}] Intentando búsqueda relativa (Video -> Call <- Menu)...", 'info')
+                try:
+                    # Buscar botón de video
+                    video_selectors = [
+                        dict(resourceId="com.whatsapp:id/video_call_btn"),
+                        dict(resourceId="com.whatsapp.w4b:id/video_call_btn"),
+                        dict(descriptionMatches="(?i).*video.*"),
+                        dict(textMatches="(?i).*video.*")
+                    ]
+                    video_btn = None
+                    for vs in video_selectors:
+                        v = d(**vs)
+                        if v.exists:
+                            video_btn = v
+                            break
+
+                    if video_btn:
+                        # Buscar un ImageView o TextView clickable a la derecha inmediata
+                        potential_call = video_btn.right(className="android.widget.TextView", clickable=True)
+                        if not potential_call.exists:
+                             potential_call = video_btn.right(className="android.widget.ImageView", clickable=True)
+
+                        if potential_call.exists:
+                            call_btn = potential_call
+                            self.log(f"[{device}] Botón encontrado a la derecha del video llamada.", 'info')
+                except Exception as e:
+                    self.log(f"[{device}] Fallo en búsqueda relativa: {e}", 'warning')
+
             if not call_btn:
                 # Debug: Listar elementos clickeables en la barra superior (si es posible)
                 # O simplemente reportar fallo
@@ -4805,18 +4835,33 @@ class Hermes:
             # Manejar popup de "Llamar?" si aparece (a veces pide confirmación)
             time.sleep(1.5)
             try:
+                # Selectores más robustos y permisivos
                 confirm_selectors = [
-                    dict(textMatches="(?i)^llamar$"),
-                    dict(textMatches="(?i)^call$"),
-                    dict(resourceIdMatches="(?i).*button1.*") # Botón positivo estándar Android
+                    dict(textMatches="(?i).*llamar.*"),
+                    dict(textMatches="(?i).*call.*"),
+                    dict(resourceId="android:id/button1"), # Botón positivo estándar Android
+                    dict(resourceIdMatches="(?i).*button1.*"),
+                    dict(text="Llamar"),
+                    dict(text="Call"),
+                    dict(text="OK"),
+                    dict(text="Si"),
+                    dict(text="Yes")
                 ]
-                for sel in confirm_selectors:
-                    confirm_btn = d(**sel)
-                    if confirm_btn.exists:
-                        confirm_btn.click()
-                        break
-            except:
-                pass
+
+                # Intentar buscar el diálogo por un tiempo breve (3 segundos)
+                dialog_start = time.time()
+                clicked_confirm = False
+                while time.time() - dialog_start < 3 and not clicked_confirm:
+                    for sel in confirm_selectors:
+                        confirm_btn = d(**sel)
+                        if confirm_btn.exists:
+                            confirm_btn.click()
+                            clicked_confirm = True
+                            self.log(f"[{device}] Confirmación 'Llamar' clickeada.", 'info')
+                            break
+                    time.sleep(0.5)
+            except Exception as e:
+                self.log(f"[{device}] Excepción manejando confirmación: {e}", 'warning')
 
             self.log(f"[{device}] Llamando... Esperando {duration}s", 'info')
 
