@@ -2855,9 +2855,10 @@ class Hermes:
                 self.log("No se encontró columna de Monto para ordenar. Se usará el orden original.", 'warning')
 
             # Detectar columnas de teléfono
+            # Usamos un filtro muy permisivo, pero si falla, mostramos todas.
             potential_cols = [c for c in self.columns if c and ('telef' in c.lower() or 'cel' in c.lower() or 'tel' in c.lower())]
 
-            # Fallback: Si no hay columnas "obvias", usar todas (excepto las que parecen fechas/montos si se quiere, pero mejor todas)
+            # Fallback: Si no hay columnas "obvias", usar todas
             if not potential_cols:
                 potential_cols = [c for c in self.columns if c]
                 self.log("No se detectaron columnas obvias. Mostrando todas las columnas.", 'warning')
@@ -2868,6 +2869,9 @@ class Hermes:
                     widget.destroy()
                 except:
                     pass
+
+            # Asegurarse de que el frame se redibuje
+            self.calls_columns_frame.update_idletasks()
             self.calls_phone_columns_vars = {}
 
             if not potential_cols:
@@ -2876,14 +2880,23 @@ class Hermes:
                 return
 
             # Crear checkboxes
+            # Añadir una etiqueta informativa si hay muchas columnas
+            if len(potential_cols) > 10:
+                 ctk.CTkLabel(self.calls_columns_frame, text="(Mostrando todas las columnas)",
+                              font=('Inter', 10), text_color=self.colors['text_light']).pack(anchor="w", padx=5)
+
             for col in potential_cols:
-                var = tk.BooleanVar(value=False) # Por defecto NO seleccionados para obligar a revisar si es fallback
+                var = tk.BooleanVar(value=False)
+                # Auto-seleccionar si parece teléfono, pero ser cuidadoso
                 if 'tel' in col.lower() or 'cel' in col.lower():
-                    var.set(True) # Auto-seleccionar si parece teléfono
+                    var.set(True)
 
                 chk = ctk.CTkCheckBox(self.calls_columns_frame, text=col, variable=var, font=self.fonts['setting_label'], text_color=self.colors['text'])
                 chk.pack(anchor="w", padx=5, pady=2)
                 self.calls_phone_columns_vars[col] = var
+
+            # Forzar actualización de la UI
+            self.calls_columns_frame.update_idletasks()
 
             self.log(f"✓ {len(self.raw_data)} filas cargadas. Selecciona columnas.", 'success')
             self.total_messages = len(self.raw_data) # Estimado inicial
@@ -4756,12 +4769,15 @@ class Hermes:
                 dict(resourceId="com.whatsapp:id/voice_call_btn"),
                 dict(resourceId="com.whatsapp.w4b:id/voice_call_btn"),
                 dict(descriptionMatches="(?i)llamar"),
-                dict(textMatches="(?i)llamar")
+                dict(textMatches="(?i)llamar"),
+                dict(className="android.widget.ImageView", descriptionMatches="(?i).*call.*"),
+                dict(className="android.widget.ImageView", descriptionMatches="(?i).*llamar.*"),
+                dict(resourceIdMatches="(?i).*call.*")
             ]
 
-            # Intentar encontrar el botón durante 5 segundos
+            # Intentar encontrar el botón durante 10 segundos
             start_search = time.time()
-            while time.time() - start_search < 5:
+            while time.time() - start_search < 10:
                 for sel in selectors:
                     try:
                         btn = d(**sel)
