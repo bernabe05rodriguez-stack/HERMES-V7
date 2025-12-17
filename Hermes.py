@@ -4820,19 +4820,41 @@ class Hermes:
             # 2. Escribir número y enviar
             self.log(f"[{device}] Enviando número {phone_number}...", 'info')
 
-            # Reutilizamos lógica de buscar campo y botón
-            chat_field, send_button = self._wait_for_chat_ready(d, wait_time=5, expected_package=package_name)
+            # Buscar campo de texto (usando helper existente)
+            chat_field = self._locate_chat_field(d, wait_timeout=5)
 
-            if not chat_field or not send_button:
-                self.log(f"[{device}] No se encontró campo de texto o botón enviar.", 'error')
+            if not chat_field:
+                self.log(f"[{device}] No se encontró campo de texto.", 'error')
                 return False
 
             try:
+                # 1. Escribir primero para que aparezca el botón de enviar
                 chat_field.click()
                 time.sleep(0.5)
                 chat_field.set_text(phone_number)
-                time.sleep(0.5)
-                send_button.click()
+                time.sleep(1.0) # Esperar a que el UI actualice y muestre el botón enviar
+
+                # 2. Buscar botón de enviar AHORA (estrictamente el avión, evitando 'Reenviar')
+                send_selectors = [
+                    dict(resourceId=f"{package_name}:id/send"),
+                    dict(contentDescription="Enviar"),
+                    dict(description="Enviar"),
+                    dict(resourceId=f"{package_name}:id/send_button")
+                ]
+
+                send_btn = None
+                for sel in send_selectors:
+                    btn = d(**sel)
+                    if btn.exists:
+                        send_btn = btn
+                        break
+
+                if send_btn:
+                    send_btn.click()
+                else:
+                    self.log(f"[{device}] Botón enviar no encontrado, intentando Enter...", 'warning')
+                    self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENTER'])
+
                 time.sleep(1.5) # Esperar a que se envíe y aparezca la burbuja
             except Exception as e:
                 self.log(f"[{device}] Error al enviar número: {e}", 'error')
