@@ -2863,42 +2863,17 @@ class Hermes:
                 potential_cols = [c for c in self.columns if c]
                 self.log("No se detectaron columnas obvias. Mostrando todas las columnas.", 'warning')
 
-            # Limpiar checkboxes anteriores
+            # Limpiar frame anterior para mostrar mensaje de espera o vacío
+            self.calls_selected_columns = [] # Resetear selección previa para evitar stale data
             for widget in self.calls_columns_frame.winfo_children():
-                try:
-                    widget.destroy()
-                except:
-                    pass
+                widget.destroy()
 
-            # Asegurarse de que el frame se redibuje
-            self.calls_columns_frame.update_idletasks()
-            self.calls_phone_columns_vars = {}
+            ctk.CTkLabel(self.calls_columns_frame, text="Esperando selección en ventana emergente...", font=('Inter', 12, 'italic'), text_color=self.colors['text_light']).pack(anchor="center", pady=20)
 
-            if not potential_cols:
-                self.log("No se encontraron columnas en el archivo.", 'error')
-                messagebox.showerror("Error", "El archivo no tiene columnas válidas.")
-                return
+            # Abrir selector
+            self.root.after(100, lambda: self._open_calls_column_selector(potential_cols))
 
-            # Crear checkboxes
-            # Añadir una etiqueta informativa si hay muchas columnas
-            if len(potential_cols) > 10:
-                 ctk.CTkLabel(self.calls_columns_frame, text="(Mostrando todas las columnas)",
-                              font=('Inter', 10), text_color=self.colors['text_light']).pack(anchor="w", padx=5)
-
-            for col in potential_cols:
-                var = tk.BooleanVar(value=False)
-                # Auto-seleccionar si parece teléfono, pero ser cuidadoso
-                if 'tel' in col.lower() or 'cel' in col.lower():
-                    var.set(True)
-
-                chk = ctk.CTkCheckBox(self.calls_columns_frame, text=col, variable=var, font=self.fonts['setting_label'], text_color=self.colors['text'])
-                chk.pack(anchor="w", padx=5, pady=2)
-                self.calls_phone_columns_vars[col] = var
-
-            # Forzar actualización de la UI
-            self.calls_columns_frame.update_idletasks()
-
-            self.log(f"✓ {len(self.raw_data)} filas cargadas. Selecciona columnas.", 'success')
+            self.log(f"✓ {len(self.raw_data)} filas cargadas. Abre ventana de selección.", 'success')
             self.total_messages = len(self.raw_data) # Estimado inicial
             self.update_stats()
 
@@ -2908,6 +2883,62 @@ class Hermes:
 
     # --- Lógica de Fidelizado (Carga Manual) ---
 
+    def _open_calls_column_selector(self, columns):
+        """Abre un popup para seleccionar las columnas de teléfono."""
+        if not columns:
+             self.log("No hay columnas para seleccionar.", 'warning')
+             return
+
+        window = ctk.CTkToplevel(self.root)
+        window.title("Seleccionar Columnas")
+        window.geometry("400x500")
+        window.transient(self.root)
+        window.grab_set()
+        self._center_toplevel(window, 400, 500)
+
+        # Header
+        ctk.CTkLabel(window, text="Selecciona las columnas con números:", font=self.fonts['card_title']).pack(pady=(20, 10))
+
+        # Scrollable area
+        scroll = ctk.CTkScrollableFrame(window, fg_color="transparent")
+        scroll.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        selected_vars = {}
+        for col in columns:
+            var = tk.BooleanVar(value=True) # Default all checked as requested
+            chk = ctk.CTkCheckBox(scroll, text=col, variable=var, font=self.fonts['setting_label'])
+            chk.pack(anchor="w", pady=5)
+            selected_vars[col] = var
+
+        # Buttons
+        btn_frame = ctk.CTkFrame(window, fg_color="transparent")
+        btn_frame.pack(fill=tk.X, padx=20, pady=20)
+
+        ctk.CTkButton(btn_frame, text="Cancelar", command=window.destroy, fg_color=self.colors['action_cancel'], hover_color=self.hover_colors['action_cancel']).pack(side=tk.LEFT, expand=True, padx=5)
+
+        ctk.CTkButton(btn_frame, text="Aceptar", command=lambda: self._on_calls_columns_confirmed(selected_vars, window), fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start']).pack(side=tk.LEFT, expand=True, padx=5)
+
+    def _on_calls_columns_confirmed(self, selected_vars, window):
+        """Procesa la selección de columnas del popup."""
+        selected = [col for col, var in selected_vars.items() if var.get()]
+
+        if not selected:
+            messagebox.showwarning("Atención", "Debes seleccionar al menos una columna.", parent=window)
+            return
+
+        self.calls_selected_columns = selected
+
+        # Update UI text in the main window
+        # Clear previous content
+        for widget in self.calls_columns_frame.winfo_children():
+            widget.destroy()
+
+        # Add label with list
+        summary_text = f"{len(selected)} Columnas seleccionadas:\n" + ", ".join(selected)
+        ctk.CTkLabel(self.calls_columns_frame, text=summary_text, font=self.fonts['setting_label'], text_color=self.colors['text'], justify="left", wraplength=400).pack(anchor="w", padx=10, pady=10)
+
+        self.log(f"Columnas seleccionadas para llamadas: {', '.join(selected)}", 'success')
+        window.destroy()
 
     def _load_default_messages(self):
         """Carga los mensajes predeterminados desde Grupos.txt si existe."""
@@ -4606,9 +4637,9 @@ class Hermes:
             return
 
         # Validar selección de columnas
-        self.calls_selected_columns = [col for col, var in self.calls_phone_columns_vars.items() if var.get()]
+        # self.calls_selected_columns ya fue seteado por el popup _on_calls_columns_confirmed
         if not self.calls_selected_columns:
-            messagebox.showwarning("Sin columnas", "Selecciona al menos una columna de teléfono.")
+            messagebox.showwarning("Sin columnas", "Selecciona al menos una columna de teléfono (Carga el Excel y usa el popup).")
             return
 
         if not self.devices:
