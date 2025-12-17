@@ -2925,7 +2925,8 @@ class Hermes:
             for col in selected:
                 val = str(row.get(col, '')).strip()
                 if val:
-                    nums = [n.strip() for n in val.split('-') if n.strip()]
+                    # Usar regex para dividir por guiones (todos los tipos), comas, punto y coma, saltos de línea
+                    nums = [n.strip() for n in re.split(r'[-–—,\n;]', val) if n.strip()]
                     for n in nums:
                         clean_n = ''.join(filter(str.isdigit, n))
                         if clean_n:
@@ -4659,8 +4660,8 @@ class Hermes:
                 for col in self.calls_selected_columns:
                     val = str(row.get(col, '')).strip()
                     if val:
-                        # Split by hyphen if multiple numbers
-                        nums = [n.strip() for n in val.split('-') if n.strip()]
+                        # Usar regex para dividir por guiones (todos los tipos), comas, punto y coma, saltos de línea
+                        nums = [n.strip() for n in re.split(r'[-–—,\n;]', val) if n.strip()]
                         for n in nums:
                             # Clean number
                             clean_n = ''.join(filter(str.isdigit, n))
