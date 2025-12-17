@@ -1808,10 +1808,6 @@ class Hermes:
         )
         self.calls_btn_load.pack(fill=tk.X)
 
-        self.calls_columns_frame = ctk.CTkScrollableFrame(load_container, height=100, fg_color=self._section_bg_color(), corner_radius=10, border_width=1, border_color=self._section_border_color())
-        self.calls_columns_frame.pack(fill=tk.X, pady=(10, 0))
-        ctk.CTkLabel(self.calls_columns_frame, text="Columnas de teléfono (selecciona):", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(anchor="w")
-
         # --- Paso 4: Iniciar ---
         step4_row = ctk.CTkFrame(calls_steps_wrapper, fg_color="transparent")
         step4_row.grid(row=3, column=0, sticky="ew", pady=(16, 0))
@@ -2863,12 +2859,7 @@ class Hermes:
                 potential_cols = [c for c in self.columns if c]
                 self.log("No se detectaron columnas obvias. Mostrando todas las columnas.", 'warning')
 
-            # Limpiar frame anterior para mostrar mensaje de espera o vacío
             self.calls_selected_columns = [] # Resetear selección previa para evitar stale data
-            for widget in self.calls_columns_frame.winfo_children():
-                widget.destroy()
-
-            ctk.CTkLabel(self.calls_columns_frame, text="Esperando selección en ventana emergente...", font=('Inter', 12, 'italic'), text_color=self.colors['text_light']).pack(anchor="center", pady=20)
 
             # Abrir selector
             self.root.after(100, lambda: self._open_calls_column_selector(potential_cols))
@@ -2928,16 +2919,23 @@ class Hermes:
 
         self.calls_selected_columns = selected
 
-        # Update UI text in the main window
-        # Clear previous content
-        for widget in self.calls_columns_frame.winfo_children():
-            widget.destroy()
+        # Calcular el total real de números (considerando splits)
+        total_real = 0
+        for row in self.raw_data:
+            for col in selected:
+                val = str(row.get(col, '')).strip()
+                if val:
+                    nums = [n.strip() for n in val.split('-') if n.strip()]
+                    for n in nums:
+                        clean_n = ''.join(filter(str.isdigit, n))
+                        if clean_n:
+                            total_real += 1
 
-        # Add label with list
-        summary_text = f"{len(selected)} Columnas seleccionadas:\n" + ", ".join(selected)
-        ctk.CTkLabel(self.calls_columns_frame, text=summary_text, font=self.fonts['setting_label'], text_color=self.colors['text'], justify="left", wraplength=400).pack(anchor="w", padx=10, pady=10)
+        self.total_messages = total_real
+        self.update_stats()
 
         self.log(f"Columnas seleccionadas para llamadas: {', '.join(selected)}", 'success')
+        self.log(f"Total de llamadas calculadas: {total_real}", 'info')
         window.destroy()
 
     def _load_default_messages(self):
