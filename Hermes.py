@@ -4666,6 +4666,13 @@ class Hermes:
             def process_call(device_id, phone_number, task_idx):
                 if self.should_stop: return False
 
+                # 0. Cerrar ambos WhatsApps para asegurar estado limpio
+                # El usuario solicitó: "cada vez que se envie y al empezar el primer, que cierres ambos whatsapp"
+                self.log(f"[{device_id}] Cerrando WhatsApps antes de la tarea...", 'info')
+                self._run_adb_command(['-s', device_id, 'shell', 'am', 'force-stop', 'com.whatsapp'])
+                self._run_adb_command(['-s', device_id, 'shell', 'am', 'force-stop', 'com.whatsapp.w4b'])
+                time.sleep(1)
+
                 # Seleccionar App
                 seq_idx = device_app_idx[device_id]
                 pkg, app_name = app_seq[seq_idx % len(app_seq)]
