@@ -3787,7 +3787,8 @@ class Hermes:
         with self.pause_lock:
             if self.is_paused:
                 self.is_paused = False
-                self.btn_pause.configure(text="⏸  PAUSAR")
+                if hasattr(self, 'btn_pause'):
+                    self.btn_pause.configure(text="⏸  PAUSAR")
                 if hasattr(self, 'fidelizado_btn_pause'):
                     self.fidelizado_btn_pause.configure(text="⏸  PAUSAR")
                 if hasattr(self, 'sms_btn_pause'):
@@ -3795,7 +3796,8 @@ class Hermes:
                 self.log("Reanudado", 'success')
             else:
                 self.is_paused = True
-                self.btn_pause.configure(text="▶  REANUDAR")
+                if hasattr(self, 'btn_pause'):
+                    self.btn_pause.configure(text="▶  REANUDAR")
                 if hasattr(self, 'fidelizado_btn_pause'):
                     self.fidelizado_btn_pause.configure(text="▶  REANUDAR")
                 if hasattr(self, 'sms_btn_pause'):
