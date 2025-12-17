@@ -2857,20 +2857,30 @@ class Hermes:
             # Detectar columnas de teléfono
             potential_cols = [c for c in self.columns if c and ('telef' in c.lower() or 'cel' in c.lower() or 'tel' in c.lower())]
 
+            # Fallback: Si no hay columnas "obvias", usar todas (excepto las que parecen fechas/montos si se quiere, pero mejor todas)
+            if not potential_cols:
+                potential_cols = [c for c in self.columns if c]
+                self.log("No se detectaron columnas obvias. Mostrando todas las columnas.", 'warning')
+
             # Limpiar checkboxes anteriores
             for widget in self.calls_columns_frame.winfo_children():
-                if isinstance(widget, ctk.CTkCheckBox):
+                try:
                     widget.destroy()
+                except:
+                    pass
             self.calls_phone_columns_vars = {}
 
             if not potential_cols:
-                self.log("No se encontraron columnas de teléfono probables.", 'error')
-                messagebox.showerror("Error", "No se encontraron columnas que parezcan teléfonos (Tel..., Cel...).")
+                self.log("No se encontraron columnas en el archivo.", 'error')
+                messagebox.showerror("Error", "El archivo no tiene columnas válidas.")
                 return
 
             # Crear checkboxes
             for col in potential_cols:
-                var = tk.BooleanVar(value=True) # Por defecto seleccionados
+                var = tk.BooleanVar(value=False) # Por defecto NO seleccionados para obligar a revisar si es fallback
+                if 'tel' in col.lower() or 'cel' in col.lower():
+                    var.set(True) # Auto-seleccionar si parece teléfono
+
                 chk = ctk.CTkCheckBox(self.calls_columns_frame, text=col, variable=var, font=self.fonts['setting_label'], text_color=self.colors['text'])
                 chk.pack(anchor="w", padx=5, pady=2)
                 self.calls_phone_columns_vars[col] = var
@@ -4725,37 +4735,72 @@ class Hermes:
         try:
             d = u2.connect(device)
 
-            # Buscar botón de llamada (Teléfono)
-            # IDs comunes: com.whatsapp:id/video_call_item, com.whatsapp:id/menu_item_call (audio)
-            # o content-desc "Llamada de voz"
+            # Esperar a que la UI de chat cargue
+            self.log(f"[{device}] Esperando UI de chat...", 'info')
+            time.sleep(2) # Espera inicial extra
 
+            # Buscar botón de llamada (Teléfono)
+            # Lista ampliada de selectores
             call_btn = None
             selectors = [
-                dict(resourceIdMatches="(?i).*menu_item_call.*"),
+                dict(description="Llamada de voz"),
+                dict(description="Voice call"),
                 dict(descriptionMatches="(?i)llamada de voz"),
                 dict(descriptionMatches="(?i)voice call"),
-                dict(textMatches="(?i)llamada de voz")
+                dict(text="Llamada de voz"),
+                dict(textMatches="(?i)llamada de voz"),
+                dict(resourceId="com.whatsapp:id/menu_item_call"),
+                dict(resourceId="com.whatsapp.w4b:id/menu_item_call"),
+                dict(resourceId="com.whatsapp:id/action_call"),
+                dict(resourceId="com.whatsapp.w4b:id/action_call"),
+                dict(resourceId="com.whatsapp:id/voice_call_btn"),
+                dict(resourceId="com.whatsapp.w4b:id/voice_call_btn"),
+                dict(descriptionMatches="(?i)llamar"),
+                dict(textMatches="(?i)llamar")
             ]
 
-            for sel in selectors:
-                btn = d(**sel)
-                if btn.exists:
-                    call_btn = btn
-                    break
+            # Intentar encontrar el botón durante 5 segundos
+            start_search = time.time()
+            while time.time() - start_search < 5:
+                for sel in selectors:
+                    try:
+                        btn = d(**sel)
+                        if btn.exists:
+                            call_btn = btn
+                            self.log(f"[{device}] Botón de llamada encontrado: {sel}", 'info')
+                            break
+                    except:
+                        pass
+                if call_btn: break
+                time.sleep(0.5)
 
             if not call_btn:
-                # Intentar buscar en el menú de "más opciones" si no está visible?
-                # A veces el botón de llamada está directo.
-                self.log(f"[{device}] No se encontró botón de llamada.", 'warning')
+                # Debug: Listar elementos clickeables en la barra superior (si es posible)
+                # O simplemente reportar fallo
+                self.log(f"[{device}] No se encontró botón de llamada (timeout).", 'warning')
                 return False
 
-            call_btn.click()
+            try:
+                call_btn.click()
+            except Exception as e:
+                self.log(f"[{device}] Error al hacer clic en botón de llamada: {e}", 'error')
+                return False
 
             # Manejar popup de "Llamar?" si aparece (a veces pide confirmación)
-            time.sleep(1)
-            confirm_btn = d(textMatches="(?i)llamar")
-            if confirm_btn.exists:
-                confirm_btn.click()
+            time.sleep(1.5)
+            try:
+                confirm_selectors = [
+                    dict(textMatches="(?i)^llamar$"),
+                    dict(textMatches="(?i)^call$"),
+                    dict(resourceIdMatches="(?i).*button1.*") # Botón positivo estándar Android
+                ]
+                for sel in confirm_selectors:
+                    confirm_btn = d(**sel)
+                    if confirm_btn.exists:
+                        confirm_btn.click()
+                        break
+            except:
+                pass
 
             self.log(f"[{device}] Llamando... Esperando {duration}s", 'info')
 
@@ -4769,12 +4814,26 @@ class Hermes:
 
             # Colgar
             # Buscar botón rojo "End call"
-            # ID: com.whatsapp:id/footer_end_call_btn
-            hangup_btn = d(resourceIdMatches="(?i).*end_call_btn.*")
-            if hangup_btn.exists:
-                hangup_btn.click()
-                self.log(f"[{device}] Colgado (botón UI)", 'info')
-            else:
+            hangup_success = False
+            hangup_selectors = [
+                dict(resourceIdMatches="(?i).*end_call_btn.*"),
+                dict(descriptionMatches="(?i)finalizar.*"),
+                dict(descriptionMatches="(?i)colgar.*"),
+                dict(contentDescriptionMatches="(?i)end call")
+            ]
+
+            for sel in hangup_selectors:
+                try:
+                    hangup_btn = d(**sel)
+                    if hangup_btn.exists:
+                        hangup_btn.click()
+                        self.log(f"[{device}] Colgado (botón UI)", 'info')
+                        hangup_success = True
+                        break
+                except:
+                    pass
+
+            if not hangup_success:
                 # Fallback ADB
                 self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENDCALL'])
                 self.log(f"[{device}] Colgado (KEYCODE)", 'info')
