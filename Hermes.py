@@ -340,6 +340,15 @@ class Hermes:
         self.sms_enable_call = tk.BooleanVar(value=False)
         self.sms_call_duration = SafeIntVar(value=10)
 
+        # Variables para el modo Llamadas
+        self.calls_delay_min = SafeIntVar(value=5)
+        self.calls_delay_max = SafeIntVar(value=10)
+        self.calls_duration = SafeIntVar(value=15)
+        self.calls_whatsapp_mode = tk.StringVar(value="Business")
+        self.calls_simultaneous_mode = tk.BooleanVar(value=False)
+        self.calls_selected_columns = []
+        self.calls_phone_columns_vars = {} # Map col_name -> BooleanVar
+
         self.excel_file = ""
         self.links = []
         self.link_retry_map = {}
@@ -1002,6 +1011,7 @@ class Hermes:
         self.traditional_view_frame = None
         self.fidelizado_view_frame = None
         self.sms_view_frame = None
+        self.calls_view_frame = None
 
     def show_traditional_view(self):
         """
@@ -1027,7 +1037,30 @@ class Hermes:
             self.traditional_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
             self.setup_traditional_view(self.traditional_view_frame)
 
+        # Ocultar vista de Llamadas si está visible
+        if self.calls_view_frame:
+            self.calls_view_frame.pack_forget()
+
         self.traditional_view_frame.pack(fill=tk.X, expand=False, anchor="n")
+        self.update_per_whatsapp_stat()
+        self._apply_fidelizado_layout_styles(False)
+        self.set_activity_table_enabled(False)
+
+    def show_calls_view(self):
+        """Muestra la vista de Llamadas por WhatsApp."""
+        self.sms_mode_active = False
+        if self.traditional_view_frame:
+            self.traditional_view_frame.pack_forget()
+        if self.fidelizado_view_frame:
+            self.fidelizado_view_frame.pack_forget()
+        if self.sms_view_frame:
+            self.sms_view_frame.pack_forget()
+
+        if self.calls_view_frame is None:
+            self.calls_view_frame = ctk.CTkFrame(self.views_container, fg_color="transparent")
+            self.setup_calls_view(self.calls_view_frame)
+
+        self.calls_view_frame.pack(fill=tk.X, expand=False, anchor="n")
         self.update_per_whatsapp_stat()
         self._apply_fidelizado_layout_styles(False)
         self.set_activity_table_enabled(False)
@@ -1039,6 +1072,8 @@ class Hermes:
             self.traditional_view_frame.pack_forget()
         if self.sms_view_frame:
             self.sms_view_frame.pack_forget()
+        if self.calls_view_frame:
+            self.calls_view_frame.pack_forget()
 
         # Crear la vista si no existe
         if self.fidelizado_view_frame is None:
@@ -1072,6 +1107,8 @@ class Hermes:
             self.traditional_view_frame.pack_forget()
         if self.fidelizado_view_frame:
             self.fidelizado_view_frame.pack_forget()
+        if self.calls_view_frame:
+            self.calls_view_frame.pack_forget()
 
         # Crear la vista si no existe
         if self.sms_view_frame is None:
@@ -1202,6 +1239,14 @@ class Hermes:
             **tool_btn_kwargs
         )
         self.ver_pantalla_btn.grid(row=0, column=1, sticky="e", padx=(0, 12))
+
+        self.calls_btn = ctk.CTkButton(
+            header_actions,
+            text="Llamadas",
+            command=self.show_calls_view,
+            **tool_btn_kwargs
+        )
+        self.calls_btn.grid(row=0, column=2, sticky="e", padx=(0, 12))
 
         # Dark mode button moved to Start Menu
 
@@ -1646,6 +1691,162 @@ class Hermes:
             state=tk.DISABLED
         )
         self.sms_btn_stop.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+
+    def setup_calls_view(self, parent):
+        """Construye la interfaz de la vista 'Llamadas'."""
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(0, weight=1)
+
+        container = ctk.CTkFrame(parent, fg_color="transparent")
+        container.pack(fill=tk.BOTH, expand=True)
+
+        content = ctk.CTkFrame(container, fg_color=self.colors['bg_card'], corner_radius=30)
+        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        content.grid_columnconfigure(0, weight=1)
+
+        header_frame = ctk.CTkFrame(content, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(25, 10))
+        header_frame.grid_columnconfigure(0, weight=1)
+
+        # Botón Volver
+        self.calls_back_btn = ctk.CTkButton(
+            header_frame, text="←", width=40,
+            command=self.show_traditional_view,
+            fg_color=self._section_bg_color(),
+            hover_color=lighten_color(self._section_bg_color(), 0.08),
+            text_color=self.colors['text'],
+            font=('Inter', 16, 'bold'),
+            corner_radius=20,
+            height=40
+        )
+        self.calls_back_btn.pack(side=tk.LEFT, padx=(0, 15))
+
+        title = ctk.CTkLabel(header_frame, text="Llamadas WhatsApp", font=('Inter', 28, 'bold'), text_color=self.colors['text'])
+        title.pack(side=tk.LEFT)
+
+        actions_section, _ = self._build_section(content, 1, None, "Configura y lanza las llamadas masivas.", icon="📞")
+
+        calls_steps_wrapper = ctk.CTkFrame(actions_section, fg_color="transparent")
+        calls_steps_wrapper.grid(row=1, column=0, sticky="ew", padx=20, pady=(12, 10))
+        calls_steps_wrapper.grid_columnconfigure(0, weight=1)
+
+        # --- Paso 1: Detectar ---
+        step1_row = ctk.CTkFrame(calls_steps_wrapper, fg_color="transparent")
+        step1_row.grid(row=0, column=0, sticky="ew", pady=6)
+        step1_row.grid_columnconfigure(1, weight=1)
+        self._create_step_badge(step1_row, 1).grid(row=0, column=0, padx=(0, 12))
+
+        self.calls_btn_detect = ctk.CTkButton(
+            step1_row, text="Detectar dispositivos", command=self.detect_devices,
+            fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'],
+            text_color=self.colors['text_header_buttons'], font=self.fonts['button'],
+            corner_radius=20, height=44
+        )
+        self.calls_btn_detect.grid(row=0, column=1, sticky='ew')
+
+        # --- Paso 2: Configuración ---
+        step2_row = ctk.CTkFrame(calls_steps_wrapper, fg_color="transparent")
+        step2_row.grid(row=1, column=0, sticky="ew", pady=(4, 8))
+        step2_row.grid_columnconfigure(0, weight=0)
+        step2_row.grid_columnconfigure(1, weight=1)
+        self._create_step_badge(step2_row, 2).grid(row=0, column=0, padx=(0, 12), sticky="n", pady=(4, 0))
+
+        calls_config_card = ctk.CTkFrame(step2_row, fg_color=self._section_bg_color(), corner_radius=16, border_width=1, border_color=self._section_border_color())
+        calls_config_card.grid(row=0, column=1, sticky="ew")
+        calls_config_card.grid_columnconfigure(0, weight=1)
+
+        # WhatsApp Mode
+        mode_frame = ctk.CTkFrame(calls_config_card, fg_color="transparent")
+        mode_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 10))
+        ctk.CTkLabel(mode_frame, text="WhatsApp a usar:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 10))
+        self.calls_mode_selector = ctk.CTkSegmentedButton(
+            mode_frame, variable=self.calls_whatsapp_mode,
+            values=["Business", "Normal", "Ambos"],
+            font=self.fonts['button_small']
+        )
+        self.calls_mode_selector.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # Settings Grid
+        settings_grid = ctk.CTkFrame(calls_config_card, fg_color="transparent")
+        settings_grid.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 15))
+
+        # Delay
+        ctk.CTkLabel(settings_grid, text="Tiempo entre llamadas (seg):", font=self.fonts['setting_label'], text_color=self.colors['text_light']).grid(row=0, column=0, sticky="w", pady=5)
+        delay_ctrls = ctk.CTkFrame(settings_grid, fg_color="transparent")
+        delay_ctrls.grid(row=0, column=1, sticky="w", padx=10)
+        self._create_spinbox_widget(delay_ctrls, self.calls_delay_min, 1, 300).pack(side=tk.LEFT)
+        ctk.CTkLabel(delay_ctrls, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.LEFT, padx=5)
+        self._create_spinbox_widget(delay_ctrls, self.calls_delay_max, 1, 300).pack(side=tk.LEFT)
+
+        # Duration
+        ctk.CTkLabel(settings_grid, text="Duración de llamada (seg):", font=self.fonts['setting_label'], text_color=self.colors['text_light']).grid(row=1, column=0, sticky="w", pady=5)
+        self._create_spinbox_widget(settings_grid, self.calls_duration, 1, 600).grid(row=1, column=1, sticky="w", padx=10)
+
+        # Simultaneous
+        self.calls_simultaneous_switch = ctk.CTkSwitch(
+            settings_grid, text="Llamada simultánea (multidispositivo)", variable=self.calls_simultaneous_mode,
+            font=self.fonts['setting_label'], text_color=self.colors['text'],
+            button_color=self.colors['action_mode'], progress_color=self.colors['action_mode']
+        )
+        self.calls_simultaneous_switch.grid(row=2, column=0, columnspan=2, sticky="w", pady=(10, 0))
+
+        # --- Paso 3: Carga ---
+        step3_row = ctk.CTkFrame(calls_steps_wrapper, fg_color="transparent")
+        step3_row.grid(row=2, column=0, sticky="ew", pady=6)
+        step3_row.grid_columnconfigure(1, weight=1)
+        self._create_step_badge(step3_row, 3).grid(row=0, column=0, padx=(0, 12), sticky="n")
+
+        load_container = ctk.CTkFrame(step3_row, fg_color="transparent")
+        load_container.grid(row=0, column=1, sticky="ew")
+        load_container.grid_columnconfigure(0, weight=1)
+
+        self.calls_btn_load = ctk.CTkButton(
+            load_container, text="Cargar Excel", command=self.load_and_process_excel_calls,
+            fg_color=self.colors['action_excel'], hover_color=self.hover_colors['action_excel'],
+            text_color=self.colors['text_header_buttons'], font=self.fonts['button'],
+            corner_radius=20, height=44
+        )
+        self.calls_btn_load.pack(fill=tk.X)
+
+        self.calls_columns_frame = ctk.CTkScrollableFrame(load_container, height=100, fg_color=self._section_bg_color(), corner_radius=10, border_width=1, border_color=self._section_border_color())
+        self.calls_columns_frame.pack(fill=tk.X, pady=(10, 0))
+        ctk.CTkLabel(self.calls_columns_frame, text="Columnas de teléfono (selecciona):", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(anchor="w")
+
+        # --- Paso 4: Iniciar ---
+        step4_row = ctk.CTkFrame(calls_steps_wrapper, fg_color="transparent")
+        step4_row.grid(row=3, column=0, sticky="ew", pady=(16, 0))
+        step4_row.grid_columnconfigure(1, weight=1)
+        self._create_step_badge(step4_row, 4).grid(row=0, column=0, padx=(0, 12))
+
+        self.calls_btn_start = ctk.CTkButton(
+            step4_row, text="Iniciar Llamadas", command=self.start_calling,
+            fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'],
+            text_color=self.colors['text_header_buttons'], font=self.fonts['button'],
+            corner_radius=24, height=48
+        )
+        self.calls_btn_start.grid(row=0, column=1, sticky='ew')
+
+        # Controles Pausa/Stop
+        calls_controls = ctk.CTkFrame(actions_section, fg_color="transparent")
+        calls_controls.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 10))
+        calls_controls.grid_columnconfigure(0, weight=1)
+        calls_controls.grid_columnconfigure(1, weight=1)
+
+        self.calls_btn_pause = ctk.CTkButton(
+            calls_controls, text="Pausar", command=self.pause_sending,
+            fg_color=self.colors['action_pause'], hover_color=self.hover_colors['action_pause'],
+            text_color=self.colors['text_header_buttons'], text_color_disabled='#ffffff',
+            font=self.fonts['button_small'], corner_radius=18, height=40, state=tk.DISABLED
+        )
+        self.calls_btn_pause.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+
+        self.calls_btn_stop = ctk.CTkButton(
+            calls_controls, text="Cancelar", command=self.stop_sending,
+            fg_color=self.colors['action_cancel'], hover_color=self.hover_colors['action_cancel'],
+            text_color=self.colors['text_header_buttons'], text_color_disabled='#ffffff',
+            font=self.fonts['button_small'], corner_radius=18, height=40, state=tk.DISABLED
+        )
+        self.calls_btn_stop.grid(row=0, column=1, sticky="ew", padx=(8, 0))
 
     def setup_right(self, parent):
         # Bloque 1: Estado y Progreso
@@ -2602,6 +2803,85 @@ class Hermes:
         self.sms_mode_active = True
         self.manual_mode = False
         self.load_and_process_excel()
+
+    def load_and_process_excel_calls(self):
+        """Carga y procesa el Excel para el modo de Llamadas."""
+        self.log("Seleccionando...", 'info')
+        self.manual_mode = False
+        self.sms_mode_active = False # Usamos logica propia pero no es SMS puro
+
+        fp = filedialog.askopenfilename(
+            title="Seleccionar archivo Excel/CSV",
+            filetypes=[("Excel/CSV", "*.xlsx *.xls *.csv"), ("Todos", "*.*")]
+        )
+        if not fp:
+            return
+
+        try:
+            self.log("Leyendo...", 'info')
+            is_csv = fp.lower().endswith('.csv')
+            self.raw_data, self.columns = self.read_csv_file(fp) if is_csv else self.read_excel_file(fp)
+
+            if not self.raw_data:
+                self.log("Archivo sin datos.", 'warning')
+                messagebox.showwarning("Vacío", "El archivo seleccionado está vacío.")
+                return
+
+            # Ordenar por '$ Asig.'
+            def to_float(value):
+                if isinstance(value, (int, float)):
+                    return float(value)
+                cleaned_value = str(value).replace('$', '').replace(',', '').strip()
+                try:
+                    return float(cleaned_value)
+                except:
+                    return 0.0
+
+            sort_key = '$ Asig.'
+            if sort_key not in self.columns:
+                # Buscar alternativas (Monto, Asignado, etc)
+                for c in self.columns:
+                    if 'asig' in c.lower() or 'monto' in c.lower():
+                        sort_key = c
+                        break
+
+            if sort_key in self.columns:
+                try:
+                    self.raw_data.sort(key=lambda row: to_float(row.get(sort_key, 0)), reverse=True)
+                    self.log(f"✓ Ordenado por '{sort_key}' (Mayor a menor).", 'success')
+                except Exception as e:
+                    self.log(f"No se pudo ordenar: {e}", 'warning')
+            else:
+                self.log("No se encontró columna de Monto para ordenar. Se usará el orden original.", 'warning')
+
+            # Detectar columnas de teléfono
+            potential_cols = [c for c in self.columns if c and ('telef' in c.lower() or 'cel' in c.lower() or 'tel' in c.lower())]
+
+            # Limpiar checkboxes anteriores
+            for widget in self.calls_columns_frame.winfo_children():
+                if isinstance(widget, ctk.CTkCheckBox):
+                    widget.destroy()
+            self.calls_phone_columns_vars = {}
+
+            if not potential_cols:
+                self.log("No se encontraron columnas de teléfono probables.", 'error')
+                messagebox.showerror("Error", "No se encontraron columnas que parezcan teléfonos (Tel..., Cel...).")
+                return
+
+            # Crear checkboxes
+            for col in potential_cols:
+                var = tk.BooleanVar(value=True) # Por defecto seleccionados
+                chk = ctk.CTkCheckBox(self.calls_columns_frame, text=col, variable=var, font=self.fonts['setting_label'], text_color=self.colors['text'])
+                chk.pack(anchor="w", padx=5, pady=2)
+                self.calls_phone_columns_vars[col] = var
+
+            self.log(f"✓ {len(self.raw_data)} filas cargadas. Selecciona columnas.", 'success')
+            self.total_messages = len(self.raw_data) # Estimado inicial
+            self.update_stats()
+
+        except Exception as e:
+            self.log(f"Error al leer archivo: {e}", 'error')
+            messagebox.showerror("Error", f"Error al leer archivo:\n{e}")
 
     # --- Lógica de Fidelizado (Carga Manual) ---
 
@@ -4296,6 +4576,215 @@ class Hermes:
 
             self.run_single_task(device, link, None, i + 1, whatsapp_package=None, link_index=i)
 
+    def start_calling(self):
+        """Inicia el proceso de llamadas masivas."""
+        if not self.raw_data:
+            messagebox.showwarning("Sin datos", "Carga un archivo Excel primero.")
+            return
+
+        # Validar selección de columnas
+        self.calls_selected_columns = [col for col, var in self.calls_phone_columns_vars.items() if var.get()]
+        if not self.calls_selected_columns:
+            messagebox.showwarning("Sin columnas", "Selecciona al menos una columna de teléfono.")
+            return
+
+        if not self.devices:
+            self.detect_devices()
+            if not self.devices:
+                return
+
+        self._enter_task_mode()
+        threading.Thread(target=self.run_calls_thread, daemon=True).start()
+
+    def run_calls_thread(self):
+        """Hilo principal para la lógica de llamadas."""
+        try:
+            self.log("🚀 INICIANDO LLAMADAS MASIVAS", 'info')
+
+            # Generar lista de tareas
+            tasks = []
+            for row in self.raw_data:
+                for col in self.calls_selected_columns:
+                    val = str(row.get(col, '')).strip()
+                    if val:
+                        # Split by hyphen if multiple numbers
+                        nums = [n.strip() for n in val.split('-') if n.strip()]
+                        for n in nums:
+                            # Clean number
+                            clean_n = ''.join(filter(str.isdigit, n))
+                            if clean_n:
+                                tasks.append(clean_n)
+
+            self.total_messages = len(tasks)
+            self.root.after(0, self.update_stats)
+            self.log(f"Total números a llamar: {len(tasks)}", 'info')
+
+            wa_mode = self.calls_whatsapp_mode.get() # Business, Normal, Ambos
+            simultaneous = self.calls_simultaneous_mode.get()
+            delay_min = self.calls_delay_min.get()
+            delay_max = self.calls_delay_max.get()
+            duration = self.calls_duration.get()
+
+            # Definir estrategia de apps
+            # Si es "Ambos", alternamos. Si no, fijo.
+            # Alternancia: Business -> Normal -> Business ...
+
+            def get_app_sequence():
+                if wa_mode == "Business": return [("com.whatsapp.w4b", "Business")]
+                if wa_mode == "Normal": return [("com.whatsapp", "Normal")]
+                if wa_mode == "Ambos": return [("com.whatsapp.w4b", "Business"), ("com.whatsapp", "Normal")]
+                return [("com.whatsapp.w4b", "Business")]
+
+            app_seq = get_app_sequence()
+
+            # Estado de rotación por dispositivo
+            device_app_idx = {d: 0 for d in self.devices}
+
+            def process_call(device_id, phone_number, task_idx):
+                if self.should_stop: return False
+
+                # Seleccionar App
+                seq_idx = device_app_idx[device_id]
+                pkg, app_name = app_seq[seq_idx % len(app_seq)]
+                device_app_idx[device_id] += 1 # Rotar para la próxima
+
+                self.current_index = task_idx
+                self.root.after(0, self.update_stats)
+
+                log_prefix = f"({task_idx}/{len(tasks)}) 📞 {phone_number} [{device_id}] ({app_name})"
+                self.log(f"Llamando a {phone_number}...", 'info')
+
+                # 1. Abrir chat
+                link = f"https://wa.me/{phone_number}"
+                open_args = ['-s', device_id, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', link, '-p', pkg]
+                if not self._run_adb_command(open_args, timeout=10):
+                    self.log(f"{log_prefix} ✗ Fallo al abrir chat", 'error')
+                    self.failed_count += 1
+                    return
+
+                # 2. Esperar chat
+                # Usamos una espera simple o reusamos _wait_for_chat_ready pero solo necesitamos que aparezca la UI
+                time.sleep(3)
+
+                # 3. Llamar (UI Automation)
+                if self._perform_whatsapp_call_action(device_id, duration):
+                    self.log(f"{log_prefix} ✓ Llamada completada", 'success')
+                    self.sent_count += 1
+                else:
+                    self.log(f"{log_prefix} ✗ Fallo al realizar llamada", 'error')
+                    self.failed_count += 1
+
+                # 4. Delay entre llamadas
+                wait = random.uniform(delay_min, delay_max)
+                self.log(f"Pausa de {wait:.1f}s...", 'info')
+                self._controlled_sleep(wait)
+
+            if simultaneous and len(self.devices) > 1:
+                # Modo paralelo
+                import concurrent.futures
+
+                # Dividir tareas para round-robin
+                num_devs = len(self.devices)
+
+                # Ejecutar en lotes del tamaño de devices
+                for i in range(0, len(tasks), num_devs):
+                    if self.should_stop: break
+                    while self.is_paused and not self.should_stop: time.sleep(0.1)
+
+                    batch = tasks[i : i + num_devs]
+
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=num_devs) as executor:
+                        futures = []
+                        for b_idx, phone in enumerate(batch):
+                            dev = self.devices[b_idx % num_devs]
+                            t_idx = i + b_idx + 1
+                            futures.append(executor.submit(process_call, dev, phone, t_idx))
+
+                        # Esperar lote
+                        concurrent.futures.wait(futures)
+            else:
+                # Modo secuencial (1 dispositivo o 1 por 1)
+                dev_idx = 0
+                for i, phone in enumerate(tasks):
+                    if self.should_stop: break
+                    while self.is_paused and not self.should_stop: time.sleep(0.1)
+
+                    dev = self.devices[dev_idx]
+                    dev_idx = (dev_idx + 1) % len(self.devices) # Round robin simple
+
+                    process_call(dev, phone, i + 1)
+
+        except Exception as e:
+            self.log(f"Error en hilo de llamadas: {e}", 'error')
+        finally:
+            self.log("Finalizando proceso de llamadas...", 'info')
+            self._finalize_sending()
+
+    def _perform_whatsapp_call_action(self, device, duration):
+        """Realiza la acción de llamar en la UI de WhatsApp, esperar y colgar."""
+        try:
+            d = u2.connect(device)
+
+            # Buscar botón de llamada (Teléfono)
+            # IDs comunes: com.whatsapp:id/video_call_item, com.whatsapp:id/menu_item_call (audio)
+            # o content-desc "Llamada de voz"
+
+            call_btn = None
+            selectors = [
+                dict(resourceIdMatches="(?i).*menu_item_call.*"),
+                dict(descriptionMatches="(?i)llamada de voz"),
+                dict(descriptionMatches="(?i)voice call"),
+                dict(textMatches="(?i)llamada de voz")
+            ]
+
+            for sel in selectors:
+                btn = d(**sel)
+                if btn.exists:
+                    call_btn = btn
+                    break
+
+            if not call_btn:
+                # Intentar buscar en el menú de "más opciones" si no está visible?
+                # A veces el botón de llamada está directo.
+                self.log(f"[{device}] No se encontró botón de llamada.", 'warning')
+                return False
+
+            call_btn.click()
+
+            # Manejar popup de "Llamar?" si aparece (a veces pide confirmación)
+            time.sleep(1)
+            confirm_btn = d(textMatches="(?i)llamar")
+            if confirm_btn.exists:
+                confirm_btn.click()
+
+            self.log(f"[{device}] Llamando... Esperando {duration}s", 'info')
+
+            # Esperar duración
+            start = time.time()
+            while time.time() - start < duration:
+                if self.should_stop:
+                    # Intentar colgar antes de salir
+                    break
+                time.sleep(0.5)
+
+            # Colgar
+            # Buscar botón rojo "End call"
+            # ID: com.whatsapp:id/footer_end_call_btn
+            hangup_btn = d(resourceIdMatches="(?i).*end_call_btn.*")
+            if hangup_btn.exists:
+                hangup_btn.click()
+                self.log(f"[{device}] Colgado (botón UI)", 'info')
+            else:
+                # Fallback ADB
+                self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENDCALL'])
+                self.log(f"[{device}] Colgado (KEYCODE)", 'info')
+
+            return True
+
+        except Exception as e:
+            self.log(f"Error UI Call: {e}", 'error')
+            return False
+
     def run_sms_parallel_thread(self):
         """Lógica de envío SIMULTÁNEO para el SMS."""
         if not self.links:
@@ -5323,6 +5812,16 @@ class Hermes:
             self.btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
             self.btn_stop.configure(state=tk.DISABLED)
 
+            # -- Vista Llamadas --
+            if hasattr(self, 'calls_btn_start'):
+                self.calls_btn_start.configure(state=tk.NORMAL)
+                if hasattr(self, 'calls_btn_load'):
+                    self.calls_btn_load.configure(state=tk.NORMAL)
+                self.calls_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
+                self.calls_btn_stop.configure(state=tk.DISABLED)
+                if hasattr(self, 'calls_back_btn'):
+                    self.calls_back_btn.configure(state=tk.NORMAL)
+
             # -- Vista Fidelizado --
             if hasattr(self, 'fidelizado_btn_start'):
                 # Ocultar botones de control, mostrar los de inicio
@@ -5367,6 +5866,16 @@ class Hermes:
                 self.fidelizado_unlock_btn.configure(state=tk.DISABLED)
             self.btn_pause.configure(state=tk.NORMAL)
             self.btn_stop.configure(state=tk.NORMAL)
+
+            # -- Vista Llamadas --
+            if hasattr(self, 'calls_btn_start'):
+                self.calls_btn_start.configure(state=tk.DISABLED)
+                if hasattr(self, 'calls_btn_load'):
+                    self.calls_btn_load.configure(state=tk.DISABLED)
+                self.calls_btn_pause.configure(state=tk.NORMAL)
+                self.calls_btn_stop.configure(state=tk.NORMAL)
+                if hasattr(self, 'calls_back_btn'):
+                    self.calls_back_btn.configure(state=tk.DISABLED)
 
             # -- Vista Fidelizado --
             if hasattr(self, 'fidelizado_btn_start'):
@@ -5487,6 +5996,8 @@ class Hermes:
         if hasattr(self, 'control_buttons_frame'): skip.append(self.control_buttons_frame)
         if hasattr(self, 'sms_btn_pause'): skip.append(self.sms_btn_pause)
         if hasattr(self, 'sms_btn_stop'): skip.append(self.sms_btn_stop)
+        if hasattr(self, 'calls_btn_pause'): skip.append(self.calls_btn_pause)
+        if hasattr(self, 'calls_btn_stop'): skip.append(self.calls_btn_stop)
 
         # El panel derecho (Log/Tabla) NO se bloquea
 
@@ -5511,6 +6022,10 @@ class Hermes:
         if hasattr(self, 'sms_view_frame') and self.sms_view_frame and self.sms_view_frame.winfo_ismapped():
             areas_to_block.append(self.sms_view_frame)
 
+        # Llamadas
+        if hasattr(self, 'calls_view_frame') and self.calls_view_frame and self.calls_view_frame.winfo_ismapped():
+            areas_to_block.append(self.calls_view_frame)
+
         for area in areas_to_block:
             self._recursive_set_blocking(area, block=True, skip_widgets=skip)
 
@@ -5524,6 +6039,8 @@ class Hermes:
             areas_to_unblock.append(self.fidelizado_view_frame)
         if hasattr(self, 'sms_view_frame') and self.sms_view_frame is not None:
             areas_to_unblock.append(self.sms_view_frame)
+        if hasattr(self, 'calls_view_frame') and self.calls_view_frame is not None:
+            areas_to_unblock.append(self.calls_view_frame)
 
         for area in areas_to_unblock:
             self._recursive_set_blocking(area, block=False)
