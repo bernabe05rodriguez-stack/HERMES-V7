@@ -4677,24 +4677,23 @@ class Hermes:
                 log_prefix = f"({task_idx}/{len(tasks)}) 📞 {phone_number} [{device_id}] ({app_name})"
                 self.log(f"Llamando a {phone_number}...", 'info')
 
-                # 1. Abrir chat
-                link = f"https://wa.me/{phone_number}"
-                open_args = ['-s', device_id, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', link, '-p', pkg]
+                # 1. Abrir Home de WhatsApp (No abrir chat directo con link, sino la app)
+                # Usamos el launch normal
+                open_args = ['-s', device_id, 'shell', 'monkey', '-p', pkg, '-c', 'android.intent.category.LAUNCHER', '1']
                 if not self._run_adb_command(open_args, timeout=10):
-                    self.log(f"{log_prefix} ✗ Fallo al abrir chat", 'error')
+                    self.log(f"{log_prefix} ✗ Fallo al abrir WhatsApp", 'error')
                     self.failed_count += 1
                     return
 
-                # 2. Esperar chat
-                # Usamos una espera simple o reusamos _wait_for_chat_ready pero solo necesitamos que aparezca la UI
+                # 2. Esperar Home
                 time.sleep(3)
 
-                # 3. Llamar (UI Automation)
-                if self._perform_whatsapp_call_action(device_id, duration):
-                    self.log(f"{log_prefix} ✓ Llamada completada", 'success')
+                # 3. Ejecutar flujo de llamada (Nuevo)
+                if self._perform_whatsapp_call_action(device_id, duration, phone_number=phone_number, package_name=pkg):
+                    self.log(f"{log_prefix} ✓ Llamada finalizada", 'success')
                     self.sent_count += 1
                 else:
-                    self.log(f"{log_prefix} ✗ Fallo al realizar llamada", 'error')
+                    self.log(f"{log_prefix} ✗ No se pudo realizar la llamada (¿Sin WhatsApp?)", 'error')
                     self.failed_count += 1
 
                 # 4. Delay entre llamadas
@@ -4743,192 +4742,177 @@ class Hermes:
             self.log("Finalizando proceso de llamadas...", 'info')
             self._finalize_sending()
 
-    def _perform_whatsapp_call_action(self, device, duration):
-        """Realiza la acción de llamar en la UI de WhatsApp, esperar y colgar."""
+    def _perform_whatsapp_call_action(self, device, duration, phone_number=None, package_name="com.whatsapp"):
+        """
+        NUEVA LÓGICA DE LLAMADA:
+        1. Click en el 1er chat (fijado).
+        2. Escribir número y enviar.
+        3. Click en el mensaje enviado.
+        4. Esperar popup 'Llamar en Whatsapp'.
+        5. Click en esa opción.
+        6. Esperar y colgar.
+        """
         try:
             d = u2.connect(device)
 
-            # Esperar a que la UI de chat cargue
-            self.log(f"[{device}] Esperando UI de chat...", 'info')
-            time.sleep(2) # Espera inicial extra
+            # 1. Click en el primer chat de la lista (asumimos que ya estamos en la Home de WA)
+            # Intentar encontrar el primer item de la lista de conversaciones
+            self.log(f"[{device}] Buscando primer chat (fijado)...", 'info')
 
-            # Buscar botón de llamada (Teléfono)
-            # Lista ampliada de selectores
-            call_btn = None
-            selectors = [
-                dict(resourceId="com.whatsapp:id/voice_call_btn"),
-                dict(resourceId="com.whatsapp.w4b:id/voice_call_btn"),
-                dict(description="Llamada de voz"),
-                dict(description="Voice call"),
-                dict(descriptionMatches="(?i)llamada de voz"),
-                dict(descriptionMatches="(?i)voice call"),
-                dict(text="Llamada de voz"),
-                dict(textMatches="(?i)llamada de voz"),
-                dict(resourceId="com.whatsapp:id/action_call"),
-                dict(resourceId="com.whatsapp.w4b:id/action_call"),
-                dict(resourceId="com.whatsapp:id/menu_item_call"),
-                dict(resourceId="com.whatsapp.w4b:id/menu_item_call"),
-                dict(descriptionMatches="(?i)llamar"),
-                dict(textMatches="(?i)llamar"),
-                dict(className="android.widget.ImageView", descriptionMatches="(?i).*call.*"),
-                dict(className="android.widget.ImageView", descriptionMatches="(?i).*llamar.*"),
-                dict(resourceIdMatches="(?i).*call.*")
-            ]
+            # Estrategia 1: Por ID de la fila de conversación
+            row_selector = d(resourceId=f"{package_name}:id/conversations_row_contact_name")
 
-            # Intentar encontrar el botón durante 10 segundos
-            start_search = time.time()
-            while time.time() - start_search < 10:
-                for sel in selectors:
-                    try:
-                        btn = d(**sel)
-                        if btn.exists:
-                            call_btn = btn
-                            self.log(f"[{device}] Botón de llamada encontrado: {sel}", 'info')
-                            break
-                    except:
-                        pass
-                if call_btn: break
-                time.sleep(0.5)
-
-            # Fallback 1: Estrategia Relativa desde Video (Video -> Call)
-            if not call_btn:
-                self.log(f"[{device}] Intentando búsqueda relativa (Video -> Call)...", 'info')
+            chat_clicked = False
+            if row_selector.exists:
+                # Click en el primero (índice 0)
                 try:
-                    video_selectors = [
-                        dict(resourceId="com.whatsapp:id/video_call_btn"),
-                        dict(resourceId="com.whatsapp.w4b:id/video_call_btn"),
-                        dict(descriptionMatches="(?i).*video.*"),
-                        dict(textMatches="(?i).*video.*")
-                    ]
-                    video_btn = None
-                    for vs in video_selectors:
-                        v = d(**vs)
-                        if v.exists:
-                            video_btn = v
-                            break
-
-                    if video_btn:
-                        # Buscar elemento clickable a la derecha
-                        # Nota: .right() puede devolver None en algunas versiones de u2 si no encuentra nada
-                        potential_call = video_btn.right(clickable=True)
-                        if potential_call and potential_call.exists:
-                            call_btn = potential_call
-                            self.log(f"[{device}] Botón encontrado a la derecha del video.", 'info')
-                except Exception as e:
-                    self.log(f"[{device}] Fallo en búsqueda relativa (Video): {e}", 'warning')
-
-            # Fallback 2: Estrategia Relativa desde Menú (Call <- Menu)
-            if not call_btn:
-                self.log(f"[{device}] Intentando búsqueda relativa (Menu -> Call)...", 'info')
-                try:
-                    menu_selectors = [
-                        dict(description="More options"),
-                        dict(description="Más opciones"),
-                        dict(descriptionMatches="(?i).*opciones.*"),
-                        dict(descriptionMatches="(?i).*options.*"),
-                        dict(resourceId="com.whatsapp:id/menuitem_overflow"),
-                        dict(resourceId="com.whatsapp.w4b:id/menuitem_overflow")
-                    ]
-                    menu_btn = None
-                    for ms in menu_selectors:
-                        m = d(**ms)
-                        if m.exists:
-                            menu_btn = m
-                            break
-
-                    if menu_btn:
-                        # Buscar elemento clickable a la izquierda
-                        potential_call = menu_btn.left(clickable=True)
-                        if potential_call and potential_call.exists:
-                            call_btn = potential_call
-                            self.log(f"[{device}] Botón encontrado a la izquierda del menú.", 'info')
-                except Exception as e:
-                    self.log(f"[{device}] Fallo en búsqueda relativa (Menu): {e}", 'warning')
-
-            if not call_btn:
-                # Debug: Listar elementos clickeables en la barra superior (si es posible)
-                # O simplemente reportar fallo
-                self.log(f"[{device}] No se encontró botón de llamada (timeout).", 'warning')
-                return False
-
-            try:
-                call_btn.click()
-            except Exception as e:
-                self.log(f"[{device}] Error al hacer clic en botón de llamada: {e}", 'error')
-                return False
-
-            # Manejar popup de "Llamar?" si aparece (a veces pide confirmación)
-            time.sleep(1.5)
-            try:
-                # Selectores más robustos y permisivos
-                confirm_selectors = [
-                    dict(textMatches="(?i).*llamar.*"),
-                    dict(textMatches="(?i).*call.*"),
-                    dict(resourceId="android:id/button1"), # Botón positivo estándar Android
-                    dict(resourceIdMatches="(?i).*button1.*"),
-                    dict(text="Llamar"),
-                    dict(text="Call"),
-                    dict(text="OK"),
-                    dict(text="Si"),
-                    dict(text="Yes")
-                ]
-
-                # Intentar buscar el diálogo por un tiempo breve (3 segundos)
-                dialog_start = time.time()
-                clicked_confirm = False
-                while time.time() - dialog_start < 3 and not clicked_confirm:
-                    for sel in confirm_selectors:
-                        confirm_btn = d(**sel)
-                        if confirm_btn.exists:
-                            confirm_btn.click()
-                            clicked_confirm = True
-                            self.log(f"[{device}] Confirmación 'Llamar' clickeada.", 'info')
-                            break
-                    time.sleep(0.5)
-            except Exception as e:
-                self.log(f"[{device}] Excepción manejando confirmación: {e}", 'warning')
-
-            self.log(f"[{device}] Llamando... Esperando {duration}s", 'info')
-
-            # Esperar duración
-            start = time.time()
-            while time.time() - start < duration:
-                if self.should_stop:
-                    # Intentar colgar antes de salir
-                    break
-                time.sleep(0.5)
-
-            # Colgar
-            # Buscar botón rojo "End call"
-            hangup_success = False
-            hangup_selectors = [
-                dict(resourceIdMatches="(?i).*end_call_btn.*"),
-                dict(descriptionMatches="(?i)finalizar.*"),
-                dict(descriptionMatches="(?i)colgar.*"),
-                dict(contentDescriptionMatches="(?i)end call")
-            ]
-
-            for sel in hangup_selectors:
-                try:
-                    hangup_btn = d(**sel)
-                    if hangup_btn.exists:
-                        hangup_btn.click()
-                        self.log(f"[{device}] Colgado (botón UI)", 'info')
-                        hangup_success = True
-                        break
+                    row_selector[0].click()
+                    chat_clicked = True
                 except:
                     pass
 
-            if not hangup_success:
-                # Fallback ADB
+            if not chat_clicked:
+                # Estrategia 2: Click por coordenadas relativas (arriba de la lista)
+                # Asumiendo una resolución estándar, el primer chat suele estar en el top 20-30%
+                self.log(f"[{device}] Usando click relativo para primer chat...", 'warning')
+                w, h = d.window_size()
+                d.click(w // 2, int(h * 0.25)) # Click en el cuarto superior central
+                chat_clicked = True
+
+            time.sleep(2) # Esperar a que abra el chat
+
+            # 2. Escribir número y enviar
+            self.log(f"[{device}] Enviando número {phone_number}...", 'info')
+
+            # Reutilizamos lógica de buscar campo y botón
+            chat_field, send_button = self._wait_for_chat_ready(d, wait_time=5, expected_package=package_name)
+
+            if not chat_field or not send_button:
+                self.log(f"[{device}] No se encontró campo de texto o botón enviar.", 'error')
+                return False
+
+            try:
+                chat_field.click()
+                time.sleep(0.5)
+                chat_field.set_text(phone_number)
+                time.sleep(0.5)
+                send_button.click()
+                time.sleep(1.5) # Esperar a que se envíe y aparezca la burbuja
+            except Exception as e:
+                self.log(f"[{device}] Error al enviar número: {e}", 'error')
+                return False
+
+            # 3. Click en el mensaje enviado (el último)
+            self.log(f"[{device}] Buscando mensaje enviado...", 'info')
+
+            # Buscar el último mensaje que contenga el número
+            # Los mensajes suelen tener id 'message_text'
+            msg_selector = d(resourceId=f"{package_name}:id/message_text", text=phone_number)
+
+            if not msg_selector.exists:
+                # Intentar buscar por texto contiene (por si hay formato)
+                msg_selector = d(resourceId=f"{package_name}:id/message_text", textContains=phone_number[-4:]) # Últimos 4 dígitos
+
+            if msg_selector.exists:
+                # Hacer click en la última instancia encontrada (la más reciente)
+                try:
+                    count = msg_selector.count
+                    if count > 0:
+                        msg_selector[count - 1].click()
+                    else:
+                        msg_selector.click()
+                except Exception as e:
+                    self.log(f"[{device}] Error al clickear mensaje: {e}", 'error')
+                    return False
+            else:
+                self.log(f"[{device}] No se encontró la burbuja del mensaje con el número.", 'error')
+                return False
+
+            time.sleep(1.5) # Esperar al popup
+
+            # 4. Esperar popup 'Llamar en Whatsapp' y 5. Clickear
+            self.log(f"[{device}] Buscando opción 'Llamar en Whatsapp'...", 'info')
+
+            popup_options = [
+                "Llamar en WhatsApp",
+                "Llamar en Whatsapp",
+                "Call on WhatsApp",
+                "Llamada de voz"
+            ]
+
+            call_option_clicked = False
+            for opt in popup_options:
+                btn = d(text=opt)
+                if btn.exists:
+                    btn.click()
+                    call_option_clicked = True
+                    self.log(f"[{device}] Opción '{opt}' encontrada y clickeada.", 'success')
+                    break
+
+            if not call_option_clicked:
+                # Intentar búsqueda laxa
+                btn = d(textContains="Llamar")
+                if btn.exists:
+                     # Verificar que no sea "Llamar" de llamada normal (GSM) si se distingue
+                     # Pero el usuario dijo "Llamar en Whatsapp", así que priorizamos eso.
+                     # Si sale solo "Llamar", podría ser GSM.
+                     # Busquemos especificamente el texto que dijo el usuario.
+                     pass
+
+                self.log(f"[{device}] No se encontró la opción de llamada de WhatsApp. ¿Tiene WhatsApp este número?", 'warning')
+                # Cerrar el popup (click fuera o back)
+                d.press("back")
+                return False
+
+            # 6. Esperar y colgar
+            self.log(f"[{device}] Llamada iniciada. Esperando {duration}s...", 'info')
+
+            # Esperar duración
+            elapsed = 0
+            while elapsed < duration:
+                if self.should_stop: break
+                time.sleep(1)
+                elapsed += 1
+
+            # Colgar (Botón rojo)
+            self.log(f"[{device}] Colgando...", 'info')
+
+            # Buscar botón de colgar (rojo)
+            # IDs comunes: footer_end_call_btn, end_call_btn
+            end_btn_selectors = [
+                dict(resourceId=f"{package_name}:id/footer_end_call_btn"),
+                dict(resourceId="com.whatsapp:id/footer_end_call_btn"),
+                dict(resourceId="com.whatsapp.w4b:id/footer_end_call_btn"),
+                dict(descriptionMatches="(?i)fin.*llamada|cortar|end call|colgar"),
+                dict(resourceIdMatches="(?i).*end_call.*")
+            ]
+
+            end_clicked = False
+            for sel in end_btn_selectors:
+                btn = d(**sel)
+                if btn.exists:
+                    btn.click()
+                    end_clicked = True
+                    break
+
+            if not end_clicked:
+                # Fallback: ADB keycode endcall
+                self.log(f"[{device}] Usando KEYCODE_ENDCALL para colgar...", 'info')
                 self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_ENDCALL'])
-                self.log(f"[{device}] Colgado (KEYCODE)", 'info')
+
+            # Volver al inicio (Home de la app)
+            time.sleep(1)
+            # Presionar back un par de veces para salir del chat y volver a la lista
+            d.press("back")
+            time.sleep(0.5)
+            d.press("back")
 
             return True
 
         except Exception as e:
-            self.log(f"Error UI Call: {e}", 'error')
+            self.log(f"[{device}] Error en _perform_whatsapp_call_action: {e}", 'error')
             return False
+
 
     def run_sms_parallel_thread(self):
         """Lógica de envío SIMULTÁNEO para el SMS."""
