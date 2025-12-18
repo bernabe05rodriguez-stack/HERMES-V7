@@ -4126,6 +4126,8 @@ class Hermes:
                     self.fidelizado_btn_pause.configure(text="⏸  PAUSAR")
                 if hasattr(self, 'sms_btn_pause'):
                     self.sms_btn_pause.configure(text="⏸  PAUSAR")
+                if hasattr(self, 'calls_btn_pause'):
+                    self.calls_btn_pause.configure(text="⏸  PAUSAR")
                 self.log("Reanudado", 'success')
             else:
                 self.is_paused = True
@@ -4135,6 +4137,8 @@ class Hermes:
                     self.fidelizado_btn_pause.configure(text="▶  REANUDAR")
                 if hasattr(self, 'sms_btn_pause'):
                     self.sms_btn_pause.configure(text="▶  REANUDAR")
+                if hasattr(self, 'calls_btn_pause'):
+                    self.calls_btn_pause.configure(text="▶  REANUDAR")
                 self.log("Pausado", 'warning')
 
     def stop_sending(self):
@@ -5993,12 +5997,16 @@ class Hermes:
                 self.sms_back_btn.configure(state=tk.NORMAL)
         else:
             # -- Vista Tradicional --
-            self.btn_start.configure(state=tk.NORMAL)
-            self.btn_load.configure(state=tk.NORMAL)
-            if self.fidelizado_unlock_btn:
+            if hasattr(self, 'btn_start'):
+                self.btn_start.configure(state=tk.NORMAL)
+            if hasattr(self, 'btn_load'):
+                self.btn_load.configure(state=tk.NORMAL)
+            if hasattr(self, 'fidelizado_unlock_btn') and self.fidelizado_unlock_btn:
                 self.fidelizado_unlock_btn.configure(state=tk.NORMAL)
-            self.btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
-            self.btn_stop.configure(state=tk.DISABLED)
+            if hasattr(self, 'btn_pause'):
+                self.btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
+            if hasattr(self, 'btn_stop'):
+                self.btn_stop.configure(state=tk.DISABLED)
 
             # -- Vista Llamadas --
             if hasattr(self, 'calls_btn_start'):
@@ -6048,12 +6056,16 @@ class Hermes:
                 self.sms_back_btn.configure(state=tk.DISABLED)
         else:
             # -- Vista Tradicional --
-            self.btn_start.configure(state=tk.DISABLED)
-            self.btn_load.configure(state=tk.DISABLED)
-            if self.fidelizado_unlock_btn:
+            if hasattr(self, 'btn_start'):
+                self.btn_start.configure(state=tk.DISABLED)
+            if hasattr(self, 'btn_load'):
+                self.btn_load.configure(state=tk.DISABLED)
+            if hasattr(self, 'fidelizado_unlock_btn') and self.fidelizado_unlock_btn:
                 self.fidelizado_unlock_btn.configure(state=tk.DISABLED)
-            self.btn_pause.configure(state=tk.NORMAL)
-            self.btn_stop.configure(state=tk.NORMAL)
+            if hasattr(self, 'btn_pause'):
+                self.btn_pause.configure(state=tk.NORMAL)
+            if hasattr(self, 'btn_stop'):
+                self.btn_stop.configure(state=tk.NORMAL)
 
             # -- Vista Llamadas --
             if hasattr(self, 'calls_btn_start'):
