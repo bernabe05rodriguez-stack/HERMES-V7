@@ -66,6 +66,12 @@ BASE_DIR = resource_path(".")
 
 # --- INICIO: Mapeo de caracteres a keycodes ADB ---
 # (Simplificado, solo incluye caracteres comunes. Se puede expandir)
+# Definición de sets GSM para cálculo de SMS
+GSM_EXTENDED_CHARS = set("^{}\\[~]|€")
+# ASCII printable (32-126) + \n + \r + €
+# Nota: La ñ y acentos NO están aquí, forzando Unicode según requerimiento
+GSM_BASIC_CHARS = set(chr(i) for i in range(32, 127)) | set("\n\r") | set("€")
+
 KEYCODE_MAP = {
     '0': 'KEYCODE_0', '1': 'KEYCODE_1', '2': 'KEYCODE_2', '3': 'KEYCODE_3',
     '4': 'KEYCODE_4', '5': 'KEYCODE_5', '6': 'KEYCODE_6', '7': 'KEYCODE_7',
@@ -3657,6 +3663,46 @@ class Hermes:
 
     # --- Lógica del Procesador de Excel ---
 
+    def _calculate_sms_stats(self, text):
+        """Calcula estadísticas de SMS según reglas GSM/Unicode definidas por el usuario."""
+        if not text:
+            return "0 chars | GSM | 0 SMS"
+
+        # Detección de codificación
+        # Si hay algún caracter que NO esté en GSM_BASIC_CHARS ni en GSM_EXTENDED_CHARS, es Unicode.
+        # (Esto incluye ñ, acentos, emojis, etc.)
+        use_unicode = False
+        for char in text:
+            if char not in GSM_BASIC_CHARS and char not in GSM_EXTENDED_CHARS:
+                use_unicode = True
+                break
+
+        count = 0
+        if use_unicode:
+            mode = "Unicode"
+            # Unicode: límite 70 (1 segmento) o 67 (multi)
+            count = len(text) # Python len es correcto para chars unicode
+            limit_single = 70
+            limit_multi = 67
+        else:
+            mode = "GSM"
+            # GSM: límite 160 (1 segmento) o 153 (multi)
+            # Caracteres extendidos cuentan doble
+            for char in text:
+                if char in GSM_EXTENDED_CHARS:
+                    count += 2
+                else:
+                    count += 1
+            limit_single = 160
+            limit_multi = 153
+
+        if count <= limit_single:
+            sms_count = 1
+        else:
+            sms_count = math.ceil(count / limit_multi)
+
+        return f"{count} chars | {mode} | {sms_count} SMS"
+
     def open_processor_window(self, original_file):
         """Abre la ventana para configurar la plantilla de mensajes."""
         proc_window = ctk.CTkToplevel(self.root)
@@ -3799,14 +3845,23 @@ class Hermes:
                 update_preview()
                 # btn_preview.configure(text="👁️ Ocultar Vista Previa")
 
-        btn_preview = ctk.CTkButton(preview_container, text="👁️",
+        # Frame contenedor para el botón y el contador
+        preview_controls_row = ctk.CTkFrame(preview_container, fg_color="transparent")
+        preview_controls_row.pack(anchor='w', fill=tk.X)
+
+        btn_preview = ctk.CTkButton(preview_controls_row, text="👁️",
                                     command=toggle_preview,
                                     fg_color="transparent",
                                     text_color=self.colors['text'],
                                     hover_color=self.colors['bg_card'],
                                     font=('Inter', 24),
                                     width=50, height=40)
-        btn_preview.pack(anchor='w')
+        btn_preview.pack(side=tk.LEFT)
+
+        # Etiqueta de estadísticas SMS (oculta inicialmente o vacía)
+        self.lbl_sms_stats = ctk.CTkLabel(preview_controls_row, text="", font=('Inter', 12, 'bold'), text_color=self.colors['text'])
+        self.lbl_sms_stats.pack(side=tk.LEFT, padx=(15, 0))
+
         ctk.CTkLabel(preview_container, text="Mostrar Vista Previa", font=('Inter', 12), text_color=self.colors['text_light']).pack(anchor='w', padx=10)
 
         # Configuración del Textbox de Preview (Más grande y legible)
@@ -3816,19 +3871,13 @@ class Hermes:
         pt.configure(state=tk.DISABLED)
 
         def update_preview(*a):
-            # Solo actualizar si es visible para ahorrar recursos
-            if not self.preview_visible:
-                return
-
             try:
                 cm = mt.get('1.0', tk.END).strip()
-                pt.configure(state=tk.NORMAL)
-                pt.delete('1.0', tk.END)
-                if not cm:
-                    pt.insert('1.0', '(Escribe un mensaje para previsualizar)')
-                elif self.raw_data:
+
+                # Calcular preview (incluso si no es visible, para el contador)
+                pm = cm
+                if cm and self.raw_data:
                     er = self.raw_data[0] # Primera fila de datos
-                    pm = cm
                     for c in self.columns:
                         pl = f"{{{c}}}"
                         if pl in pm:
@@ -3838,10 +3887,25 @@ class Hermes:
                              if '$ Hist.' in c or '$ Asig.' in c:
                                  v = format_currency_value(v)
                              pm = pm.replace(pl, v)
-                    pt.insert('1.0', pm)
-                else:
-                    pt.insert('1.0', '(No hay datos para previsualizar)')
-                pt.configure(state=tk.DISABLED)
+
+                # Actualizar estadísticas siempre (si hay texto procesado o plantilla)
+                # Si hay raw_data, pm es el procesado. Si no, pm es la plantilla (cm).
+                # Pero si no hay raw_data, preferimos mostrar stats de la plantilla tal cual.
+                stats_text = self._calculate_sms_stats(pm)
+                self.lbl_sms_stats.configure(text=stats_text)
+
+                # Solo actualizar el widget de texto si es visible
+                if self.preview_visible:
+                    pt.configure(state=tk.NORMAL)
+                    pt.delete('1.0', tk.END)
+                    if not cm:
+                        pt.insert('1.0', '(Escribe un mensaje para previsualizar)')
+                    elif self.raw_data:
+                        pt.insert('1.0', pm)
+                    else:
+                        pt.insert('1.0', '(No hay datos para previsualizar)')
+                    pt.configure(state=tk.DISABLED)
+
             except Exception:
                 pass # Evitar errores durante la escritura
 
