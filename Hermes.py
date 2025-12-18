@@ -6665,9 +6665,7 @@ class Hermes:
             dict(resourceId="com.whatsapp.w4b:id/send"),
             dict(resourceId="com.whatsapp:id/send_button"),
             dict(resourceId="com.whatsapp.w4b:id/send_button"),
-            dict(resourceId="com.whatsapp:id/entry"),
-            dict(resourceId="com.whatsapp.w4b:id/entry"),
-            dict(resourceIdMatches=r"(?i)com\.whatsapp(\.w4b)?\:id/(send(_button)?|entry)")
+            dict(resourceIdMatches=r"(?i)com\.whatsapp(\.w4b)?\:id/(send(_button)?)")
         ]
 
         if is_sms:
@@ -7174,16 +7172,51 @@ class Hermes:
                         # Hacer clic en el campo de texto antes de escribir asegura que esté enfocado.
                         try:
                             chat_field.click()
-                            self._controlled_sleep(0.1) # Pequeña pausa para asegurar el enfoque
+                            self._controlled_sleep(0.2) # Pequeña pausa para asegurar el enfoque
                         except Exception as e:
-                            self.log(f"Advertencia: no se pudo hacer clic en el campo de texto (puede que ya estuviera enfocado): {e}", "warning")
+                            self.log(f"Advertencia: no se pudo hacer clic en el campo de texto: {e}", "warning")
 
                         # Usar el chat_field ya encontrado
                         chat_field.set_text(msg_to_send)
+                        self._controlled_sleep(0.5) # Esperar a que el texto se procese en la UI
+
+                        # --- VERIFICACIÓN DE TEXTO (SOLO MODO GRUPO) ---
+                        try:
+                            # Verificar si el texto se escribió realmente
+                            current_text = None
+                            try:
+                                current_text = chat_field.get_text()
+                            except:
+                                pass
+
+                            if not current_text:
+                                self.log("Texto no detectado tras set_text. Reintentando...", "warning")
+                                chat_field.click()
+                                self._controlled_sleep(0.2)
+                                # Fallback a keyevents si set_text falla
+                                self._write_message_with_keyevents(device, msg_to_send)
+                                self._controlled_sleep(0.5)
+                        except Exception as e:
+                            self.log(f"Error verificando texto: {e}", "warning")
+
+                        # --- RE-LOCALIZAR BOTÓN DE ENVIAR ---
+                        # Es crucial volver a buscar el botón PORQUE antes de escribir era un Micrófono.
+                        # Ahora debe ser un Avión de papel (Send).
+                        new_send_btn = self._locate_message_send_button(ui_device, is_sms=False, wait_timeout=2)
+                        if new_send_btn:
+                            send_button = new_send_btn
+                        else:
+                            self.log("No se encontró el botón de enviar (Avión) tras escribir.", "warning")
                         # --- FIN DEL CAMBIO ---
 
-                    # Usar el send_button ya encontrado
-                    send_button.click()
+                    # Usar el send_button (ya sea el original o el re-localizado)
+                    if send_button:
+                        send_button.click()
+                    else:
+                        self.log(log_prefix, 'error')
+                        self.log(f"  └─ Motivo: No se pudo hacer clic (botón de enviar perdido).", 'error')
+                        return False, False
+
                     self._controlled_sleep(1.0)
 
                     if self._detect_send_failure(ui_device):
