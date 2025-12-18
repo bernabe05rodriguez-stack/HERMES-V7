@@ -2596,14 +2596,17 @@ class Hermes:
                 self.adb_path.set(p)
                 break
 
-    def detect_devices(self):
+    def detect_devices(self, silent=False):
         """Ejecuta 'adb devices' y actualiza la lista de dispositivos."""
         adb = self.adb_path.get()
         if not adb or not os.path.exists(adb):
             self.auto_detect_adb()
             adb = self.adb_path.get()
         if not adb or not os.path.exists(adb):
-            messagebox.showerror("Error", "ADB no encontrado.\nAsegúrate de que 'adb.exe' esté en la carpeta del proyecto o en 'scrcpy-win64-v3.2'.")
+            if not silent:
+                messagebox.showerror("Error", "ADB no encontrado.\nAsegúrate de que 'adb.exe' esté en la carpeta del proyecto o en 'scrcpy-win64-v3.2'.")
+            else:
+                self.log("Error: ADB no encontrado durante la detección automática.", 'error')
             return
 
         self.log("Detectando dispositivos...", 'info')
@@ -2632,16 +2635,20 @@ class Hermes:
 
             if self.devices:
                 self.log(f"✓ {len(self.devices)} disp: {', '.join(self.devices)}", 'success')
-                messagebox.showinfo("Dispositivos", f"{len(self.devices)} dispositivo(s) econtrado(s):\n\n" + "\n".join(self.devices))
+                if not silent:
+                    messagebox.showinfo("Dispositivos", f"{len(self.devices)} dispositivo(s) econtrado(s):\n\n" + "\n".join(self.devices))
             else:
                 self.log("No encontrados.", 'error')
-                messagebox.showwarning("Dispositivos", "No se encontraron dispositivos.\nAsegúrate de conectar tu teléfono, activar la 'Depuración USB' y autorizar la conexión en el móvil.")
+                if not silent:
+                    messagebox.showwarning("Dispositivos", "No se encontraron dispositivos.\nAsegúrate de conectar tu teléfono, activar la 'Depuración USB' y autorizar la conexión en el móvil.")
         except subprocess.TimeoutExpired:
             self.log("Timeout ADB.", 'error')
-            messagebox.showerror("Error", "Timeout ADB.")
+            if not silent:
+                messagebox.showerror("Error", "Timeout ADB.")
         except Exception as e:
             self.log(f"Error al detectar: {e}", 'error')
-            messagebox.showerror("Error", f"Error: {e}")
+            if not silent:
+                messagebox.showerror("Error", f"Error: {e}")
 
     # --- Lógica de archivos ---
     def read_csv_file(self, fp):
@@ -3414,7 +3421,11 @@ class Hermes:
                 self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
 
     def start_fidelizado_sending(self):
-        """Función específica para validar y preparar el envío desde la vista Fidelizado."""
+        """Envoltorio para iniciar Fidelizado con opción de programar."""
+        self._open_schedule_dialog(lambda confirm: self._start_fidelizado_sending_impl(confirm=confirm))
+
+    def _start_fidelizado_sending_impl(self, confirm=True):
+        """Función específica para validar y preparar el envío desde la vista Fidelizado (Lógica Interna)."""
         # 1. Guardar los datos de los TextBoxes en las variables de la clase
         self.manual_inputs_groups = [line.strip() for line in self.fidelizado_groups_text.get("1.0", tk.END).splitlines() if line.strip()]
         if hasattr(self, 'fidelizado_numbers_text'):
@@ -3431,7 +3442,7 @@ class Hermes:
                 self.fidelizado_mode = "NUMEROS_MANUAL" # Un modo interno para distinguirlo
                 self.links = []
                 self.link_retry_map = {}
-                self.start_sending()
+                self._start_sending_impl(confirm=confirm)
                 return
             else:
                 # Si no, se usa el modo automático.
@@ -3441,7 +3452,9 @@ class Hermes:
                         return
                     self.root.after(0, self._start_numeros_mode_after_review)
                 else:
-                    threading.Thread(target=self.start_fidelizado_numeros_thread, daemon=True).start()
+                    # Pasar confirmación (invertida para auto_confirm)
+                    auto_confirm = not confirm
+                    threading.Thread(target=self.start_fidelizado_numeros_thread, args=(auto_confirm,), daemon=True).start()
                 return
 
         if self.fidelizado_mode == "GRUPOS" and not self.manual_inputs_groups:
@@ -3460,14 +3473,14 @@ class Hermes:
         self.links = [] # Limpiar links del modo tradicional
         self.link_retry_map = {}
 
-        self.start_sending() # Llamar a la lógica de envío compartida
+        self._start_sending_impl(confirm=confirm) # Llamar a la lógica de envío compartida
 
-    def start_fidelizado_numeros_thread(self):
+    def start_fidelizado_numeros_thread(self, auto_confirm=False):
         """
         Hilo de trabajo para preparar e iniciar el envío del modo NÚMEROS automático.
         Detecta los números, calcula el total y espera la confirmación desde el editor.
         """
-        if not self._detect_and_prepare_phone_lines():
+        if not self._detect_and_prepare_phone_lines(auto_confirm=auto_confirm):
             self.root.after(0, lambda: messagebox.showerror("Error", "No se detectaron suficientes líneas de WhatsApp para iniciar (se requieren al menos 2).", parent=self.root))
             return
 
@@ -3556,7 +3569,11 @@ class Hermes:
         threading.Thread(target=self.send_thread, daemon=True).start()
 
     def start_unirse_grupos(self):
-        """Valida e inicia el hilo para unirse a grupos."""
+        """Envoltorio para unirse a grupos con opción de programar."""
+        self._open_schedule_dialog(lambda confirm: self._start_unirse_grupos_impl(confirm=confirm))
+
+    def _start_unirse_grupos_impl(self, confirm=True):
+        """Valida e inicia el hilo para unirse a grupos (Lógica Interna)."""
         if not self.devices:
             messagebox.showerror("Error", "Paso 1: Detecta al menos un dispositivo.", parent=self.root)
             return
@@ -3566,8 +3583,9 @@ class Hermes:
             messagebox.showerror("Error", "Ingresa al menos un link de grupo en la caja de texto.", parent=self.root)
             return
 
-        if not messagebox.askyesno("Confirmar Acción", f"¿Estás seguro de que deseas intentar unirte a {len(grupos)} grupo(s) en {len(self.devices)} dispositivo(s)?", parent=self.root):
-            return
+        if confirm:
+            if not messagebox.askyesno("Confirmar Acción", f"¿Estás seguro de que deseas intentar unirte a {len(grupos)} grupo(s) en {len(self.devices)} dispositivo(s)?", parent=self.root):
+                return
 
         # Iniciar el proceso en un hilo para no bloquear la UI
         threading.Thread(target=self.run_unirse_grupos, args=(grupos,), daemon=True).start()
@@ -4000,7 +4018,11 @@ class Hermes:
 
     # --- INICIO MODIFICACIÓN: start_sending (Modo Bucles Blast V2) ---
     def start_sending(self):
-        """Valida e inicia el hilo de envío de mensajes."""
+        """Envoltorio para iniciar envío con opción de programar."""
+        self._open_schedule_dialog(lambda confirm: self._start_sending_impl(confirm=confirm))
+
+    def _start_sending_impl(self, confirm=True):
+        """Valida e inicia el hilo de envío de mensajes (Lógica Interna)."""
         if not self.adb_path.get() or not os.path.exists(self.adb_path.get()):
             messagebox.showerror("Error", "ADB no encontrado.\nVe a la carpeta 'scrcpy' o ejecuta INSTALAR.bat.", parent=self.root); return
         if not self.devices:
@@ -4078,8 +4100,9 @@ class Hermes:
         if self.is_running:
             return
 
-        if not messagebox.askyesno("Confirmar Envío", f"¿Estás seguro de que deseas iniciar el envío de {self.total_messages} mensajes?", parent=self.root):
-            return
+        if confirm:
+            if not messagebox.askyesno("Confirmar Envío", f"¿Estás seguro de que deseas iniciar el envío de {self.total_messages} mensajes?", parent=self.root):
+                return
 
         self.report_data = [] # Limpiar datos para el nuevo reporte
         
@@ -4634,7 +4657,11 @@ class Hermes:
             self.run_single_task(device, link, None, i + 1, whatsapp_package=None, link_index=i)
 
     def start_calling(self):
-        """Inicia el proceso de llamadas masivas."""
+        """Envoltorio para iniciar llamadas con opción de programar."""
+        self._open_schedule_dialog(lambda confirm: self._start_calling_impl(confirm=confirm))
+
+    def _start_calling_impl(self, confirm=True):
+        """Inicia el proceso de llamadas masivas (Lógica Interna)."""
         if not self.raw_data:
             messagebox.showwarning("Sin datos", "Carga un archivo Excel primero.")
             return
@@ -4648,6 +4675,10 @@ class Hermes:
         if not self.devices:
             self.detect_devices()
             if not self.devices:
+                return
+
+        if confirm:
+            if not messagebox.askyesno("Confirmar", "¿Iniciar proceso de llamadas masivas?", parent=self.root):
                 return
 
         self._enter_task_mode()
@@ -6257,6 +6288,148 @@ class Hermes:
             else:
                 self.fidelizado_device_list_label.configure(text="Teléfonos - 0")
 
+    # --- Programación de Envíos ---
+    def _open_schedule_dialog(self, callback):
+        """Abre un diálogo para elegir entre enviar ahora o programar."""
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Iniciar Envío")
+        dialog.geometry("400x200")
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        self._center_toplevel(dialog, 400, 200)
+
+        label = ctk.CTkLabel(dialog, text="¿Cómo deseas iniciar el proceso?", font=self.fonts['card_title'], text_color=self.colors['text'])
+        label.pack(pady=20)
+
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        def send_now():
+            dialog.destroy()
+            callback(True) # Confirm=True (Comportamiento normal)
+
+        def open_scheduler():
+            dialog.destroy()
+            self._show_scheduler_window(callback)
+
+        btn_now = ctk.CTkButton(btn_frame, text="Enviar Ahora", command=send_now, fg_color=self.colors['action_start'], width=150)
+        btn_now.pack(side=tk.LEFT, padx=10)
+
+        btn_schedule = ctk.CTkButton(btn_frame, text="Programar Envío", command=open_scheduler, fg_color=self.colors['blue'], width=150)
+        btn_schedule.pack(side=tk.RIGHT, padx=10)
+
+    def _show_scheduler_window(self, callback):
+        """Muestra la ventana para elegir fecha y hora."""
+        window = ctk.CTkToplevel(self.root)
+        window.title("Programar Envío")
+        window.geometry("350x300")
+        window.transient(self.root)
+        window.grab_set()
+        self._center_toplevel(window, 350, 300)
+
+        now = datetime.now()
+        default_time = now + timedelta(minutes=5)
+
+        ctk.CTkLabel(window, text="Configurar Fecha y Hora", font=self.fonts['card_title']).pack(pady=15)
+
+        # Date
+        date_frame = ctk.CTkFrame(window, fg_color="transparent")
+        date_frame.pack(pady=5)
+        ctk.CTkLabel(date_frame, text="Fecha (DD/MM/AAAA):", width=150).pack(side=tk.LEFT)
+        date_entry = ctk.CTkEntry(date_frame, width=120)
+        date_entry.pack(side=tk.LEFT)
+        date_entry.insert(0, default_time.strftime("%d/%m/%Y"))
+
+        # Time
+        time_frame = ctk.CTkFrame(window, fg_color="transparent")
+        time_frame.pack(pady=5)
+        ctk.CTkLabel(time_frame, text="Hora (HH:MM):", width=150).pack(side=tk.LEFT)
+        time_entry = ctk.CTkEntry(time_frame, width=120)
+        time_entry.pack(side=tk.LEFT)
+        time_entry.insert(0, default_time.strftime("%H:%M"))
+
+        def confirm_schedule():
+            date_str = date_entry.get().strip()
+            time_str = time_entry.get().strip()
+            try:
+                dt = datetime.strptime(f"{date_str} {time_str}", "%d/%m/%Y %H:%M")
+                delay = (dt - datetime.now()).total_seconds()
+
+                if delay < 0:
+                    messagebox.showerror("Error", "La fecha/hora debe ser futura.", parent=window)
+                    return
+
+                window.destroy()
+                self._start_scheduled_wait(dt, callback)
+
+            except ValueError:
+                messagebox.showerror("Error", "Formato inválido. Use DD/MM/AAAA y HH:MM", parent=window)
+
+        ctk.CTkButton(window, text="Confirmar Programación", command=confirm_schedule, fg_color=self.colors['action_start']).pack(pady=20)
+
+    def _start_scheduled_wait(self, target_time, callback):
+        """Bloquea la UI y espera a la hora programada."""
+        wait_window = ctk.CTkToplevel(self.root)
+        wait_window.title("Esperando...")
+        wait_window.geometry("400x250")
+        wait_window.transient(self.root)
+        wait_window.grab_set()
+        # Prevent closing with X
+        wait_window.protocol("WM_DELETE_WINDOW", lambda: None)
+        self._center_toplevel(wait_window, 400, 250)
+
+        ctk.CTkLabel(wait_window, text="⏳ Envío Programado", font=self.fonts['header']).pack(pady=20)
+        lbl_target = ctk.CTkLabel(wait_window, text=f"Se iniciará el: {target_time.strftime('%d/%m/%Y %H:%M')}", font=self.fonts['card_title'])
+        lbl_target.pack(pady=5)
+
+        lbl_countdown = ctk.CTkLabel(wait_window, text="Calculando...", font=('Inter', 20, 'bold'), text_color=self.colors['orange'])
+        lbl_countdown.pack(pady=20)
+
+        cancel_flag = [False]
+
+        def cancel():
+            cancel_flag[0] = True
+            wait_window.destroy()
+            self.log("Programación cancelada por el usuario.", 'warning')
+
+        ctk.CTkButton(wait_window, text="Cancelar Programación", command=cancel, fg_color=self.colors['action_cancel']).pack(pady=10)
+
+        def update_countdown():
+            if cancel_flag[0]: return
+
+            now = datetime.now()
+            remaining = target_time - now
+
+            if remaining.total_seconds() <= 0:
+                wait_window.destroy()
+                self._execute_scheduled_task(callback)
+            else:
+                # Format HH:MM:SS
+                s = int(remaining.total_seconds())
+                h, r = divmod(s, 3600)
+                m, sec = divmod(r, 60)
+                lbl_countdown.configure(text=f"Faltan: {h:02d}:{m:02d}:{sec:02d}")
+                self.root.after(1000, update_countdown)
+
+        update_countdown()
+
+    def _execute_scheduled_task(self, callback):
+        """Ejecuta la tarea: Detectar dispositivos -> callback(confirm=False)."""
+        self.log("⏰ Hora programada alcanzada. Iniciando...", 'info')
+
+        # 1. Detectar Dispositivos (Force Wakeup)
+        self.log("Detectando y despertando dispositivos...", 'info')
+        self.detect_devices(silent=True) # Modificado para aceptar silent
+
+        if not self.devices:
+            self.log("Error: No se detectaron dispositivos al momento de iniciar.", 'error')
+            messagebox.showerror("Error Programado", "Fallo al iniciar: No se detectaron dispositivos.")
+            return
+
+        # 2. Ejecutar (sin confirmación)
+        callback(False)
+
     # --- ################################################################## ---
     # --- send_msg (MODIFICADO para loguear device)
     # --- ################################################################## ---
@@ -7258,7 +7431,7 @@ class Hermes:
 
         return inferred
 
-    def _detect_and_prepare_phone_lines(self, show_results_popup=False):
+    def _detect_and_prepare_phone_lines(self, show_results_popup=False, auto_confirm=False):
         """
         Detecta todos los números de WA y WA Business en los dispositivos conectados
         y los almacena en self.detected_phone_lines.
@@ -7299,11 +7472,16 @@ class Hermes:
                 self.root.after(0, lambda: messagebox.showinfo("Detección Finalizada", popup_text, parent=self.root))
 
             if snapshot_copy:
-                if hasattr(self, 'numbers_editor_closed_event'):
-                    self.numbers_editor_closed_event.clear()
-                self.root.after(0, lambda data=snapshot_copy: self._show_detected_numbers_editor(data))
-                if hasattr(self, 'numbers_editor_closed_event'):
-                    self.numbers_editor_closed_event.wait()
+                if auto_confirm:
+                    self.log("Confirmación automática de números detectados (Modo Programado).", 'info')
+                    self.numbers_editor_start_requested = True
+                    # No mostramos el editor, pero aseguramos que el flag de "confirmado" esté activo
+                else:
+                    if hasattr(self, 'numbers_editor_closed_event'):
+                        self.numbers_editor_closed_event.clear()
+                    self.root.after(0, lambda data=snapshot_copy: self._show_detected_numbers_editor(data))
+                    if hasattr(self, 'numbers_editor_closed_event'):
+                        self.numbers_editor_closed_event.wait()
             else:
                 if hasattr(self, 'numbers_editor_closed_event'):
                     self.numbers_editor_closed_event.set()
