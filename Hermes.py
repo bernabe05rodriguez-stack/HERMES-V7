@@ -6846,6 +6846,10 @@ class Hermes:
 
                 # --- MODO SMS SIMPLIFICADO ---
                 if local_is_sms:
+                    # Asegurar pantalla encendida
+                    self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_WAKEUP'], timeout=5)
+                    self._run_adb_command(['-s', device, 'shell', 'input', 'keyevent', 'KEYCODE_MENU'], timeout=5)
+
                     # 1. Inyectar URL
                     open_args = ['-s', device, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', f'"{current_link}"']
                     if not self._run_adb_command(open_args, timeout=20):
