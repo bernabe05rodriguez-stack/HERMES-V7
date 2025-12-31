@@ -6984,46 +6984,83 @@ class Hermes:
                 try:
                     needs_text_input = is_group
                     if needs_text_input and msg_to_send is not None:
-                        # --- INICIO DEL CAMBIO: Clic de enfoque ---
-                        # Hacer clic en el campo de texto antes de escribir asegura que esté enfocado.
+                        # --- Lógica robusta anti-audio (Modo Grupo) ---
+
+                        # 1. Descartar el botón encontrado anteriormente (Microfono)
+                        send_button = None
+
+                        # 2. Asegurar el foco
                         try:
                             chat_field.click()
-                            self._controlled_sleep(0.2) # Pequeña pausa para asegurar el enfoque
+                            self._controlled_sleep(0.3)
                         except Exception as e:
-                            self.log(f"Advertencia: no se pudo hacer clic en el campo de texto: {e}", "warning")
+                            self.log(f"Advertencia: no se pudo hacer clic en el campo: {e}", "warning")
 
-                        # Usar el chat_field ya encontrado
-                        chat_field.set_text(msg_to_send)
-                        self._controlled_sleep(0.5) # Esperar a que el texto se procese en la UI
+                        # 3. Ciclo de intento de escritura y verificación
+                        text_verified = False
 
-                        # --- VERIFICACIÓN DE TEXTO (SOLO MODO GRUPO) ---
+                        # Intento 1: set_text
                         try:
-                            # Verificar si el texto se escribió realmente
-                            current_text = None
+                            chat_field.set_text(msg_to_send)
+                            self._controlled_sleep(0.8) # Esperar a que la UI reaccione
+
+                            # Verificación
+                            curr_text = chat_field.get_text()
+                            if curr_text and len(curr_text.strip()) > 0:
+                                text_verified = True
+                        except Exception:
+                            pass
+
+                        # Intento 2: keyevents (si falló el 1)
+                        if not text_verified:
+                            self.log("Texto no detectado tras set_text. Reintentando con pulsaciones...", "warning")
+                            # Asegurar foco nuevamente
+                            try: chat_field.click()
+                            except: pass
+
+                            self._write_message_with_keyevents(device, msg_to_send)
+                            self._controlled_sleep(1.0)
+
+                            # Verificación final
                             try:
-                                current_text = chat_field.get_text()
+                                curr_text = chat_field.get_text()
+                                if curr_text and len(curr_text.strip()) > 0:
+                                    text_verified = True
                             except:
                                 pass
 
-                            if not current_text:
-                                self.log("Texto no detectado tras set_text. Reintentando...", "warning")
-                                chat_field.click()
-                                self._controlled_sleep(0.2)
-                                # Fallback a keyevents si set_text falla
-                                self._write_message_with_keyevents(device, msg_to_send)
-                                self._controlled_sleep(0.5)
-                        except Exception as e:
-                            self.log(f"Error verificando texto: {e}", "warning")
+                        # 4. PUNTO CRÍTICO: Si no hay texto, ABORTAR
+                        if not text_verified:
+                            self.log(log_prefix, 'error')
+                            self.log(f"  └─ Motivo: No se pudo escribir el mensaje en el campo. Se aborta para evitar enviar audio.", 'error')
+                            return False, False
 
-                        # --- RE-LOCALIZAR BOTÓN DE ENVIAR ---
-                        # Es crucial volver a buscar el botón PORQUE antes de escribir era un Micrófono.
-                        # Ahora debe ser un Avión de papel (Send).
-                        new_send_btn = self._locate_message_send_button(ui_device, is_sms=False, wait_timeout=2)
-                        if new_send_btn:
-                            send_button = new_send_btn
-                        else:
-                            self.log("No se encontró el botón de enviar (Avión) tras escribir.", "warning")
-                        # --- FIN DEL CAMBIO ---
+                        # 5. Buscar el botón de enviar (Avión)
+                        # Reintentar varias veces porque el cambio de icono puede tardar
+                        found_send = False
+                        for _ in range(3):
+                            new_send_btn = self._locate_message_send_button(ui_device, is_sms=False, wait_timeout=1)
+                            if new_send_btn:
+                                # Validación extra: Chequear descripción si es posible para evitar micrófono
+                                try:
+                                    desc = (new_send_btn.info.get('contentDescription') or "").lower()
+                                    # Si dice "grabar" o "voice", es peligroso.
+                                    if "grabar" in desc or "voice" in desc or "voz" in desc:
+                                        self.log("Botón detectado como Micrófono. Esperando...", "warning")
+                                        self._controlled_sleep(0.5)
+                                        continue
+                                except:
+                                    pass
+
+                                send_button = new_send_btn
+                                found_send = True
+                                break
+                            self._controlled_sleep(0.5)
+
+                        if not found_send:
+                            self.log(log_prefix, 'error')
+                            self.log("  └─ Motivo: No se encontró el botón de enviar (Avión) tras escribir.", 'error')
+                            return False, False
 
                     # Usar el send_button (ya sea el original o el re-localizado)
                     if send_button:
