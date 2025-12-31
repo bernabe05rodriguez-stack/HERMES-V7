@@ -408,18 +408,8 @@ class Hermes:
         self.fidelizado_send_delay_min = SafeIntVar(value=10)
         self.fidelizado_send_delay_max = SafeIntVar(value=15)
 
-        # Configuración de notas de voz para Fidelizado
-        self.fidelizado_audio_enabled = tk.BooleanVar(value=False)
-        self.fidelizado_audio_interval_min = SafeIntVar(value=5)
-        self.fidelizado_audio_interval_max = SafeIntVar(value=20)
-        self.fidelizado_audio_duration_min = SafeIntVar(value=8)
-        self.fidelizado_audio_duration_max = SafeIntVar(value=15)
-        self.audio_message_counter = 0
-        self.audio_next_trigger_count = None
-        self.audio_pending_for_next_sender = False
-        self.audio_pending_trigger_combo = None
-        self.audio_known_combinations = set()
-        
+        self.simultaneous_mode = False # Flag para modo simultáneo
+
         # Estado de widgets bloqueados
         self._blocked_widgets_state = {}
 
@@ -3163,45 +3153,6 @@ class Hermes:
         ctk.CTkLabel(sp_frame, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.LEFT, padx=5)
         self._create_spinbox_widget(sp_frame, self.fidelizado_send_delay_max, 1, 300).pack(side=tk.LEFT)
 
-        # --- Fila 5: Configuración de audios ---
-        audio_container = ctk.CTkFrame(config_grid, fg_color="transparent")
-        audio_container.pack(fill=tk.X, pady=(0, 10))
-        self.fidelizado_audio_switch = ctk.CTkSwitch(
-            audio_container,
-            text="Enviar audios de voz",
-            variable=self.fidelizado_audio_enabled,
-            command=self._update_audio_settings_visibility,
-            font=self.fonts['button'],
-            text_color=self.colors['text']
-        )
-        self.fidelizado_audio_switch.pack(anchor='w')
-
-        self.fidelizado_audio_settings = ctk.CTkFrame(audio_container, fg_color="transparent")
-
-        audio_freq_frame = ctk.CTkFrame(self.fidelizado_audio_settings, fg_color="transparent")
-        audio_freq_frame.pack(fill=tk.X, pady=(12, 0))
-        ctk.CTkLabel(audio_freq_frame, text="Enviar audio cada", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
-        audio_freq_min_spin = self._create_spinbox_widget(audio_freq_frame, self.fidelizado_audio_interval_min, min_val=1, max_val=500)
-        audio_freq_min_spin.pack(side=tk.LEFT, padx=6)
-        ctk.CTkLabel(audio_freq_frame, text="a", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(side=tk.LEFT)
-        audio_freq_max_spin = self._create_spinbox_widget(audio_freq_frame, self.fidelizado_audio_interval_max, min_val=1, max_val=500)
-        audio_freq_max_spin.pack(side=tk.LEFT, padx=6)
-        ctk.CTkLabel(audio_freq_frame, text="mensajes (aleatorio)", font=self.fonts['setting_label'], text_color=self.colors['text_light']).pack(side=tk.LEFT)
-
-        audio_duration_frame = ctk.CTkFrame(self.fidelizado_audio_settings, fg_color="transparent")
-        audio_duration_frame.pack(fill=tk.X, pady=(12, 0))
-        ctk.CTkLabel(audio_duration_frame, text="Duración del audio (s):", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
-        audio_duration_spins = ctk.CTkFrame(audio_duration_frame, fg_color="transparent")
-        audio_duration_spins.pack(side=tk.RIGHT)
-        audio_duration_max_spin = self._create_spinbox_widget(audio_duration_spins, self.fidelizado_audio_duration_max, min_val=1, max_val=300)
-        audio_duration_max_spin.pack(side=tk.RIGHT)
-        ctk.CTkLabel(audio_duration_spins, text="-", font=self.fonts['setting_label'], fg_color="transparent").pack(side=tk.RIGHT, padx=8)
-        audio_duration_min_spin = self._create_spinbox_widget(audio_duration_spins, self.fidelizado_audio_duration_min, min_val=1, max_val=300)
-        audio_duration_min_spin.pack(side=tk.RIGHT)
-
-        self.fidelizado_audio_enabled.trace_add('write', lambda *args: self._update_audio_settings_visibility())
-        self._update_audio_settings_visibility()
-
         # --- Controles de Variante Mixto (inicialmente ocultos) ---
         self.mixto_variant_container = ctk.CTkFrame(config_grid, fg_color="transparent")
         ctk.CTkLabel(self.mixto_variant_container, text="Variante Modo Mixto:", font=self.fonts['setting_label'], text_color=self.colors['text']).pack(anchor='w', pady=(0, 8))
@@ -3283,6 +3234,9 @@ class Hermes:
         self.fidelizado_btn_start = ctk.CTkButton(self.actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
         self.fidelizado_btn_start.pack(fill=tk.X, pady=5)
 
+        self.fidelizado_simultaneo_btn = ctk.CTkButton(self.actions_frame, text="🚀 ENVÍO SIMULTÁNEO", command=self.start_sending_simultaneous, fg_color=self.colors['blue'], hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
+        # Se empaqueta condicionalmente en _update_fidelizado_ui_mode
+
         self.unirse_grupos_btn = ctk.CTkButton(self.actions_frame, text="🔗 UNIRSE A GRUPOS", command=self.start_unirse_grupos, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
         self.unirse_grupos_btn.pack(fill=tk.X, pady=5)
 
@@ -3308,17 +3262,6 @@ class Hermes:
         self._update_fidelizado_ui_mode()
         # Marcar el widget para que el evento no se dispare recursivamente
         self.fidelizado_numbers_text.edit_modified(False)
-
-    def _update_audio_settings_visibility(self, *args):
-        """Muestra u oculta la configuración de audios según el interruptor."""
-        if not hasattr(self, 'fidelizado_audio_settings'):
-            return
-        if self.fidelizado_audio_enabled.get():
-            if not self.fidelizado_audio_settings.winfo_manager():
-                self.fidelizado_audio_settings.pack(fill=tk.X, pady=(10, 0))
-        else:
-            if self.fidelizado_audio_settings.winfo_manager():
-                self.fidelizado_audio_settings.pack_forget()
 
     def _toggle_fidelizado_carga_section(self):
         """Alterna la visibilidad del bloque de cargas dentro del panel de configuración."""
@@ -3384,9 +3327,13 @@ class Hermes:
         if self.fidelizado_mode == "GRUPOS":
             if not self.unirse_grupos_btn.winfo_manager():
                 self.unirse_grupos_btn.pack(fill=tk.X, pady=5)
+            if hasattr(self, 'fidelizado_simultaneo_btn') and not self.fidelizado_simultaneo_btn.winfo_manager():
+                self.fidelizado_simultaneo_btn.pack(fill=tk.X, pady=5)
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO A GRUPOS")
         else:
             self.unirse_grupos_btn.pack_forget()
+            if hasattr(self, 'fidelizado_simultaneo_btn'):
+                self.fidelizado_simultaneo_btn.pack_forget()
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO FIDELIZADO")
 
         # --- 4. Actualización del Menú de WhatsApp ---
@@ -3426,8 +3373,14 @@ class Hermes:
             else:
                 self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
 
+    def start_sending_simultaneous(self):
+        """Inicia el envío simultáneo para grupos."""
+        self.simultaneous_mode = True
+        self._open_schedule_dialog(lambda confirm: self._start_fidelizado_sending_impl(confirm=confirm))
+
     def start_fidelizado_sending(self):
         """Envoltorio para iniciar Fidelizado con opción de programar."""
+        self.simultaneous_mode = False
         self._open_schedule_dialog(lambda confirm: self._start_fidelizado_sending_impl(confirm=confirm))
 
     def _start_fidelizado_sending_impl(self, confirm=True):
@@ -4400,7 +4353,10 @@ class Hermes:
             # lógica de SMS o la de WhatsApp.
             # Los modos Fidelizado (GRUPOS, NUMEROS, etc.) son sub-modos de WhatsApp.
             if self.fidelizado_mode == "GRUPOS":
-                self.run_grupos_dual_whatsapp_thread() # <-- WHATSAPP
+                if self.simultaneous_mode:
+                    self.run_grupos_simultaneous_thread()
+                else:
+                    self.run_grupos_dual_whatsapp_thread() # <-- WHATSAPP
             elif self.fidelizado_mode == "NUMEROS_MANUAL":
                 self.run_numeros_manual_thread() # <-- WHATSAPP
             elif self.fidelizado_mode == "NUMEROS":
@@ -5270,8 +5226,6 @@ class Hermes:
 
             # Resetear pending audio para la nueva cuenta si no está habilitado globalmente
             # o si la lógica de 'una cuenta a la vez' estaba causando repeticiones
-            if not self.fidelizado_audio_enabled.get():
-                self.audio_pending_for_next_sender = False
         
         return True
     
@@ -5569,6 +5523,121 @@ class Hermes:
                     activity_info={'from': line_b['number'], 'to': line_a['number']}
                 )
     
+    def run_grupos_simultaneous_thread(self):
+        """
+        Lógica de envío SIMULTÁNEO para MODO GRUPOS.
+        Divide los grupos en tandas según el número de dispositivos.
+        Cada dispositivo envía a un grupo diferente en paralelo.
+        """
+        # --- FILTRADO DE DISPOSITIVOS ---
+        active_devices = self._get_filtered_devices()
+        if not active_devices:
+            self.log("No hay dispositivos que cumplan con el filtro seleccionado.", "error")
+            self.root.after(0, lambda: messagebox.showerror("Error", "No se encontraron dispositivos que cumplan con el filtro de WhatsApp seleccionado.", parent=self.root))
+            return
+
+        num_devices = len(active_devices)
+        grupos = self.manual_inputs_groups
+        num_grupos = len(grupos)
+        num_bucles = self.manual_loops_var.get()
+
+        if len(self.manual_messages_groups) < 1:
+            self.log("Error: Modo Grupos requiere al menos 1 mensaje cargado.", "error")
+            messagebox.showerror("Error", "Debes cargar al menos 1 archivo de mensajes.", parent=self.root)
+            return
+
+        # Indices y contadores
+        mensaje_index = self.mensaje_start_index
+        total_mensajes_lib = len(self.manual_messages_groups)
+        task_counter = 0
+
+        # WhatsApp packages to use (simultaneously implies all selected apps per device if applicable,
+        # but usually simultaneous mode implies 1 task per device per batch.
+        # If multiple WhatsApps are selected (e.g. Both), we should iterate them as sub-batches or pick one?)
+        # Requirement: "que todos los telefonos manden a la vez, pero siempre con un grupo diferente en la misma tanda cada telefono"
+        # Assumption: 1 group per device per batch. If device has 2 WhatsApps, does it use both for the SAME group?
+        # Usually group links open in one app. We will use the selected mode to pick the package.
+        # If "Ambas" or "Todas", we might need to send via both apps to the same group or split further?
+        # Simplicity: "Enviar al grupo". Just open the link. The OS/User picks app, or we force one.
+        # Current logic forces package. If "Ambas", we should probably do 2 actions per device per group?
+        # Or split devices?
+        # Let's stick to: One group per device per batch. If "Ambas", send via Business then Normal (sequentially inside the thread) or just one?
+        # Re-using _get_whatsapp_apps_to_use logic inside the thread.
+
+        whatsapp_apps = self._get_whatsapp_apps_to_use()
+
+        self.log(f"Modo Grupos Simultáneo: {num_bucles} bucle(s), {num_grupos} grupos, {num_devices} dispositivos", 'info')
+        self.log(f"Apps por dispositivo: {[name for name, _ in whatsapp_apps]}", 'info')
+
+        # --- Bucle principal ---
+        for bucle_num in range(num_bucles):
+            if self.should_stop: break
+            self.log(f"\n--- INICIANDO BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
+
+            # Procesar grupos en tandas (batches)
+            for i in range(0, num_grupos, num_devices):
+                if self.should_stop: break
+
+                batch_grupos = grupos[i : i + num_devices]
+                current_batch_size = len(batch_grupos)
+
+                self.log(f"\n>>> Iniciando Tanda {i // num_devices + 1} ({current_batch_size} grupos) <<<", 'info')
+
+                threads = []
+
+                # Crear hilos para esta tanda
+                for j, grupo_link in enumerate(batch_grupos):
+                    if self.should_stop: break
+
+                    device = active_devices[j % num_devices] # Should map 1-to-1 if devices >= batch size
+
+                    # Preparar mensaje (rotativo globalmente o por hilo? Global es mejor para variedad)
+                    mensaje = self.manual_messages_groups[mensaje_index % total_mensajes_lib]
+                    mensaje_index += 1
+                    task_counter += 1
+
+                    # Definir función del hilo para este dispositivo/grupo
+                    def worker(dev, link, msg, t_idx):
+                        # Iterar sobre apps seleccionadas (ej: primero WA Business, luego WA Normal si "Ambos")
+                        for wa_name, wa_package in whatsapp_apps:
+                            if self.should_stop: break
+
+                            # Log específico
+                            grupo_short = link.split('chat.whatsapp.com/')[-1][:10]
+                            self.log(f"[{dev}] -> Grupo {grupo_short}... ({wa_name})", 'info')
+
+                            # Ejecutar envío (skip_delay=True para no bloquear el join)
+                            self.run_single_task(
+                                dev, link, msg, t_idx,
+                                whatsapp_package=wa_package,
+                                skip_delay=True
+                            )
+
+                            # Si hay más de una app, pequeña pausa interna
+                            if len(whatsapp_apps) > 1:
+                                time.sleep(2)
+
+                    t = threading.Thread(target=worker, args=(device, grupo_link, mensaje, task_counter))
+                    threads.append(t)
+                    t.start()
+
+                # Esperar a que terminen todos los hilos de la tanda
+                for t in threads:
+                    t.join()
+
+                if self.should_stop: break
+                self.log(f">>> Tanda {i // num_devices + 1} finalizada", 'success')
+
+                # Aplicar Delay entre tandas (usando configuración de usuario)
+                if i + num_devices < num_grupos: # Si quedan grupos
+                    delay_min = self.fidelizado_send_delay_min.get()
+                    delay_max = self.fidelizado_send_delay_max.get()
+                    delay = random.uniform(delay_min, delay_max)
+                    self.log(f"⏳ Esperando {delay:.1f}s para la siguiente tanda...", 'info')
+                    self._controlled_sleep(delay)
+
+        self.log(f"\nModo Grupos Simultáneo finalizado", 'success')
+
     def run_grupos_dual_whatsapp_thread(self):
         """
         Lógica de envío para MODO GRUPOS.
@@ -5659,11 +5728,6 @@ class Hermes:
                             self.log(f"[{device}] Reabriendo WhatsApp Normal con nueva cuenta...", 'info')
                             self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', 'com.whatsapp/.Main'], timeout=5)
                             time.sleep(2)
-
-                            # Resetear pending audio si la función está deshabilitada, por seguridad
-                            if not self.fidelizado_audio_enabled.get():
-                                self.audio_pending_for_next_sender = False
-
 
                         # Pausa entre diferentes tipos de WhatsApp (ej. Business -> Normal)
                         if success and len(whatsapp_apps) > 1 and wa_idx < len(whatsapp_apps) - 1:
@@ -6122,6 +6186,8 @@ class Hermes:
                 # Configurar estado de botones
                 self.fidelizado_btn_start.configure(state=tk.NORMAL)
                 self.unirse_grupos_btn.configure(state=tk.NORMAL)
+                if hasattr(self, 'fidelizado_simultaneo_btn'):
+                    self.fidelizado_simultaneo_btn.configure(state=tk.NORMAL)
                 self.fidelizado_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
                 self.fidelizado_btn_stop.configure(state=tk.DISABLED)
                 if hasattr(self, 'back_to_traditional_btn'):
@@ -6181,6 +6247,8 @@ class Hermes:
                 # Configurar estado de botones
                 self.fidelizado_btn_start.configure(state=tk.DISABLED)
                 self.unirse_grupos_btn.configure(state=tk.DISABLED)
+                if hasattr(self, 'fidelizado_simultaneo_btn'):
+                    self.fidelizado_simultaneo_btn.configure(state=tk.DISABLED)
                 self.fidelizado_btn_pause.configure(state=tk.NORMAL)
                 self.fidelizado_btn_stop.configure(state=tk.NORMAL)
                 if hasattr(self, 'back_to_traditional_btn'):
@@ -6791,263 +6859,6 @@ class Hermes:
 
         return None, None
 
-    def _locate_voice_note_button(self, ui_device):
-        """Localiza específicamente el botón de nota de voz (micrófono)."""
-        if ui_device is None:
-            return None
-
-        voice_selectors = [
-            dict(resourceId="com.whatsapp:id/voice_note_btn"),
-            dict(resourceId="com.whatsapp.w4b:id/voice_note_btn"),
-            dict(resourceIdMatches=r"(?i)com\.whatsapp(\.w4b)?\:id/(voice_note_btn|voice_note|mic)"),
-            dict(descriptionMatches="(?i)(nota de voz|mant[eé]n pulsado|grabar|microf)")
-        ]
-
-        for selector in voice_selectors:
-            try:
-                candidate = ui_device(**selector)
-                if not candidate.wait(timeout=3):
-                    continue
-
-                info = candidate.info or {}
-                if not info.get('visibleToUser', True):
-                    continue
-
-                bounds = info.get('bounds') or {}
-                if not bounds or bounds.get('left') == bounds.get('right'):
-                    continue
-
-                return candidate
-            except Exception:
-                continue
-
-        return None
-
-    def _get_audio_interval_range(self):
-        """Obtiene el rango configurado para el envío aleatorio de audios."""
-        try:
-            interval_min = int(self.fidelizado_audio_interval_min.get())
-        except (tk.TclError, ValueError, TypeError):
-            interval_min = 1
-
-        try:
-            interval_max = int(self.fidelizado_audio_interval_max.get())
-        except (tk.TclError, ValueError, TypeError):
-            interval_max = interval_min
-
-        interval_min = max(1, interval_min)
-        interval_max = max(1, interval_max)
-
-        if interval_min > interval_max:
-            interval_min, interval_max = interval_max, interval_min
-
-        return interval_min, interval_max
-
-    def _maybe_send_audio(self, ui_device, device, task_index, whatsapp_package=None, *, pre_send=False):
-        """Gestiona el envío de audios según la configuración actual."""
-        if ui_device is None or not self.fidelizado_audio_enabled.get() or self.should_stop:
-            return False if pre_send else None
-
-        if whatsapp_package is None and self.sms_mode_active:
-            return False if pre_send else None
-
-        interval_min, interval_max = self._get_audio_interval_range()
-        combo = (device or "default", whatsapp_package or "default")
-        self.audio_known_combinations.add(combo)
-
-        if self.audio_next_trigger_count is None:
-            self.audio_next_trigger_count = random.randint(interval_min, interval_max)
-            self.audio_message_counter = 0
-            self.log(
-                f"Próximo audio programado tras {self.audio_next_trigger_count} mensajes.",
-                'info'
-            )
-
-        if pre_send:
-            if not self.audio_pending_for_next_sender:
-                return False
-
-            # Ensure audio is sent even if it's the same combo, if it's pending
-            # skip_for_same_combo = (
-            #     combo == self.audio_pending_trigger_combo and
-            #     len(self.audio_known_combinations) > 1
-            # )
-            # if skip_for_same_combo:
-            #    self.log("Audio pendiente aplazado para otra cuenta/dispositivo.", 'info')
-            #    return False
-
-            self.log("Intentando enviar nota de voz...", 'info')
-            audio_success = self._send_audio_note(ui_device, device, whatsapp_package)
-
-            if audio_success:
-                self.audio_pending_for_next_sender = False
-                self.audio_pending_trigger_combo = None
-                self.audio_message_counter = 0
-                self.audio_next_trigger_count = random.randint(interval_min, interval_max)
-                self.log(
-                    f"Audio enviado. Próximo audio entre {interval_min} y {interval_max} mensajes (programado en {self.audio_next_trigger_count}).",
-                    'info'
-                )
-                return True
-
-            # Audio falló, mantener pendiente para intentar nuevamente
-            self.audio_pending_trigger_combo = combo
-            if self.audio_next_trigger_count:
-                self.audio_message_counter = max(0, self.audio_next_trigger_count - 1)
-            return False
-
-        if self.audio_pending_for_next_sender:
-            return None
-
-        self.audio_message_counter += 1
-
-        if self.audio_message_counter >= (self.audio_next_trigger_count or interval_min):
-            self.audio_pending_for_next_sender = True
-            self.audio_pending_trigger_combo = combo
-            self.log("Nota de voz programada para el próximo envío.", 'info')
-
-        return None
-
-    def _send_audio_note(self, ui_device, device_id, whatsapp_package):
-        """Realiza la interacción necesaria para grabar y enviar una nota de voz."""
-        if self.should_stop:
-            return False
-
-        try:
-            edit_text = ui_device(className="android.widget.EditText")
-            if edit_text.wait(timeout=3):
-                try:
-                    edit_text.set_text("")
-                    time.sleep(0.2)
-                except Exception:
-                    pass
-
-                try:
-                    remaining_text = edit_text.get_text()
-                except Exception:
-                    remaining_text = None
-
-                if remaining_text:
-                    try:
-                        edit_text.click()
-                        time.sleep(0.2)
-                    except Exception:
-                        pass
-
-                    # El botón de audio sólo aparece si no hay texto pendiente
-                    try:
-                        edit_text.set_text("")
-                        time.sleep(0.2)
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-
-        mic_button = self._locate_voice_note_button(ui_device)
-
-        if not mic_button:
-            mic_button = self._locate_message_send_button(
-                ui_device,
-                is_sms=(whatsapp_package is None and self.sms_mode_active),
-            )
-            if mic_button:
-                self.log("Usando el botón principal como botón de audio (compatibilidad).", 'info')
-
-        if not mic_button:
-            self.log("No se encontró el botón para enviar audio.", 'warning')
-            return False
-
-        self.log("Botón de audio localizado. Preparando grabación...", 'info')
-
-        try:
-            center = mic_button.center()
-            x, y = int(center[0]), int(center[1])
-        except Exception:
-            try:
-                info = mic_button.info or {}
-                bounds = info.get('bounds') or {}
-                if not bounds:
-                    raise ValueError('sin coordenadas')
-                x = int((bounds['left'] + bounds['right']) / 2)
-                y = int((bounds['top'] + bounds['bottom']) / 2)
-            except Exception as e:
-                self.log(f"No se pudieron obtener las coordenadas del botón de audio: {e}", 'warning')
-                return False
-
-        duration_min = self.fidelizado_audio_duration_min.get()
-        duration_max = self.fidelizado_audio_duration_max.get()
-        if duration_min > duration_max:
-            duration_min, duration_max = duration_max, duration_min
-        duration_min = max(1, duration_min)
-        duration_max = max(duration_min, duration_max)
-        hold_time = float(duration_min) if duration_min == duration_max else random.uniform(duration_min, duration_max)
-        hold_time = max(1.0, hold_time)
-
-        self.log(f"Grabando audio durante {hold_time:.1f}s...", 'info')
-
-        hold_succeeded = False
-        errors = []
-
-        touch = getattr(ui_device, 'touch', None)
-        hold_methods = []
-        if touch:
-            hold_methods.append('touch')
-        hold_methods.append('uiautomator')
-        if device_id:
-            hold_methods.append('adb')
-
-        method_labels = {
-            'touch': 'gesto táctil directo',
-            'uiautomator': 'long click UIAutomator',
-            'adb': 'simulación ADB'
-        }
-
-        for method in hold_methods:
-            if self.should_stop:
-                break
-
-            try:
-                label = method_labels.get(method, method)
-                self.log(f"Manteniendo botón de audio ({label})...", 'info')
-
-                if method == 'touch' and touch:
-                    touch.down(x, y)
-                    self._controlled_sleep(hold_time)
-                    touch.up(x, y)
-                elif method == 'uiautomator':
-                    mic_button.long_click(duration=max(1.0, hold_time))
-                elif method == 'adb' and device_id:
-                    duration_ms = max(1000, int(hold_time * 1000))
-                    swipe_args = [
-                        '-s', device_id, 'shell', 'input', 'touchscreen', 'swipe',
-                        str(x), str(y), str(x), str(y), str(duration_ms)
-                    ]
-                    self._run_adb_command(swipe_args, timeout=max(5, int(hold_time) + 2))
-                else:
-                    continue
-
-                hold_succeeded = True
-                break
-            except Exception as e:
-                errors.append(f"{method}: {e}")
-                continue
-            finally:
-                if method == 'touch' and touch:
-                    try:
-                        touch.up(x, y)
-                    except Exception:
-                        pass
-
-        if not hold_succeeded or self.should_stop:
-            if errors:
-                self.log(f"No se pudo mantener el botón de audio: {' | '.join(errors)}", 'warning')
-            return False
-
-        self._controlled_sleep(1.0)
-        if not self.should_stop:
-            self.log("Audio enviado con éxito.", 'success')
-
-        return True
 
     def send_msg(
         self,
