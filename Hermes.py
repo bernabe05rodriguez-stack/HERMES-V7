@@ -408,7 +408,7 @@ class Hermes:
         self.fidelizado_send_delay_min = SafeIntVar(value=10)
         self.fidelizado_send_delay_max = SafeIntVar(value=15)
 
-        self.simultaneous_mode = False # Flag para modo simultáneo
+        self.simultaneous_mode = tk.BooleanVar(value=False) # Flag para modo simultáneo (usando BooleanVar para UI)
 
         # Estado de widgets bloqueados
         self._blocked_widgets_state = {}
@@ -3162,6 +3162,18 @@ class Hermes:
         ctk.CTkRadioButton(mixto_radio_frame, text="2G:1N", variable=self.mixto_variant, value=2, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT, padx=(0, 15))
         ctk.CTkRadioButton(mixto_radio_frame, text="3G:1N", variable=self.mixto_variant, value=3, font=self.fonts['setting_label'], text_color=self.colors['text']).pack(side=tk.LEFT)
 
+        # --- Controles de Envío Simultáneo (Grupos) ---
+        self.simultaneous_mode_container = ctk.CTkFrame(config_grid, fg_color="transparent")
+        # Se mostrará condicionalmente en _update_fidelizado_ui_mode
+        self.simultaneous_switch = ctk.CTkSwitch(
+            self.simultaneous_mode_container,
+            text="🚀 Envío Simultáneo (Por tandas)",
+            variable=self.simultaneous_mode,
+            font=self.fonts['button'],
+            text_color=self.colors['text']
+        )
+        self.simultaneous_switch.pack(anchor='w')
+
         # --- STEP 3: CARGA ---
         step3_frame = ctk.CTkFrame(content, fg_color="transparent")
         step3_frame.pack(fill=tk.X, padx=20, pady=(10, 0))
@@ -3233,9 +3245,6 @@ class Hermes:
 
         self.fidelizado_btn_start = ctk.CTkButton(self.actions_frame, text="▶ INICIAR ENVÍO FIDELIZADO", command=self.start_fidelizado_sending, fg_color=self.colors['action_start'], hover_color=self.hover_colors['action_start'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
         self.fidelizado_btn_start.pack(fill=tk.X, pady=5)
-
-        self.fidelizado_simultaneo_btn = ctk.CTkButton(self.actions_frame, text="🚀 ENVÍO SIMULTÁNEO", command=self.start_sending_simultaneous, fg_color=self.colors['blue'], hover_color=darken_color(self.colors['blue'], 0.15), text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
-        # Se empaqueta condicionalmente en _update_fidelizado_ui_mode
 
         self.unirse_grupos_btn = ctk.CTkButton(self.actions_frame, text="🔗 UNIRSE A GRUPOS", command=self.start_unirse_grupos, fg_color=self.colors['action_detect'], hover_color=self.hover_colors['action_detect'], text_color=self.colors['text_header_buttons'], font=self.fonts['button'], corner_radius=10, height=50)
         self.unirse_grupos_btn.pack(fill=tk.X, pady=5)
@@ -3323,17 +3332,21 @@ class Hermes:
         else:
             self.cycles_container.pack_forget()
 
+        # --- Configuración Simultáneo (Solo Grupos) ---
+        if self.fidelizado_mode == "GRUPOS":
+            if not self.simultaneous_mode_container.winfo_manager():
+                self.simultaneous_mode_container.pack(fill=tk.X, pady=(0, 10))
+        else:
+            self.simultaneous_mode_container.pack_forget()
+
         # --- 3. Visibilidad de Botones de Acción ---
         if self.fidelizado_mode == "GRUPOS":
             if not self.unirse_grupos_btn.winfo_manager():
                 self.unirse_grupos_btn.pack(fill=tk.X, pady=5)
-            if hasattr(self, 'fidelizado_simultaneo_btn') and not self.fidelizado_simultaneo_btn.winfo_manager():
-                self.fidelizado_simultaneo_btn.pack(fill=tk.X, pady=5)
+            # El botón de simultáneo se eliminó de aquí, ahora es un switch en configuración
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO A GRUPOS")
         else:
             self.unirse_grupos_btn.pack_forget()
-            if hasattr(self, 'fidelizado_simultaneo_btn'):
-                self.fidelizado_simultaneo_btn.pack_forget()
             self.fidelizado_btn_start.configure(text="▶ INICIAR ENVÍO FIDELIZADO")
 
         # --- 4. Actualización del Menú de WhatsApp ---
@@ -3373,14 +3386,10 @@ class Hermes:
             else:
                 self.fidelizado_message_count_label.configure(text="⚠️ No hay mensajes cargados")
 
-    def start_sending_simultaneous(self):
-        """Inicia el envío simultáneo para grupos."""
-        self.simultaneous_mode = True
-        self._open_schedule_dialog(lambda confirm: self._start_fidelizado_sending_impl(confirm=confirm))
-
     def start_fidelizado_sending(self):
         """Envoltorio para iniciar Fidelizado con opción de programar."""
-        self.simultaneous_mode = False
+        # El flag self.simultaneous_mode se gestiona ahora via self.simultaneous_mode (BooleanVar) desde la UI
+        # No hace falta setearlo aquí manualmente
         self._open_schedule_dialog(lambda confirm: self._start_fidelizado_sending_impl(confirm=confirm))
 
     def _start_fidelizado_sending_impl(self, confirm=True):
@@ -4150,7 +4159,7 @@ class Hermes:
         self.audio_next_trigger_count = None
         self.audio_pending_for_next_sender = False
         self.audio_pending_trigger_combo = None
-        self.audio_known_combinations.clear()
+        # self.audio_known_combinations.clear() # Removed as per user request to remove audio logic
 
         # Iniciar hilo
         threading.Thread(target=self.send_thread, daemon=True).start()
@@ -4353,7 +4362,7 @@ class Hermes:
             # lógica de SMS o la de WhatsApp.
             # Los modos Fidelizado (GRUPOS, NUMEROS, etc.) son sub-modos de WhatsApp.
             if self.fidelizado_mode == "GRUPOS":
-                if self.simultaneous_mode:
+                if self.simultaneous_mode.get():
                     self.run_grupos_simultaneous_thread()
                 else:
                     self.run_grupos_dual_whatsapp_thread() # <-- WHATSAPP
@@ -6186,8 +6195,6 @@ class Hermes:
                 # Configurar estado de botones
                 self.fidelizado_btn_start.configure(state=tk.NORMAL)
                 self.unirse_grupos_btn.configure(state=tk.NORMAL)
-                if hasattr(self, 'fidelizado_simultaneo_btn'):
-                    self.fidelizado_simultaneo_btn.configure(state=tk.NORMAL)
                 self.fidelizado_btn_pause.configure(state=tk.DISABLED, text="⏸  PAUSAR")
                 self.fidelizado_btn_stop.configure(state=tk.DISABLED)
                 if hasattr(self, 'back_to_traditional_btn'):
@@ -6247,8 +6254,6 @@ class Hermes:
                 # Configurar estado de botones
                 self.fidelizado_btn_start.configure(state=tk.DISABLED)
                 self.unirse_grupos_btn.configure(state=tk.DISABLED)
-                if hasattr(self, 'fidelizado_simultaneo_btn'):
-                    self.fidelizado_simultaneo_btn.configure(state=tk.DISABLED)
                 self.fidelizado_btn_pause.configure(state=tk.NORMAL)
                 self.fidelizado_btn_stop.configure(state=tk.NORMAL)
                 if hasattr(self, 'back_to_traditional_btn'):
