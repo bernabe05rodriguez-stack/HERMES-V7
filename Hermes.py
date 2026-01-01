@@ -5601,16 +5601,19 @@ class Hermes:
 
                     device = active_devices[j % num_devices] # Should map 1-to-1 if devices >= batch size
 
-                    # Preparar mensaje (rotativo globalmente o por hilo? Global es mejor para variedad)
-                    mensaje = self.manual_messages_groups[mensaje_index % total_mensajes_lib]
-                    mensaje_index += 1
                     task_counter += 1
 
                     # Definir función del hilo para este dispositivo/grupo
-                    def worker(dev, link, msg, t_idx):
+                    def worker(dev, link, t_idx):
                         # Iterar sobre apps seleccionadas (ej: primero WA Business, luego WA Normal si "Ambos")
                         for wa_name, wa_package in whatsapp_apps:
                             if self.should_stop: break
+
+                            # Seleccionar mensaje aleatorio para cada envío individual
+                            if self.manual_messages_groups:
+                                msg = random.choice(self.manual_messages_groups)
+                            else:
+                                msg = "Hola"
 
                             # Log específico
                             grupo_short = link.split('chat.whatsapp.com/')[-1][:10]
@@ -5627,7 +5630,7 @@ class Hermes:
                             if len(whatsapp_apps) > 1:
                                 time.sleep(2)
 
-                    t = threading.Thread(target=worker, args=(device, grupo_link, mensaje, task_counter))
+                    t = threading.Thread(target=worker, args=(device, grupo_link, task_counter))
                     threads.append(t)
                     t.start()
 
