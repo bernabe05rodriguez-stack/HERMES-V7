@@ -409,6 +409,7 @@ class Hermes:
         self.fidelizado_send_delay_max = SafeIntVar(value=15)
 
         self.simultaneous_mode = tk.BooleanVar(value=False) # Flag para modo simultáneo (usando BooleanVar para UI)
+        self.auto_join_groups = tk.BooleanVar(value=True) # Permite auto-unirse a grupos cuando se detecta la pantalla de invitación
 
         # Estado de widgets bloqueados
         self._blocked_widgets_state = {}
@@ -6793,7 +6794,39 @@ class Hermes:
 
         return None
 
-    def _wait_for_chat_ready(self, ui_device, wait_time, expected_package=None, is_sms=False):
+    def _locate_join_group_button(self, ui_device, wait_timeout=0.2):
+        """Busca el botón de unirse/aceptar en pantallas de invitación a grupos."""
+        if ui_device is None:
+            return None
+
+        selectors = [
+            dict(textMatches="(?i)unirme"),
+            dict(textMatches="(?i)unirse"),
+            dict(textMatches="(?i)unir(me)?(\\s+al)?\\s+grupo"),
+            dict(textMatches="(?i)join\\s*(group)?"),
+            dict(textMatches="(?i)acept(ar|ar\\s+invitaci[oó]n)?"),
+            dict(textMatches="(?i)accept"),
+            dict(descriptionMatches="(?i)unirme"),
+            dict(descriptionMatches="(?i)unirse"),
+            dict(descriptionMatches="(?i)join\\s*(group)?"),
+            dict(descriptionMatches="(?i)acept(ar|ar\\s+invitaci[oó]n)?"),
+            dict(descriptionMatches="(?i)accept"),
+        ]
+
+        for selector in selectors:
+            try:
+                candidate = ui_device(**selector)
+                if candidate.wait(timeout=wait_timeout):
+                    info = candidate.info or {}
+                    bounds = info.get('bounds') or {}
+                    if bounds and bounds.get('left') != bounds.get('right'):
+                        return candidate
+            except Exception:
+                continue
+
+        return None
+
+    def _wait_for_chat_ready(self, ui_device, wait_time, expected_package=None, is_sms=False, allow_group_join_check=False):
         """
         Espera a que WhatsApp/SMS esté listo para escribir y devuelve los objetos de la UI.
         Retorna (chat_field, send_button) si tiene éxito, o (None, None) si falla.
@@ -6806,6 +6839,8 @@ class Hermes:
         chat_field = None
         send_button = None
         deadline_extended = False  # Flag para asegurar que solo extendemos el tiempo una vez
+        join_attempted = False
+        join_required_detected = False
 
         while not self.should_stop:
             # Check for pause
@@ -6818,6 +6853,27 @@ class Hermes:
             # Si ya encontramos ambos elementos, el trabajo está hecho.
             if chat_field and send_button:
                 break
+
+            # Detectar pantallas de invitación a grupos antes de buscar el chat listo
+            if allow_group_join_check and not is_sms:
+                join_button = self._locate_join_group_button(ui_device, wait_timeout=poll_interval)
+                if join_button:
+                    join_required_detected = True
+                    if not self.auto_join_groups.get():
+                        self.log("✗ Se detectó pantalla de unión a grupo. Auto-unirse desactivado.", 'error')
+                        return None, None
+
+                    if not join_attempted:
+                        try:
+                            join_button.click()
+                            join_attempted = True
+                            self.log("✓ Pantalla de unión detectada. Haciendo clic para unirse...", 'info')
+                            deadline += 6  # Dar tiempo extra tras unirse
+                            self._controlled_sleep(0.6)
+                            continue
+                        except Exception as e:
+                            self.log(f"✗ No se pudo hacer clic en 'Unirme/Aceptar': {e}", 'error')
+                            return None, None
 
             # Buscar el campo de texto si aún no lo tenemos
             if not chat_field:
@@ -6856,7 +6912,10 @@ class Hermes:
 
         # Si falla, registrar el motivo específico
         if not chat_field and not send_button:
-            self.log("✗ Chat no listo: No se encontró ni el campo de texto ni el botón de envío.", 'error')
+            if join_required_detected:
+                self.log("✗ Chat no listo: Se detectó pantalla de unión a grupo pero no se completó.", 'error')
+            else:
+                self.log("✗ Chat no listo: No se encontró ni el campo de texto ni el botón de envío.", 'error')
         elif not chat_field:
             self.log("✗ Chat no listo: Se encontró el botón de envío, pero no el campo de texto.", 'error')
         elif not send_button:
@@ -6964,6 +7023,7 @@ class Hermes:
                     wait_time,
                     expected_package=active_package,
                     is_sms=False,
+                    allow_group_join_check=is_group,
                 )
 
                 if not chat_field or not send_button:
