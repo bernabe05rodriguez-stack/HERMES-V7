@@ -6877,12 +6877,12 @@ class Hermes:
         primary_index=None,
     ):
         """Ejecuta los comandos para enviar un único mensaje."""
+        is_group = bool(message_to_send)
         try:
             if not ui_device:
                 self.log("✗ Error crítico: la conexión de uiautomator2 no está disponible.", "error")
                 return False
 
-            is_group = bool(message_to_send)
             attempt_links = [link]
             if primary_index is not None:
                 alternates = self.link_retry_map.get(primary_index, [])
@@ -6891,9 +6891,9 @@ class Hermes:
 
             total_attempts = len(attempt_links)
 
-            def describe_link(current_link):
+            def describe_link(current_link, is_group_flag):
                 lower_link = current_link.lower()
-                if is_group and not lower_link.startswith("https://wa.me/"):
+                if is_group_flag and not lower_link.startswith("https://wa.me/"):
                     return f"Grupo ({current_link[:40]}...)"
                 if lower_link.startswith("sms:"):
                     return current_link.split("sms:", 1)[1].split('?')[0]
@@ -6901,9 +6901,9 @@ class Hermes:
                     return current_link.split('wa.me/')[1].split('?')[0]
                 return current_link[:50]
 
-            def attempt_send(current_link, attempt_idx):
+            def attempt_send(current_link, attempt_idx, is_group_flag):
                 local_is_sms = current_link.lower().startswith("sms:")
-                num_display = describe_link(current_link)
+                num_display = describe_link(current_link, is_group_flag)
                 intento = "Principal" if attempt_idx == 0 else f"Alternativo {attempt_idx}"
                 log_prefix = f"({i}/{total}) → {num_display} [en {device}] ({intento})"
 
@@ -6959,6 +6959,8 @@ class Hermes:
                 active_package = whatsapp_package
 
                 wait_time = max(0, int(self.wait_after_open.get()))
+                if is_group_flag and "chat.whatsapp.com" in current_link.lower():
+                    wait_time += 5
                 chat_field, send_button = self._wait_for_chat_ready(
                     ui_device,
                     wait_time,
@@ -6974,7 +6976,7 @@ class Hermes:
                     return False, False
 
                 msg_to_send = message_to_send
-                if not msg_to_send and not is_group:
+                if not msg_to_send and not is_group_flag:
                     try:
                         if 'text=' in current_link:
                             msg_to_send = urllib.parse.unquote(current_link.split('text=')[1])
@@ -6982,7 +6984,7 @@ class Hermes:
                         msg_to_send = None
 
                 try:
-                    needs_text_input = is_group
+                    needs_text_input = is_group_flag
                     if needs_text_input and msg_to_send is not None:
                         # --- Lógica robusta anti-audio (Modo Grupo) ---
 
@@ -7096,7 +7098,7 @@ class Hermes:
                     if self.should_stop:
                         return False
 
-                success, should_retry = attempt_send(current_link, attempt_idx)
+                success, should_retry = attempt_send(current_link, attempt_idx, is_group)
                 if success:
                     return True
 
