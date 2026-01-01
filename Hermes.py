@@ -5607,6 +5607,12 @@ class Hermes:
 
                     # Definir función del hilo para este dispositivo/grupo
                     def worker(dev, link, msg, t_idx):
+                        if msg is None or not str(msg).strip():
+                            grupo_short = link.split('chat.whatsapp.com/')[-1][:10]
+                            if grupo_short == link:
+                                grupo_short = link[:10]
+                            self.log(f"[{dev}] Mensaje de grupo vacío. Se omite envío a {grupo_short}...", 'error')
+                            return
                         # Iterar sobre apps seleccionadas (ej: primero WA Business, luego WA Normal si "Ambos")
                         for wa_name, wa_package in whatsapp_apps:
                             if self.should_stop: break
@@ -5710,6 +5716,10 @@ class Hermes:
                         # Obtener mensaje rotativo
                         mensaje = self.manual_messages_groups[mensaje_index % total_mensajes_lib]
                         mensaje_index += 1
+
+                        if mensaje is None or not str(mensaje).strip():
+                            self.log(f"[{device}] Mensaje de grupo vacío. Se omite envío a {grupo_display}.", 'error')
+                            continue
 
                         # Usar run_single_task que ya tiene toda la lógica de envío + retardo post-tarea
                         success = self.run_single_task(
@@ -6125,6 +6135,9 @@ class Hermes:
                     if self.should_stop: break
                     task_counter += 1
                     msg_g = get_next_g_msg() # Mensaje rotativo
+                    if msg_g is None or not str(msg_g).strip():
+                        self.log(f"[{device}] Mensaje de grupo vacío. Se omite envío a {current_group_target[:40]}...", 'error')
+                        continue
                     self.run_single_task(device, current_group_target, msg_g, task_counter)
                 
                 if self.should_stop: break # Check entre etapas
@@ -6882,7 +6895,6 @@ class Hermes:
                 self.log("✗ Error crítico: la conexión de uiautomator2 no está disponible.", "error")
                 return False
 
-            is_group = bool(message_to_send)
             attempt_links = [link]
             if primary_index is not None:
                 alternates = self.link_retry_map.get(primary_index, [])
@@ -6891,9 +6903,17 @@ class Hermes:
 
             total_attempts = len(attempt_links)
 
+            def is_group_link(current_link):
+                lower_link = current_link.lower()
+                if "chat.whatsapp.com/" in lower_link:
+                    return True
+                if "wa.me/" in lower_link and "text=" not in lower_link:
+                    return True
+                return False
+
             def describe_link(current_link):
                 lower_link = current_link.lower()
-                if is_group and not lower_link.startswith("https://wa.me/"):
+                if is_group_link(current_link) and not lower_link.startswith("https://wa.me/"):
                     return f"Grupo ({current_link[:40]}...)"
                 if lower_link.startswith("sms:"):
                     return current_link.split("sms:", 1)[1].split('?')[0]
@@ -6903,9 +6923,15 @@ class Hermes:
 
             def attempt_send(current_link, attempt_idx):
                 local_is_sms = current_link.lower().startswith("sms:")
+                local_is_group = is_group_link(current_link)
                 num_display = describe_link(current_link)
                 intento = "Principal" if attempt_idx == 0 else f"Alternativo {attempt_idx}"
                 log_prefix = f"({i}/{total}) → {num_display} [en {device}] ({intento})"
+
+                if local_is_group and (message_to_send is None or not str(message_to_send).strip()):
+                    self.log(log_prefix, 'error')
+                    self.log("  └─ Motivo: Link de grupo sin mensaje. Se aborta el envío.", 'error')
+                    return False, False
 
                 # --- MODO SMS SIMPLIFICADO ---
                 if local_is_sms:
@@ -6974,7 +7000,7 @@ class Hermes:
                     return False, False
 
                 msg_to_send = message_to_send
-                if not msg_to_send and not is_group:
+                if not msg_to_send and not local_is_group:
                     try:
                         if 'text=' in current_link:
                             msg_to_send = urllib.parse.unquote(current_link.split('text=')[1])
@@ -6982,7 +7008,7 @@ class Hermes:
                         msg_to_send = None
 
                 try:
-                    needs_text_input = is_group
+                    needs_text_input = local_is_group
                     if needs_text_input and msg_to_send is not None:
                         # --- Lógica robusta anti-audio (Modo Grupo) ---
 
