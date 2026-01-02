@@ -4093,9 +4093,9 @@ class Hermes:
             num_grupos = len(self.manual_inputs_groups)
             num_bucles = self.manual_loops_var.get()
             whatsapp_multiplier = 3 if self.whatsapp_mode.get() == "Todas" else (2 if self.whatsapp_mode.get() == "Ambas" else 1)
-            self.total_messages = num_bucles * num_grupos * num_dev * whatsapp_multiplier
+            self.total_messages = num_bucles * num_grupos
             wa_mode_str = self.whatsapp_mode.get()
-            self.log(f"Modo Grupos ({wa_mode_str}): {self.total_messages} envíos totales ({num_bucles} bucles x {num_grupos} grupos x {num_dev} disp. x {whatsapp_multiplier} app(s))", 'info')
+            self.log(f"Modo Grupos ({wa_mode_str}): {self.total_messages} envíos totales ({num_bucles} bucles x {num_grupos} grupos)", 'info')
         
         elif self.fidelizado_mode == "MIXTO":
             if not self.manual_inputs_groups or not self.manual_inputs_numbers:
@@ -5595,7 +5595,9 @@ class Hermes:
             # Crear lista de tareas (Grupo, Worker)
             tasks = []
             for i, grupo in enumerate(grupos):
-                worker = workers[i % num_workers]
+                # Aplicar rotación basada en el número de bucle para evitar repetición
+                worker_idx = (i + bucle_num) % num_workers
+                worker = workers[worker_idx]
                 tasks.append((grupo, worker))
 
             # Procesar en tandas de tamaño = num_devices_phys
@@ -5690,8 +5692,9 @@ class Hermes:
             for idx_grupo, grupo_link in enumerate(grupos):
                 if self.should_stop: break
 
-                # Determinar worker
-                worker = workers[idx_grupo % num_workers]
+                # Determinar worker con rotación basada en bucle
+                worker_idx = (idx_grupo + bucle_num) % num_workers
+                worker = workers[worker_idx]
                 device, wa_name, wa_package = worker
 
                 grupo_display = grupo_link.split('chat.whatsapp.com/')[-1][:10] if 'chat.whatsapp.com' in grupo_link else str(idx_grupo+1)
