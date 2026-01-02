@@ -5533,11 +5533,31 @@ class Hermes:
                     activity_info={'from': line_b['number'], 'to': line_a['number']}
                 )
     
+    def _get_ordered_workers(self, active_devices):
+        """
+        Genera la lista de 'workers' (Device, Name, Package) en el orden solicitado:
+        1. Todos los dispositivos en Business (si aplica)
+        2. Todos los dispositivos en Normal (si aplica)
+        """
+        workers = []
+        mode = self.whatsapp_mode.get()
+
+        # Primero Business
+        if mode in ["Business", "Ambas", "Todas"]:
+            for device in active_devices:
+                workers.append((device, "WhatsApp Business", "com.whatsapp.w4b"))
+
+        # Luego Normal
+        if mode in ["Normal", "Ambas", "Todas"]:
+            for device in active_devices:
+                workers.append((device, "WhatsApp Normal", "com.whatsapp"))
+
+        return workers
+
     def run_grupos_simultaneous_thread(self):
         """
         Lógica de envío SIMULTÁNEO para MODO GRUPOS.
-        Divide los grupos en tandas según el número de dispositivos.
-        Cada dispositivo envía a un grupo diferente en paralelo.
+        Asigna grupos a workers y ejecuta en tandas paralelas respetando los dispositivos físicos.
         """
         # --- FILTRADO DE DISPOSITIVOS ---
         active_devices = self._get_filtered_devices()
@@ -5545,6 +5565,99 @@ class Hermes:
             self.log("No hay dispositivos que cumplan con el filtro seleccionado.", "error")
             self.root.after(0, lambda: messagebox.showerror("Error", "No se encontraron dispositivos que cumplan con el filtro de WhatsApp seleccionado.", parent=self.root))
             return
+
+        num_devices_phys = len(active_devices)
+        grupos = self.manual_inputs_groups
+        num_grupos = len(grupos)
+        num_bucles = self.manual_loops_var.get()
+
+        if len(self.manual_messages_groups) < 1:
+            self.log("Error: Modo Grupos requiere al menos 1 mensaje cargado.", "error")
+            messagebox.showerror("Error", "Debes cargar al menos 1 archivo de mensajes.", parent=self.root)
+            return
+
+        # Construir lista de workers
+        workers = self._get_ordered_workers(active_devices)
+        num_workers = len(workers)
+
+        self.log(f"Modo Grupos Simultáneo: {num_bucles} bucle(s), {num_grupos} grupos, {num_workers} workers", 'info')
+
+        # Indices
+        mensaje_index = self.mensaje_start_index
+        total_mensajes_lib = len(self.manual_messages_groups)
+        task_counter = 0
+
+        # --- Bucle principal ---
+        for bucle_num in range(num_bucles):
+            if self.should_stop: break
+            self.log(f"\n--- INICIANDO BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
+
+            # Crear lista de tareas (Grupo, Worker)
+            tasks = []
+            for i, grupo in enumerate(grupos):
+                worker = workers[i % num_workers]
+                tasks.append((grupo, worker))
+
+            # Procesar en tandas de tamaño = num_devices_phys
+            # Como workers alterna dispositivos, tomar N tareas debería usar N dispositivos distintos (idealmente)
+            batch_size = num_devices_phys
+
+            for i in range(0, len(tasks), batch_size):
+                if self.should_stop: break
+
+                batch_tasks = tasks[i : i + batch_size]
+                self.log(f"\n>>> Iniciando Tanda {i // batch_size + 1} ({len(batch_tasks)} tareas) <<<", 'info')
+
+                threads = []
+                for grupo_link, (device, wa_name, wa_package) in batch_tasks:
+                    if self.should_stop: break
+                    task_counter += 1
+
+                    # Mensaje rotativo
+                    mensaje = self.manual_messages_groups[mensaje_index % total_mensajes_lib]
+                    mensaje_index += 1
+
+                    def worker_func(dev, link, msg, t_idx, pkg, w_name):
+                        self.log(f"[{dev}] -> Grupo {link.split('/')[-1][:10]} ({w_name})", 'info')
+                        self.run_single_task(dev, link, msg, t_idx, whatsapp_package=pkg, skip_delay=True)
+
+                        # Lógica cambio cuenta "Todas"
+                        if w_name == "WhatsApp Normal" and self.whatsapp_mode.get() == "Todas":
+                             self._switch_account_for_device(dev, delay=0.2)
+
+                    t = threading.Thread(target=worker_func, args=(device, grupo_link, mensaje, task_counter, wa_package, wa_name))
+                    threads.append(t)
+                    t.start()
+
+                for t in threads:
+                    t.join()
+
+                if self.should_stop: break
+                self.log(f">>> Tanda finalizada", 'success')
+
+                # Delay entre tandas
+                if i + batch_size < len(tasks):
+                    delay = random.uniform(self.fidelizado_send_delay_min.get(), self.fidelizado_send_delay_max.get())
+                    self.log(f"⏳ Esperando {delay:.1f}s...", 'info')
+                    self._controlled_sleep(delay)
+
+            if self.should_stop: break
+            self.log(f"\n--- FIN BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
+
+        self.log(f"\nModo Grupos Simultáneo finalizado", 'success')
+
+    def run_grupos_dual_whatsapp_thread(self):
+        """
+        Lógica de envío para MODO GRUPOS (Secuencial).
+        Asigna grupos 1-a-1 a workers (Dispositivo + App) en orden round-robin.
+        """
+        # --- FILTRADO DE DISPOSITIVOS ---
+        active_devices = self._get_filtered_devices()
+        if not active_devices:
+            self.log("No hay dispositivos que cumplan con el filtro seleccionado.", "error")
+            self.root.after(0, lambda: messagebox.showerror("Error", "No se encontraron dispositivos que cumplan con el filtro de WhatsApp seleccionado.", parent=self.root))
+            return
+        # --- FIN FILTRADO ---
 
         num_devices = len(active_devices)
         grupos = self.manual_inputs_groups
@@ -5556,209 +5669,66 @@ class Hermes:
             messagebox.showerror("Error", "Debes cargar al menos 1 archivo de mensajes.", parent=self.root)
             return
 
-        # Indices y contadores
+        # Construir lista de workers
+        workers = self._get_ordered_workers(active_devices)
+        num_workers = len(workers)
+
+        self.log(f"Modo Grupos Secuencial: {num_bucles} bucle(s), {num_grupos} grupos, {num_workers} workers ({num_devices} dispositivos)", 'info')
+        self.log(f"Orden de asignación: {[f'{d}-{n}' for d,n,p in workers]}", 'info')
+
+        # Indices
         mensaje_index = self.mensaje_start_index
         total_mensajes_lib = len(self.manual_messages_groups)
         task_counter = 0
-
-        # WhatsApp packages to use (simultaneously implies all selected apps per device if applicable,
-        # but usually simultaneous mode implies 1 task per device per batch.
-        # If multiple WhatsApps are selected (e.g. Both), we should iterate them as sub-batches or pick one?)
-        # Requirement: "que todos los telefonos manden a la vez, pero siempre con un grupo diferente en la misma tanda cada telefono"
-        # Assumption: 1 group per device per batch. If device has 2 WhatsApps, does it use both for the SAME group?
-        # Usually group links open in one app. We will use the selected mode to pick the package.
-        # If "Ambas" or "Todas", we might need to send via both apps to the same group or split further?
-        # Simplicity: "Enviar al grupo". Just open the link. The OS/User picks app, or we force one.
-        # Current logic forces package. If "Ambas", we should probably do 2 actions per device per group?
-        # Or split devices?
-        # Let's stick to: One group per device per batch. If "Ambas", send via Business then Normal (sequentially inside the thread) or just one?
-        # Re-using _get_whatsapp_apps_to_use logic inside the thread.
-
-        whatsapp_apps = self._get_whatsapp_apps_to_use()
-
-        self.log(f"Modo Grupos Simultáneo: {num_bucles} bucle(s), {num_grupos} grupos, {num_devices} dispositivos", 'info')
-        self.log(f"Apps por dispositivo: {[name for name, _ in whatsapp_apps]}", 'info')
 
         # --- Bucle principal ---
         for bucle_num in range(num_bucles):
             if self.should_stop: break
             self.log(f"\n--- INICIANDO BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
 
-            # Procesar grupos en tandas (batches)
-            for i in range(0, num_grupos, num_devices):
+            # Iterar grupos y asignar round-robin
+            for idx_grupo, grupo_link in enumerate(grupos):
                 if self.should_stop: break
 
-                batch_grupos = grupos[i : i + num_devices]
-                current_batch_size = len(batch_grupos)
+                # Determinar worker
+                worker = workers[idx_grupo % num_workers]
+                device, wa_name, wa_package = worker
 
-                self.log(f"\n>>> Iniciando Tanda {i // num_devices + 1} ({current_batch_size} grupos) <<<", 'info')
+                grupo_display = grupo_link.split('chat.whatsapp.com/')[-1][:10] if 'chat.whatsapp.com' in grupo_link else str(idx_grupo+1)
+                self.log(f"\n=== GRUPO {idx_grupo + 1}/{num_grupos} -> {device} ({wa_name}) ===", 'info')
 
-                threads = []
+                task_counter += 1
 
-                # Crear hilos para esta tanda
-                for j, grupo_link in enumerate(batch_grupos):
-                    if self.should_stop: break
+                # Obtener mensaje rotativo
+                mensaje = self.manual_messages_groups[mensaje_index % total_mensajes_lib]
+                mensaje_index += 1
 
-                    device = active_devices[j % num_devices] # Should map 1-to-1 if devices >= batch size
+                # Ejecutar envío
+                success = self.run_single_task(
+                    device, grupo_link, mensaje, task_counter, whatsapp_package=wa_package
+                )
 
-                    task_counter += 1
+                # Lógica de cambio de cuenta para el modo "TODAS" (Solo si es Normal)
+                if wa_name == "WhatsApp Normal" and self.whatsapp_mode.get() == "Todas":
+                    self.log(f"[{device}] Cerrando WhatsApp Normal después de enviar...", 'info')
+                    self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp'], timeout=5)
+                    time.sleep(1)
 
-                    # Definir función del hilo para este dispositivo/grupo
-                    def worker(dev, link, t_idx):
-                        # Iterar sobre apps seleccionadas (ej: primero WA Business, luego WA Normal si "Ambos")
-                        for wa_name, wa_package in whatsapp_apps:
-                            if self.should_stop: break
+                    self.log(f"[{device}] Reabriendo WhatsApp Normal...", 'info')
+                    self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', 'com.whatsapp/.Main'], timeout=5)
+                    time.sleep(3)
 
-                            # Seleccionar mensaje aleatorio para cada envío individual
-                            if self.manual_messages_groups:
-                                msg = random.choice(self.manual_messages_groups)
-                            else:
-                                msg = "Hola"
+                    self.log(f"[{device}] Cambiando de cuenta...", 'info')
+                    self._switch_account_for_device(device, delay=0.2)
+                    time.sleep(4)
 
-                            # Log específico
-                            grupo_short = link.split('chat.whatsapp.com/')[-1][:10]
-                            self.log(f"[{dev}] -> Grupo {grupo_short}... ({wa_name})", 'info')
+                    self.log(f"[{device}] Cerrando WhatsApp Normal después de cambiar cuenta...", 'info')
+                    self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp'], timeout=5)
+                    time.sleep(1)
 
-                            # Ejecutar envío (skip_delay=True para no bloquear el join)
-                            self.run_single_task(
-                                dev, link, msg, t_idx,
-                                whatsapp_package=wa_package,
-                                skip_delay=True
-                            )
-
-                            # Si hay más de una app, pequeña pausa interna
-                            if len(whatsapp_apps) > 1:
-                                time.sleep(2)
-
-                    t = threading.Thread(target=worker, args=(device, grupo_link, task_counter))
-                    threads.append(t)
-                    t.start()
-
-                # Esperar a que terminen todos los hilos de la tanda
-                for t in threads:
-                    t.join()
-
-                if self.should_stop: break
-                self.log(f">>> Tanda {i // num_devices + 1} finalizada", 'success')
-
-                # Aplicar Delay entre tandas (usando configuración de usuario)
-                if i + num_devices < num_grupos: # Si quedan grupos
-                    delay_min = self.fidelizado_send_delay_min.get()
-                    delay_max = self.fidelizado_send_delay_max.get()
-                    delay = random.uniform(delay_min, delay_max)
-                    self.log(f"⏳ Esperando {delay:.1f}s para la siguiente tanda...", 'info')
-                    self._controlled_sleep(delay)
-
-        self.log(f"\nModo Grupos Simultáneo finalizado", 'success')
-
-    def run_grupos_dual_whatsapp_thread(self):
-        """
-        Lógica de envío para MODO GRUPOS.
-        Por cada grupo, envía con los WhatsApps seleccionados (Normal, Business o Ambos).
-        Los mensajes rotan: 1,2,3,4... y cuando se acaban vuelven al 1.
-        """
-        # --- FILTRADO DE DISPOSITIVOS ---
-        active_devices = self._get_filtered_devices()
-        if not active_devices:
-            self.log("No hay dispositivos que cumplan con el filtro seleccionado.", "error")
-            self.root.after(0, lambda: messagebox.showerror("Error", "No se encontraron dispositivos que cumplan con el filtro de WhatsApp seleccionado.", parent=self.root))
-            return
-        # --- FIN FILTRADO ---
-
-        num_devices = len(active_devices)
-        num_grupos = len(self.manual_inputs_groups)
-        num_bucles = self.manual_loops_var.get() # <--- CORRECCIÓN: Leer el valor correcto de la UI
-
-        if len(self.manual_messages_groups) < 1:
-            self.log("Error: Modo Grupos requiere al menos 1 mensaje cargado.", "error")
-            messagebox.showerror("Error", "Debes cargar al menos 1 archivo de mensajes.", parent=self.root)
-            return
-
-        # Usar índice de inicio aleatorio
-        mensaje_index = self.mensaje_start_index
-        total_mensajes_lib = len(self.manual_messages_groups)
-        task_counter = 0
-        whatsapp_apps = self._get_whatsapp_apps_to_use()
-
-        self.log(f"Modo Grupos: {num_bucles} bucle(s), {num_grupos} grupo(s), {num_devices} dispositivo(s)", 'info')
-        self.log(f"WhatsApp: {self.whatsapp_mode.get()}", 'info')
-        self.log(f"Total de envíos: {self.total_messages}", 'info')
-
-        # --- Bucle principal corregido ---
-        last_device_used = None
-        for bucle_num in range(num_bucles):
-            if self.should_stop: break
-            self.log(f"\n--- INICIANDO BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
-
-            # Por cada grupo
-            for idx_grupo, grupo_link in enumerate(self.manual_inputs_groups):
-                if self.should_stop: break
-                grupo_display = grupo_link[:50] + "..." if len(grupo_link) > 50 else grupo_link
-                self.log(f"\n=== GRUPO {idx_grupo + 1}/{num_grupos}: {grupo_display} ===", 'info')
-
-                # Por cada dispositivo ACTIVO (orden aleatorio evitando repetir el último inicial)
-                shuffled_devices = active_devices.copy()
-                random.shuffle(shuffled_devices)
-                if last_device_used and len(shuffled_devices) > 1 and shuffled_devices[0] == last_device_used:
-                    shuffled_devices[0], shuffled_devices[1] = shuffled_devices[1], shuffled_devices[0]
-
-                for device in shuffled_devices:
-                    if self.should_stop: break
-
-                    # Por cada WhatsApp (Normal, Business, etc.)
-                    for wa_idx, (wa_name, wa_package) in enumerate(whatsapp_apps):
-                        if self.should_stop: break
-
-                        task_counter += 1
-
-                        # Obtener mensaje rotativo
-                        mensaje = self.manual_messages_groups[mensaje_index % total_mensajes_lib]
-                        mensaje_index += 1
-
-                        # Usar run_single_task que ya tiene toda la lógica de envío + retardo post-tarea
-                        success = self.run_single_task(
-                            device, grupo_link, mensaje, task_counter, whatsapp_package=wa_package
-                        )
-
-                        # Lógica de cambio de cuenta para el modo "TODAS"
-                        if wa_name == "Normal" and self.whatsapp_mode.get() == "Todas":
-                            self.log(f"[{device}] Cerrando WhatsApp Normal después de enviar...", 'info')
-                            self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp'], timeout=5)
-                            time.sleep(1)
-
-                            self.log(f"[{device}] Reabriendo WhatsApp Normal...", 'info')
-                            self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', 'com.whatsapp/.Main'], timeout=5)
-                            time.sleep(3)
-
-                            self.log(f"[{device}] Cambiando de cuenta...", 'info')
-                            self._switch_account_for_device(device, delay=0.2)
-                            time.sleep(4)
-
-                            self.log(f"[{device}] Cerrando WhatsApp Normal después de cambiar cuenta...", 'info')
-                            self._run_adb_command(['-s', device, 'shell', 'am', 'force-stop', 'com.whatsapp'], timeout=5)
-                            time.sleep(1)
-
-                            self.log(f"[{device}] Reabriendo WhatsApp Normal con nueva cuenta...", 'info')
-                            self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', 'com.whatsapp/.Main'], timeout=5)
-                            time.sleep(2)
-
-                        # Pausa entre diferentes tipos de WhatsApp (ej. Business -> Normal)
-                        if success and len(whatsapp_apps) > 1 and wa_idx < len(whatsapp_apps) - 1:
-                            wait_between = self.wait_between_messages.get()
-                            if wait_between > 0:
-                                self.log(f"Esperando {wait_between}s antes del siguiente WhatsApp...", 'info')
-                                elapsed = 0
-                                while elapsed < wait_between and not self.should_stop:
-                                    while self.is_paused and not self.should_stop: time.sleep(0.1)
-                                    if self.should_stop: break
-                                    time.sleep(0.1)
-                                    elapsed += 0.1
-
-                if shuffled_devices:
-                    last_device_used = shuffled_devices[-1]
-
-                if self.should_stop: break
-                self.log(f"\n=== GRUPO {idx_grupo + 1} completado ===", 'success')
+                    self.log(f"[{device}] Reabriendo WhatsApp Normal con nueva cuenta...", 'info')
+                    self._run_adb_command(['-s', device, 'shell', 'am', 'start', '-n', 'com.whatsapp/.Main'], timeout=5)
+                    time.sleep(2)
 
             if self.should_stop: break
             self.log(f"\n--- FIN BUCLE {bucle_num + 1}/{num_bucles} ---", 'success')
