@@ -5,3 +5,5 @@ uiautomator2
 pytesseract
 Pillow
 pywinstyles
+requests
+pyinstaller

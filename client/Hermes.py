@@ -8081,16 +8081,23 @@ class Hermes:
             self._run_adb_command(close_args, timeout=5) # Usar la función helper, ignorar resultado
 
 # --- Main ---
-def main():
+def main(root=None):
     """Función principal: Configura CTk y abre la app principal."""
     ctk.set_appearance_mode("Dark")
     ctk.set_default_color_theme("blue")
-    root = ctk.CTk()
+
+    if root is None:
+        root = ctk.CTk()
 
     # Iniciar directamente la aplicación principal
     app = Hermes(root)
 
-    root.mainloop()
+    # Solo llamar a mainloop si somos el hilo principal y root fue creado aqui
+    # Si viene del launcher, el launcher maneja el loop o destruye el suyo
+    if __name__ == "__main__":
+        root.mainloop()
+    else:
+        root.mainloop()
 
 if __name__ == "__main__":
     main()
