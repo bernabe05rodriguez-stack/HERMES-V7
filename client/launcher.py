@@ -10,6 +10,16 @@ from tkinter import messagebox
 
 # Configuration
 API_URL = "http://localhost:8000"  # CHANGE THIS TO YOUR SERVER URL
+
+# Intentar cargar la configuración desde config.json
+if os.path.exists("config.json"):
+    try:
+        with open("config.json", "r") as f:
+            config = json.load(f)
+            API_URL = config.get("api_url", API_URL)
+    except Exception as e:
+        print(f"Error loading config.json: {e}")
+
 CURRENT_VERSION = "1.0.0"
 
 ctk.set_appearance_mode("Dark")

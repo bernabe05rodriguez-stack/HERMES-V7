@@ -24,7 +24,7 @@ if not st.session_state.admin_logged_in:
     pwd = st.text_input("Admin Password", type="password")
     if st.button("Login"):
         # Replace these with ENV vars in production
-        if user == "admin" and pwd == "admin123":
+        if user == "Bernabe" and pwd == "Selena":
             st.session_state.admin_logged_in = True
             st.rerun()
         else:
@@ -43,6 +43,11 @@ else:
             new_pass = st.text_input("Password", type="password")
             if st.button("Create User"):
                 if new_user and new_pass:
+                    # Truncate password to avoid bcrypt 72 bytes error
+                    # Using a loop to safely truncate UTF-8 strings by character until byte size is safe
+                    while len(new_pass.encode('utf-8')) > 72:
+                         new_pass = new_pass[:-1]
+
                     hashed = get_password_hash(new_pass)
                     try:
                         conn = get_db_connection()
