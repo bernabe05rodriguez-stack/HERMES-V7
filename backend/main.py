@@ -3,45 +3,65 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
 import os
+from datetime import datetime, timedelta
 from database import get_db_connection
-from models import UserLogin, UpdateInfo
-from auth import verify_password
+from models import LicenseVerification, UpdateInfo
 
 app = FastAPI()
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@app.post("/login")
-def login(user: UserLogin):
+@app.post("/verify_license")
+def verify_license(license_data: LicenseVerification):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE username = ?", (user.username,))
+    c.execute("SELECT * FROM licenses WHERE code = ?", (license_data.code,))
     row = c.fetchone()
-    conn.close()
 
     if not row:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        conn.close()
+        raise HTTPException(status_code=401, detail="Invalid license code")
 
-    if not verify_password(user.password, row["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not row["is_active"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="License is disabled")
 
-    if not row["active"]:
-        raise HTTPException(status_code=403, detail="Account is disabled")
+    # Check activation
+    if row["activated_at"]:
+        # Already activated
+        if row["hwid"] != license_data.hwid:
+            conn.close()
+            raise HTTPException(status_code=403, detail="License code used on another device")
 
-    # HWID Check
-    if row["hwid"]:
-        if row["hwid"] != user.hwid:
-            raise HTTPException(status_code=403, detail="HWID mismatch. Contact admin.")
+        # Check expiration
+        expires_at = datetime.fromisoformat(row["expires_at"])
+        if datetime.now() > expires_at:
+            conn.close()
+            raise HTTPException(status_code=403, detail="License expired")
+
+        conn.close()
+        return {
+            "message": "License valid",
+            "expires_at": row["expires_at"]
+        }
     else:
-        # First login, bind HWID
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("UPDATE users SET hwid = ? WHERE id = ?", (user.hwid, row["id"]))
+        # First activation
+        now = datetime.now()
+        expires_at = now + timedelta(days=row["duration_days"])
+
+        c.execute("""
+            UPDATE licenses
+            SET hwid = ?, activated_at = ?, expires_at = ?
+            WHERE id = ?
+        """, (license_data.hwid, now.isoformat(), expires_at.isoformat(), row["id"]))
         conn.commit()
         conn.close()
 
-    return {"message": "Login successful", "token": "dummy-token-for-now"}
+        return {
+            "message": "License activated successfully",
+            "expires_at": expires_at.isoformat()
+        }
 
 @app.get("/check_update")
 def check_update():

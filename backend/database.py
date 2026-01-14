@@ -12,15 +12,17 @@ def init_db():
     conn = get_db_connection()
     c = conn.cursor()
 
-    # Create users table
+    # Create licenses table
     c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS licenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
+            code TEXT UNIQUE NOT NULL,
             hwid TEXT,
-            active BOOLEAN DEFAULT 1,
-            expiration_date TEXT
+            duration_days INTEGER NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            activated_at TEXT,
+            expires_at TEXT,
+            is_active BOOLEAN DEFAULT 1
         )
     ''')
 
