@@ -785,7 +785,7 @@ class Hermes:
         # Copyright Text
         self.copyright_text_id = self.starfield_canvas.create_text(
             0, 0, # Se posiciona en _update_start_menu_layout
-            text="Copyright © 2026 Hermes Inc. All rights reserved.",
+            text="Copyright © 2026 Hermes Inc. Todos los derechos reservados.",
             font=('Inter', 8),
             fill=fg_color,
             anchor='center'
