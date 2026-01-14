@@ -115,13 +115,25 @@ class Launcher(ctk.CTk):
             if not url.startswith("http"):
                 url = f"{API_URL}{url}"
 
-            r = requests.get(url, stream=True)
+            # Use a longer timeout and stream=True
+            r = requests.get(url, stream=True, timeout=60)
+            r.raise_for_status() # Raise error for 4xx/5xx responses
+
+            total_size = int(r.headers.get('content-length', 0))
+            downloaded_size = 0
+
             # Use a temporary name for the new file
             new_exe_name = f"new_{self.app_exe}"
 
             with open(new_exe_name, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
+                    if chunk: # filter out keep-alive new chunks
+                        f.write(chunk)
+                        downloaded_size += len(chunk)
+
+            # Optional: Simple size check if Content-Length was provided
+            if total_size > 0 and downloaded_size != total_size:
+                raise Exception(f"Incomplete download: {downloaded_size}/{total_size} bytes")
 
             self.after(0, lambda: self.status_label.configure(text="Installing..."))
 
