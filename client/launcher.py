@@ -39,7 +39,7 @@ class Launcher(ctk.CTk):
         self.resizable(False, False)
 
         self.hwid = self.get_hwid()
-        self.token_file = "token.json"
+        self.license_file = "license.json"
 
         # Determine current executable name
         self.app_exe = os.path.basename(sys.executable) if getattr(sys, 'frozen', False) else "launcher.py"
@@ -69,13 +69,10 @@ class Launcher(ctk.CTk):
 
         self.login_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
 
-        self.user_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Username")
-        self.user_entry.pack(pady=10)
+        self.license_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Enter License Code")
+        self.license_entry.pack(pady=10)
 
-        self.pass_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Password", show="*")
-        self.pass_entry.pack(pady=10)
-
-        self.login_btn = ctk.CTkButton(self.login_frame, text="Login", command=self.do_login)
+        self.login_btn = ctk.CTkButton(self.login_frame, text="Verify & Launch", command=self.do_verify)
         self.login_btn.pack(pady=20)
 
     def start_update_check(self):
@@ -94,14 +91,14 @@ class Launcher(ctk.CTk):
                     self.after(0, lambda: self.perform_update(data["download_url"], data["filename"]))
                 else:
                     self.after(0, lambda: self.status_label.configure(text="Ready to launch"))
-                    self.after(0, self.check_token_and_login)
+                    self.after(0, self.check_license_and_launch)
             else:
                 self.after(0, lambda: self.status_label.configure(text="Server error. Offline mode?"))
-                self.after(0, self.check_token_and_login)
+                self.after(0, self.check_license_and_launch)
         except Exception as e:
             print(f"Update check failed: {e}")
             self.after(0, lambda: self.status_label.configure(text="Update check failed"))
-            self.after(0, self.check_token_and_login)
+            self.after(0, self.check_license_and_launch)
 
     def is_newer(self, v1, v2):
         # v1 is server, v2 is current
@@ -148,71 +145,70 @@ class Launcher(ctk.CTk):
             self.after(0, lambda: self.status_label.configure(text=f"Update error: {e}"))
             self.after(0, self.show_login)
 
-    def check_token_and_login(self):
-        # Check for saved token and validate it
-        if os.path.exists(self.token_file):
-            self.status_label.configure(text="Verifying session...")
-            threading.Thread(target=self._validate_token_thread, daemon=True).start()
-        else:
-            self.show_login()
+    def check_license_and_launch(self):
+        # Check for saved license
+        if os.path.exists(self.license_file):
+            try:
+                with open(self.license_file, "r") as f:
+                    data = json.load(f)
+                    code = data.get("code")
+                    if code:
+                        self.status_label.configure(text="Verifying license...")
+                        threading.Thread(target=self._verify_thread, args=(code,), daemon=True).start()
+                        return
+            except Exception:
+                pass
 
-    def _validate_token_thread(self):
-        # In a real app, you would call an API like /validate_token
-        # For now, we simulate a check. If we wanted to be strict, we'd redo /login or add a verify endpoint.
-        # Since /login returns a dummy token, we will just trust it exists for this MVP step,
-        # OR we can try to re-login silently if we had creds saved (but we only have token).
-        # Let's just proceed to launch for now as per MVP requirements, but on main thread.
-        self.after(0, self.launch_app)
+        self.show_login()
 
     def show_login(self):
         self.login_frame.pack(fill="x", pady=10)
+        self.status_label.configure(text="Please enter license code")
 
-    def do_login(self):
-        username = self.user_entry.get()
-        password = self.pass_entry.get()
-
-        if not username or not password:
-            messagebox.showerror("Error", "Please enter credentials")
+    def do_verify(self):
+        code = self.license_entry.get().strip()
+        if not code:
+            messagebox.showerror("Error", "Please enter a license code")
             return
 
-        self.status_label.configure(text="Logging in...")
-        threading.Thread(target=self._login_thread, args=(username, password), daemon=True).start()
+        self.status_label.configure(text="Verifying...")
+        threading.Thread(target=self._verify_thread, args=(code,), daemon=True).start()
 
-    def _login_thread(self, username, password):
+    def _verify_thread(self, code):
         try:
-            payload = {"username": username, "password": password, "hwid": self.hwid}
-            response = requests.post(f"{API_URL}/login", json=payload, timeout=5)
+            payload = {"code": code, "hwid": self.hwid}
+            response = requests.post(f"{API_URL}/verify_license", json=payload, timeout=5)
 
             if response.status_code == 200:
-                token = response.json().get("token")
-                with open(self.token_file, "w") as f:
-                    json.dump({"token": token}, f)
-                self.after(0, self.launch_app)
+                data = response.json()
+                # Save license if successful
+                with open(self.license_file, "w") as f:
+                    json.dump({"code": code}, f)
+
+                self.after(0, lambda: self.status_label.configure(text=f"License valid. Expires: {data.get('expires_at', '?')}"))
+                self.after(1000, self.launch_app)
             else:
-                msg = response.json().get("detail", "Unknown error")
-                self.after(0, lambda: messagebox.showerror("Login Failed", msg))
-                self.after(0, lambda: self.status_label.configure(text="Login failed"))
+                msg = response.json().get("detail", "Verification failed")
+                self.after(0, lambda: messagebox.showerror("License Error", msg))
+                self.after(0, lambda: self.status_label.configure(text="Verification failed"))
+                self.after(0, self.show_login)
         except Exception as e:
              self.after(0, lambda: messagebox.showerror("Connection Error", f"Could not connect to server: {e}"))
              self.after(0, lambda: self.status_label.configure(text="Connection error"))
+             self.after(0, self.show_login)
 
     def launch_app(self):
         self.status_label.configure(text="Launching Hermes...")
         self.login_frame.pack_forget()
 
         # Destroy launcher UI and start Hermes
-        # We need to import Hermes here to avoid circular dependencies or early init
         try:
-            # Add current directory to sys.path so we can import Hermes if not already
+            # Add current directory to sys.path
             if os.path.abspath(".") not in sys.path:
                 sys.path.append(os.path.abspath("."))
 
             if Hermes:
-                # Close launcher window
                 self.destroy()
-
-                # Run Hermes Main
-                # We call the main() function which creates its own CTk root
                 Hermes.main()
             else:
                  import Hermes as HermesLate

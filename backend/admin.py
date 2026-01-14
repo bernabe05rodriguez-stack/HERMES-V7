@@ -2,7 +2,9 @@ import streamlit as st
 import sqlite3
 import os
 import shutil
-from auth import get_password_hash
+import random
+import string
+import datetime
 
 DB_NAME = "users.db"
 UPLOAD_DIR = "uploads"
@@ -13,6 +15,15 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def generate_code(length=12):
+    """Generates a random license code like XXXX-XXXX-XXXX"""
+    chars = string.ascii_uppercase + string.digits
+    part1 = ''.join(random.choices(chars, k=4))
+    part2 = ''.join(random.choices(chars, k=4))
+    part3 = ''.join(random.choices(chars, k=4))
+    return f"{part1}-{part2}-{part3}"
+
+st.set_page_config(page_title="Hermes V7 Admin", layout="wide")
 st.title("Hermes V7 - Admin Panel")
 
 # Simple Admin Auth
@@ -20,70 +31,116 @@ if "admin_logged_in" not in st.session_state:
     st.session_state.admin_logged_in = False
 
 if not st.session_state.admin_logged_in:
-    user = st.text_input("Admin Username")
-    pwd = st.text_input("Admin Password", type="password")
-    if st.button("Login"):
-        # Replace these with ENV vars in production
-        if user == "Bernabe" and pwd == "Selena":
-            st.session_state.admin_logged_in = True
-            st.rerun()
-        else:
-            st.error("Invalid admin credentials")
+    col1, col2, col3 = st.columns([1,1,1])
+    with col2:
+        user = st.text_input("Admin Username")
+        pwd = st.text_input("Admin Password", type="password")
+        if st.button("Login"):
+            # Replace these with ENV vars in production
+            if user == "Bernabe" and pwd == "Selena":
+                st.session_state.admin_logged_in = True
+                st.rerun()
+            else:
+                st.error("Invalid admin credentials")
 else:
     st.sidebar.button("Logout", on_click=lambda: st.session_state.update({"admin_logged_in": False}))
 
-    tab1, tab2 = st.tabs(["Users", "Updates"])
+    tab1, tab2 = st.tabs(["License Management", "Software Updates"])
 
     with tab1:
-        st.header("User Management")
+        st.header("License Management")
 
-        # Add User
-        with st.expander("Add New User"):
-            new_user = st.text_input("Username")
-            new_pass = st.text_input("Password", type="password")
-            if st.button("Create User"):
-                if new_user and new_pass:
-                    # Truncate password to avoid bcrypt 72 bytes error
-                    # Using a loop to safely truncate UTF-8 strings by character until byte size is safe
-                    while len(new_pass.encode('utf-8')) > 72:
-                         new_pass = new_pass[:-1]
+        # Generate License
+        with st.expander("Generate New License", expanded=True):
+            col_gen1, col_gen2, col_gen3 = st.columns(3)
+            with col_gen1:
+                duration = st.number_input("Duration (Days)", min_value=1, value=30)
+            with col_gen2:
+                num_licenses = st.number_input("Quantity", min_value=1, value=1)
 
-                    hashed = get_password_hash(new_pass)
+            if st.button("Generate Code(s)"):
+                conn = get_db_connection()
+                generated = []
+                for _ in range(num_licenses):
+                    code = generate_code()
                     try:
-                        conn = get_db_connection()
-                        c = conn.cursor()
-                        c.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (new_user, hashed))
-                        conn.commit()
-                        conn.close()
-                        st.success(f"User {new_user} created!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+                        conn.execute(
+                            "INSERT INTO licenses (code, duration_days) VALUES (?, ?)",
+                            (code, duration)
+                        )
+                        generated.append(code)
+                    except sqlite3.IntegrityError:
+                        pass # Retrying logic could go here but unlikely collision
+                conn.commit()
+                conn.close()
+                st.success(f"Generated {len(generated)} license(s)!")
+                for g in generated:
+                    st.code(g, language=None)
 
-        # List Users
+        # List Licenses
+        st.subheader("Existing Licenses")
+
+        # Filter options
+        filter_status = st.selectbox("Filter by Status", ["All", "Active", "Expired", "Unused"])
+
         conn = get_db_connection()
-        users = conn.execute("SELECT * FROM users").fetchall()
+        query = "SELECT * FROM licenses"
+        params = []
+
+        # We handle filtering in python for simplicity or basic SQL
+        # For simplicity, let's fetch all and filter in python if list isn't huge
+        # or do basic SQL tweaks.
+
+        licenses = conn.execute(query).fetchall()
         conn.close()
 
-        for user in users:
-            col1, col2, col3, col4, col5 = st.columns(5)
-            col1.write(user["username"])
-            col2.write(f"HWID: {user['hwid'] if user['hwid'] else 'None'}")
-            col3.write(f"Active: {bool(user['active'])}")
+        # Display table
+        data = []
+        for lic in licenses:
+            status = "Unused"
+            if lic["activated_at"]:
+                expires = datetime.datetime.fromisoformat(lic["expires_at"])
+                if datetime.datetime.now() > expires:
+                    status = "Expired"
+                else:
+                    status = "Active"
 
-            if col4.button("Toggle Active", key=f"act_{user['id']}"):
-                conn = get_db_connection()
-                conn.execute("UPDATE users SET active = NOT active WHERE id = ?", (user["id"],))
-                conn.commit()
-                conn.close()
-                st.rerun()
+            if not lic["is_active"]:
+                status = "Disabled"
 
-            if col5.button("Reset HWID", key=f"rst_{user['id']}"):
-                conn = get_db_connection()
-                conn.execute("UPDATE users SET hwid = NULL WHERE id = ?", (user["id"],))
-                conn.commit()
-                conn.close()
-                st.rerun()
+            if filter_status != "All" and status != filter_status:
+                continue
+
+            data.append({
+                "ID": lic["id"],
+                "Code": lic["code"],
+                "Duration": f"{lic['duration_days']} Days",
+                "Status": status,
+                "HWID": lic["hwid"] if lic["hwid"] else "-",
+                "Expires": lic["expires_at"] if lic["expires_at"] else "-",
+                "is_active_db": lic["is_active"]
+            })
+
+        if data:
+            # We construct a custom grid for actions
+            for row in data:
+                c1, c2, c3, c4, c5, c6, c7 = st.columns([0.5, 2, 1, 1, 2, 2, 1])
+                c1.write(row["ID"])
+                c2.code(row["Code"])
+                c3.write(row["Duration"])
+                c4.write(row["Status"])
+                c5.write(row["HWID"])
+                c6.write(row["Expires"])
+
+                # Delete Button
+                if c7.button("🗑️", key=f"del_{row['ID']}"):
+                     conn = get_db_connection()
+                     conn.execute("DELETE FROM licenses WHERE id = ?", (row["ID"],))
+                     conn.commit()
+                     conn.close()
+                     st.rerun()
+        else:
+            st.info("No licenses found.")
 
     with tab2:
         st.header("Software Updates")
