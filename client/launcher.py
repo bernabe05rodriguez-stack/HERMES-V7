@@ -9,9 +9,9 @@ import json
 from tkinter import messagebox
 
 # Configuration
-API_URL = "http://localhost:8000"  # CHANGE THIS TO YOUR SERVER URL
+API_URL = "https://elhermes.site"  # PROD URL
 
-# Intentar cargar la configuración desde config.json
+# Intentar cargar la configuración desde config.json (Opcional, para override)
 if os.path.exists("config.json"):
     try:
         with open("config.json", "r") as f:
