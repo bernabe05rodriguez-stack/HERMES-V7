@@ -1,55 +1,41 @@
-GUÍA PARA COMPARTIR EL PROGRAMA "HERMES"
-=========================================================
+INSTRUCCIONES PARA COMPARTIR EL PROGRAMA
 
-Esta guía explica cómo generar el archivo ejecutable (.exe) y cómo configurarlo para que tus amigos puedan usarlo conectándose a tu servidor.
+Para que tu amigo pueda usar el programa desde otro país, sigue estos pasos:
 
----------------------------------------------------------
-PASO 1: COMPILAR EL EJECUTABLE (.EXE)
----------------------------------------------------------
-1. Abre la carpeta `client` dentro del proyecto.
-2. Haz doble clic en el archivo `build_exe.bat`.
-3. Se abrirá una ventana negra que ejecutará el proceso de compilación. Espera a que termine.
-4. Al finalizar, verás una nueva carpeta llamada `dist`.
-5. Dentro de `dist` encontrarás el archivo `HermesV7.exe`. Este es el programa principal.
+1.  **Configura tu Servidor (Backend):**
+    *   Necesitas que tu servidor (la carpeta `backend/`) esté accesible desde Internet.
+    *   Si tienes un VPS (servidor virtual), sube la carpeta `backend/` y ejecútalo (puedes usar Docker o `start.sh`).
+    *   Si no tienes servidor, puedes usar herramientas temporales como `ngrok` para probar, o contratar un hosting barato que soporte Python/Docker.
+    *   Anota la dirección IP pública o el dominio de tu servidor (ej: `http://mi-servidor.com:8000` o `http://123.45.67.89:8000`).
 
----------------------------------------------------------
-PASO 2: PREPARAR LOS ARCHIVOS PARA COMPARTIR
----------------------------------------------------------
-Para que el programa funcione en la computadora de tu amigo, necesitas enviarle dos cosas:
+2.  **Genera la Licencia:**
+    *   Entra a tu Panel de Administración (ej: `http://localhost:8501` si lo corres local, o la IP de tu servidor).
+    *   Ve a la pestaña "License Management".
+    *   Genera un código de licencia para tu amigo (ej: 30 días).
+    *   Copia el código (ej: `ABCD-1234-EFGH`).
 
-1. El archivo `HermesV7.exe` (que acabas de crear).
-2. El archivo `config.json` (que está en la carpeta `client`).
+3.  **Compila el Programa (Cliente):**
+    *   En tu computadora, ejecuta el archivo `build_exe.bat` (doble clic).
+    *   Esto creará una carpeta `dist/` con el archivo `HermesV7.exe`.
 
----------------------------------------------------------
-PASO 3: CONFIGURAR LA DIRECCIÓN IP (IMPORTANTE)
----------------------------------------------------------
-El archivo `config.json` le dice al programa dónde buscar tu servidor.
+4.  **Prepara los Archivos para tu Amigo:**
+    *   Crea una carpeta nueva para enviársela.
+    *   Copia el archivo `HermesV7.exe` (de la carpeta `dist/`) a esa nueva carpeta.
+    *   Copia el archivo `config.json` (está en la carpeta `client/`).
 
-- Si tu amigo está en tu misma red WiFi:
-  1. Averigua tu IP local (abre CMD y escribe `ipconfig`, busca "Dirección IPv4", ej: 192.168.1.X).
-  2. Abre el archivo `config.json` con el Bloc de notas.
-  3. Cambia "http://localhost:8000" por "http://TU_IP_LOCAL:8000" (ej: "http://192.168.1.15:8000").
-  4. Guarda el archivo.
+5.  **Configura la Conexión Remota:**
+    *   Abre el archivo `config.json` que acabas de copiar con el Bloc de Notas.
+    *   Cambia la línea que dice `"api_url": "http://localhost:8000"` por la dirección de TU servidor (paso 1).
+        *   Ejemplo: `"api_url": "http://123.45.67.89:8000"`
+    *   Guarda el archivo.
 
-- Si tu amigo está en otra casa (Internet):
-  1. Necesitas tu IP Pública (puedes verla en sitios como cual-es-mi-ip.net).
-  2. Debes asegurarte de tener el puerto 8000 abierto en tu router (Port Forwarding) apuntando a tu PC.
-  3. Edita el `config.json` y pon tu IP Pública: "http://TU_IP_PUBLICA:8000".
+6.  **Enviar:**
+    *   Comprime la carpeta (clic derecho -> Enviar a -> Carpeta comprimida en zip).
+    *   Envíale ese archivo ZIP a tu amigo.
+    *   Pásale también el Código de Licencia que generaste.
 
----------------------------------------------------------
-PASO 4: ENVIAR A TUS AMIGOS
----------------------------------------------------------
-1. Crea una carpeta nueva (ej: "Hermes_Para_Amigo").
-2. Copia dentro el archivo `HermesV7.exe`.
-3. Copia dentro el archivo `config.json` (ya editado con la IP correcta).
-4. Comprime esa carpeta en un archivo ZIP (Click derecho -> Enviar a -> Carpeta comprimida).
-5. Envía ese ZIP a tu amigo.
-
-Tu amigo solo tiene que descomprimirlo y ejecutar `HermesV7.exe`.
-
----------------------------------------------------------
-NOTA SOBRE EL USUARIO ADMIN
----------------------------------------------------------
-Recuerda que ahora las credenciales por defecto del panel de administración son:
-Usuario: Bernabe
-Contraseña: Selena
+7.  **Lo que debe hacer tu amigo:**
+    *   Descomprimir el ZIP.
+    *   Abrir `HermesV7.exe`.
+    *   El programa le pedirá el Código.
+    *   Al ingresarlo, el programa verificará con tu servidor y se abrirá.
